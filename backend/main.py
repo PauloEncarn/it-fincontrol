@@ -10,33 +10,38 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy import create_engine, Column, Integer, String, Date, Float, ForeignKey, DateTime
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session, relationship
+from sqlalchemy.orm import sessionmaker, Session, relationship, contains_eager
 
-# --- CONFIGURAÇÃO DO BANCO (SQLite Local) ---
-SQLALCHEMY_DATABASE_URL = "sqlite:///./financeiro.db"
+# ⚠️ SUBSTITUA 'SUA_SENHA_AQUI' PELA SENHA REAL DO SUPABASE
+# O link abaixo já está no formato correto (postgresql://... porta 6543)
+SQLALCHEMY_DATABASE_URL = "postgresql://postgres.xadqglbzkqqohyzefqdo:ierkiaHjqzgnjvqB@aws-1-us-east-2.pooler.supabase.com:6543/postgres"
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+# Cria o motor de conexão (Engine)
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
+
+# Cria a sessão
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
-
 # --- MODELOS (TABELAS) ---
 
 class FilialDB(Base):
     __tablename__ = "filiais"
+    
     id = Column(Integer, primary_key=True, index=True)
     codigo = Column(String)
     nome_fantasia = Column(String)
+    
     lancamentos = relationship("LancamentoDB", back_populates="filial")
 
 class FornecedorDB(Base):
     __tablename__ = "fornecedores"
+    
     id = Column(Integer, primary_key=True, index=True)
     nome_empresa = Column(String)
     lista_cnpjs = Column(String) 
     lista_contratos = Column(String)
     lista_centro_custos = Column(String)
     
-    # Novos campos padrão para facilitar o lançamento
     padrao_descricao_servico = Column(String, nullable=True)
     padrao_servico_protheus = Column(String, nullable=True)
     
@@ -44,32 +49,32 @@ class FornecedorDB(Base):
 
 class LancamentoDB(Base):
     __tablename__ = "lancamentos"
+    
     id = Column(Integer, primary_key=True, index=True)
     
-    # Chaves
+    # Chaves Estrangeiras
     fornecedor_id = Column(Integer, ForeignKey("fornecedores.id"))
     filial_id = Column(Integer, ForeignKey("filiais.id"))
     
-    # Identificação Selecionada
+    # Identificação Escolhida
     cnpj_usado = Column(String)
     contrato_usado = Column(String)
     centro_custo_usado = Column(String)
     
-    # Dados da Nota
+    # Dados Financeiros
     numero_nota = Column(String)
     serie = Column(String, default="U")
     valor = Column(Float)
     
     # Datas
-    data_emissao = Column(Date)
+    data_envio = Column(Date, nullable=True)
     data_vencimento = Column(Date)
-    data_recebimento = Column(Date, nullable=True)
     
     # Detalhes
     descricao_servico = Column(String, nullable=True)
     servico_protheus = Column(String, nullable=True)
     
-    # Controle T.I.
+    # Controle
     numero_medicao = Column(String, nullable=True)
     numero_pedido = Column(String, nullable=True)
     solicitacao_fluig = Column(String, nullable=True)
@@ -83,13 +88,14 @@ class LancamentoDB(Base):
     # Auditoria
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
+    # Relacionamentos
     fornecedor = relationship("FornecedorDB", back_populates="lancamentos")
     filial = relationship("FilialDB", back_populates="lancamentos")
 
 # Cria as tabelas
 Base.metadata.create_all(bind=engine)
 
-# --- SCHEMAS (VALIDAÇÃO) ---
+# --- SCHEMAS (VALIDAÇÃO DE DADOS) ---
 
 class LancamentoCreate(BaseModel):
     fornecedor_id: int
@@ -100,9 +106,8 @@ class LancamentoCreate(BaseModel):
     numero_nota: str
     serie: str = "U"
     valor: float
-    data_emissao: date
+    data_envio: Optional[date] = None
     data_vencimento: date
-    data_recebimento: Optional[date] = None
     descricao_servico: Optional[str] = None
     servico_protheus: Optional[str] = None
     numero_medicao: Optional[str] = None
@@ -120,12 +125,14 @@ class FilialResponse(BaseModel):
     id: int
     codigo: str
     nome_fantasia: str
+    
     class Config:
         orm_mode = True
 
 class LancamentoResponse(LancamentoCreate):
     id: int
     updated_at: Optional[datetime]
+    
     class Config:
         orm_mode = True
 
@@ -138,6 +145,7 @@ class FornecedorResponse(BaseModel):
     padrao_descricao_servico: Optional[str]
     padrao_servico_protheus: Optional[str]
     lancamentos: List[LancamentoResponse] = []
+    
     class Config:
         orm_mode = True
 
@@ -145,7 +153,7 @@ class FornecedorResponse(BaseModel):
 
 app = FastAPI()
 
-# Configuração de Uploads
+# Configura pasta de uploads
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
@@ -164,7 +172,7 @@ def get_db():
         db.close()
 
 def sanitize_filename(name: str) -> str:
-    # Remove caracteres inválidos para pastas
+    # Limpa caracteres especiais para evitar erro ao criar pasta
     return re.sub(r'[<>:"/\\|?*]', '_', str(name)).strip()
 
 # --- ROTAS ---
@@ -180,7 +188,7 @@ async def upload_file(
     safe_nota = sanitize_filename(nota)
     safe_venc = sanitize_filename(vencimento)
     
-    # Estrutura: uploads/FORNECEDOR/NOTA_VENCIMENTO/arquivo.ext
+    # Cria pasta: uploads/NOME_FORNECEDOR/NOTA_VENCIMENTO
     folder_path = f"uploads/{safe_fornecedor}/{safe_nota}_{safe_venc}"
     os.makedirs(folder_path, exist_ok=True)
     
@@ -194,37 +202,9 @@ async def upload_file(
 @app.get("/criar-dados-teste")
 def criar_teste(db: Session = Depends(get_db)):
     if db.query(FilialDB).first():
-        return {"msg": "Dados existem"}
+        return {"msg": "Dados já existem"}
     
-    # Filiais
-    db.add_all([
-        FilialDB(codigo="01", nome_fantasia="MATRIZ"),
-        FilialDB(codigo="02", nome_fantasia="FILIAL SP")
-    ])
-    
-    # Fornecedores com dados padrão
-    forn1 = FornecedorDB(
-        nome_empresa="DELL COMPUTADORES", 
-        lista_cnpjs="00.123.456/0001-00", 
-        lista_contratos="CTR-DELL-2025", 
-        lista_centro_custos="1.01 - TI INFRA",
-        padrao_descricao_servico="LOCAÇÃO DE NOTEBOOKS",
-        padrao_servico_protheus="001 - LOCAÇÃO HARDWARE"
-    )
-    
-    forn2 = FornecedorDB(
-        nome_empresa="G7 TECNOLOGIA", 
-        lista_cnpjs="99.888.777/0001-11", 
-        lista_contratos="CTR-G7-DBA", 
-        lista_centro_custos="1.05 - SISTEMAS",
-        padrao_descricao_servico="DBA ORACLE E SUPORTE SIMPLIVITY",
-        padrao_servico_protheus="005 - SUPORTE BANCO DE DADOS"
-    )
-    
-    db.add(forn1)
-    db.add(forn2)
-    db.commit()
-    return {"msg": "Dados criados!"}
+    return {"msg": "Banco limpo. Use o script de importação ou SQL."}
 
 @app.get("/filiais/", response_model=List[FilialResponse])
 def ler_filiais(db: Session = Depends(get_db)):
@@ -236,9 +216,18 @@ def ler_fornecedores(db: Session = Depends(get_db)):
 
 @app.get("/dados-agrupados/", response_model=List[FornecedorResponse])
 def dashboard(filial_id: Optional[int] = None, db: Session = Depends(get_db)):
-    query = db.query(FornecedorDB)
+    # Faz o JOIN inicial para garantir que pegamos fornecedores que têm lançamentos
+    query = db.query(FornecedorDB).join(LancamentoDB)
+    
     if filial_id:
-        query = query.join(LancamentoDB).filter(LancamentoDB.filial_id == filial_id)
+        # Filtra os lançamentos pela filial específica
+        query = query.filter(LancamentoDB.filial_id == filial_id)
+        
+        # O contains_eager diz ao SQLAlchemy: 
+        # "Use os dados que você já filtrou no JOIN acima para preencher a lista de lançamentos"
+        # Isso evita que ele traga notas de outras filiais para o mesmo fornecedor.
+        query = query.options(contains_eager(FornecedorDB.lancamentos))
+    
     return query.all()
 
 @app.post("/lancamentos/")
@@ -255,6 +244,7 @@ def criar(item: LancamentoCreate, db: Session = Depends(get_db)):
 @app.put("/lancamentos/{id}")
 def editar(id: int, item: LancamentoCreate, db: Session = Depends(get_db)):
     db_item = db.query(LancamentoDB).filter(LancamentoDB.id == id).first()
+    
     if not db_item:
         raise HTTPException(status_code=404, detail="Não encontrado")
     
@@ -268,6 +258,7 @@ def editar(id: int, item: LancamentoCreate, db: Session = Depends(get_db)):
 @app.patch("/lancamentos/{id}/status")
 def status(id: int, st: StatusUpdate, db: Session = Depends(get_db)):
     db_item = db.query(LancamentoDB).filter(LancamentoDB.id == id).first()
+    
     if not db_item:
         raise HTTPException(status_code=404, detail="Não encontrado")
     
