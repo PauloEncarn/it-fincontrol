@@ -30,7 +30,7 @@ const LoginScreen = ({ onLogin }) => {
     <div className="min-h-screen bg-gradient-to-br from-[#1A2A6C] to-[#2196F3] flex items-center justify-center p-4">
       <div className="bg-white/95 backdrop-blur-xl p-8 rounded-3xl shadow-2xl w-full max-w-md border border-white/50 text-center">
         <div className="bg-[#F9C531] w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg text-[#1A2A6C]"><Server size={32}/></div>
-        <h1 className="text-3xl font-black text-[#1A2A6C] mb-8">CICOPAL <span className="font-light">FINANCEIRO</span></h1>
+        <h1 className="text-3xl font-black text-[#1A2A6C] mb-8">CICOPAL <span className="font-light">GESTÃO DE NOTAS</span></h1>
         <form onSubmit={handleSubmit} className="space-y-6">
           <input className={INPUT_STYLE} value={username} onChange={e => setUsername(e.target.value)} placeholder="Usuário" autoFocus/>
           <input type="password" className={INPUT_STYLE} value={password} onChange={e => setPassword(e.target.value)} placeholder="Senha"/>
