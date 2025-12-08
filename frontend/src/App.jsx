@@ -7,7 +7,7 @@ import {
   UploadCloud, FileText, Copy, Edit2, Paperclip, ClipboardList, Loader2, ArrowRight, Building, Users, LogOut, UserPlus, Lock, Trash2, Save, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+const API_URL = (import.meta.env.VITE_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
 
 const CORES = { amareloSnack: '#F9C531', azulProfundo: '#1A2A6C', azulVibrante: '#2196F3', vermelhoCrocante: '#D62828', laranjaDoce: '#F77F00' };
 const CLEAN_PANEL = "bg-white/95 backdrop-blur-sm border border-white/50 shadow-xl rounded-2xl";
