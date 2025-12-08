@@ -4,11 +4,13 @@ dist/
 .env
 .DS_Store
 
+
 # --- Backend (Python) ---
 __pycache__/
 *.py[cod]
 venv/
 .env
+conexao.txt
 
 # --- Banco de Dados Local ---
 *.db
