@@ -14,6 +14,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session, relationship, contains_eager, joinedload
 from passlib.context import CryptContext
 from jose import JWTError, jwt
+from supabase import create_client, Client
 
 # --- CONFIGURAÇÃO DO BANCO DE DADOS (SEU LINK CORRETO) ---
 SQLALCHEMY_DATABASE_URL = "postgresql://postgres.xadqglbzkqqohyzefqdo:ierkiaHjqzgnjvqB@aws-1-us-east-2.pooler.supabase.com:6543/postgres"
@@ -21,6 +22,17 @@ SQLALCHEMY_DATABASE_URL = "postgresql://postgres.xadqglbzkqqohyzefqdo:ierkiaHjqz
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+# --- CONFIGURAÇÃO DO STORAGE (SUPABASE) ---
+
+# 1. URL DO PROJETO (Já preenchi baseado no seu banco)
+SUPABASE_URL = "https://xadqglbzkqqohyzefqdo.supabase.co"
+
+# 2. CHAVE PÚBLICA (Cole aquela string gigante 'eyJ...' aqui dentro das aspas)
+SUPABASE_KEY = "sb_secret_IBkn6RyHjrvH4IRsbEWXrQ_AU6KC08R"
+
+# Inicializa o cliente para Uploads
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # --- SEGURANÇA ---
 SECRET_KEY = "SEGREDO_SUPER_SECRETO_DA_CICOPAL"
@@ -66,30 +78,38 @@ class LancamentoDB(Base):
     id = Column(Integer, primary_key=True, index=True)
     fornecedor_id = Column(Integer, ForeignKey("fornecedores.id"))
     filial_id = Column(Integer, ForeignKey("filiais.id"))
+    
     cnpj_usado = Column(String)
     contrato_usado = Column(String)
     centro_custo_usado = Column(String)
+    
     numero_nota = Column(String)
     serie = Column(String, default="U")
     valor = Column(Float)
+    
     data_envio = Column(Date, nullable=True)
     data_vencimento = Column(Date)
+    
     descricao_servico = Column(String, nullable=True)
     servico_protheus = Column(String, nullable=True)
+    
     numero_medicao = Column(String, nullable=True)
     numero_pedido = Column(String, nullable=True)
     solicitacao_fluig = Column(String, nullable=True)
     observacao = Column(String, nullable=True)
+    
     status_pagamento = Column(String, default="Pendente Lançamento")
     arquivo_nota = Column(String, nullable=True)
     arquivo_boleto = Column(String, nullable=True)
+    
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
     fornecedor = relationship("FornecedorDB", back_populates="lancamentos")
     filial = relationship("FilialDB", back_populates="lancamentos")
 
 Base.metadata.create_all(bind=engine)
 
-# --- SCHEMAS (FORMATADOS CORRETAMENTE) ---
+# --- SCHEMAS ---
 
 class Token(BaseModel):
     access_token: str
@@ -127,7 +147,6 @@ class FornecedorCreate(BaseModel):
 class StatusUpdate(BaseModel):
     status: str
 
-# Schema expandido para evitar erro
 class LancamentoCreate(BaseModel):
     fornecedor_id: int
     filial_id: int
@@ -185,8 +204,7 @@ class FornecedorResponse(BaseModel):
 # --- API ---
 
 app = FastAPI()
-os.makedirs("uploads", exist_ok=True)
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+# Não montamos mais static files locais, pois vem do Supabase
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 def get_db():
@@ -199,23 +217,29 @@ def get_db():
 def sanitize_filename(name: str) -> str:
     return re.sub(r'[<>:"/\\|?*]', '_', str(name)).strip()
 
-def verify_password(p, h):
-    return pwd_context.verify(p, h)
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
 
-def get_password_hash(p):
-    return pwd_context.hash(p)
+def get_password_hash(password):
+    return pwd_context.hash(password)
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED)
+            raise credentials_exception
     except JWTError:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED)
+        raise credentials_exception
+    
     user = db.query(UsuarioDB).filter(UsuarioDB.username == username).first()
     if user is None:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED)
+        raise credentials_exception
     return user
 
 # --- ROTAS ---
@@ -224,21 +248,32 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(UsuarioDB).filter(UsuarioDB.username == form_data.username).first()
     if not user or not verify_password(form_data.password, user.password_hash):
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED)
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
     return {"access_token": jwt.encode({"sub": user.username}, SECRET_KEY, algorithm=ALGORITHM), "token_type": "bearer"}
 
 @app.post("/usuarios/", response_model=UsuarioResponse)
 def create_user(user: UsuarioCreate, db: Session = Depends(get_db)):
     if db.query(UsuarioDB).filter(UsuarioDB.username == user.username).first():
-        raise HTTPException(400, "Username existe")
-    db.add(UsuarioDB(username=user.username, password_hash=get_password_hash(user.password), nome_completo=user.nome_completo, cpf=user.cpf, setor=user.setor, cargo=user.cargo))
+        raise HTTPException(status_code=400, detail="Username já existe")
+    
+    db_item = UsuarioDB(
+        username=user.username,
+        password_hash=get_password_hash(user.password),
+        nome_completo=user.nome_completo,
+        cpf=user.cpf,
+        setor=user.setor,
+        cargo=user.cargo
+    )
+    db.add(db_item)
     db.commit()
-    return db.query(UsuarioDB).filter(UsuarioDB.username == user.username).first()
+    db.refresh(db_item)
+    return db_item
 
 @app.get("/usuarios/", response_model=List[UsuarioResponse])
 def read_users(db: Session = Depends(get_db), current_user: UsuarioDB = Depends(get_current_user)):
     return db.query(UsuarioDB).all()
 
+# --- UPLOAD PARA SUPABASE ---
 @app.post("/upload/")
 async def upload_file(
     file: UploadFile = File(...),
@@ -250,15 +285,29 @@ async def upload_file(
         safe_forn = sanitize_filename(fornecedor)
         safe_nt = sanitize_filename(nota)
         safe_venc = sanitize_filename(vencimento)
-        folder = f"uploads/{safe_forn}/{safe_nt}_{safe_venc}"
-        os.makedirs(folder, exist_ok=True)
-        loc = f"{folder}/{file.filename}"
+        
+        # Cria nome único: uploads/Fornecedor/Nota_Venc_NomeArquivo
+        file_path = f"{safe_forn}/{safe_nt}_{safe_venc}_{sanitize_filename(file.filename)}"
+        
+        # Lê o arquivo
         content = await file.read()
-        with open(loc, "wb+") as f:
-            f.write(content)
-        return {"path": loc}
+        
+        # Envia para o Bucket 'notas'
+        # 'upsert': 'true' substitui se já existir
+        supabase.storage.from_("notas-e-boletos").upload(
+            file_path, 
+            content, 
+            {"content-type": file.content_type, "upsert": "true"}
+        )
+        
+        # Pega a URL pública
+        public_url = supabase.storage.from_("notas-e-boletos").get_public_url(file_path)
+        
+        return {"path": public_url}
+        
     except Exception as e:
-        raise HTTPException(500, str(e))
+        print(f"Erro Upload: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro no Supabase: {str(e)}")
 
 @app.get("/filiais/", response_model=List[FilialResponse])
 def ler_filiais(db: Session = Depends(get_db), user: UsuarioDB = Depends(get_current_user)):
@@ -276,8 +325,8 @@ def criar_filial(item: FilialCreate, db: Session = Depends(get_db), user: Usuari
 def editar_filial(id: int, item: FilialCreate, db: Session = Depends(get_db), user: UsuarioDB = Depends(get_current_user)):
     db_item = db.query(FilialDB).filter(FilialDB.id == id).first()
     if not db_item:
-        raise HTTPException(404)
-    for k,v in item.dict().items():
+        raise HTTPException(status_code=404, detail="Filial não encontrada")
+    for k, v in item.dict().items():
         setattr(db_item, k, v)
     db.commit()
     db.refresh(db_item)
@@ -305,8 +354,8 @@ def criar_fornecedor(item: FornecedorCreate, db: Session = Depends(get_db), user
 def editar_fornecedor(id: int, item: FornecedorCreate, db: Session = Depends(get_db), user: UsuarioDB = Depends(get_current_user)):
     db_item = db.query(FornecedorDB).filter(FornecedorDB.id == id).first()
     if not db_item:
-        raise HTTPException(404)
-    for k,v in item.dict().items():
+        raise HTTPException(status_code=404, detail="Fornecedor não encontrado")
+    for k, v in item.dict().items():
         setattr(db_item, k, v)
     db.commit()
     db.refresh(db_item)
@@ -318,7 +367,6 @@ def deletar_fornecedor(id: int, db: Session = Depends(get_db), user: UsuarioDB =
     db.commit()
     return {"ok": True}
 
-# --- DASHBOARD COM FILTROS DE DATA ---
 @app.get("/dados-agrupados/", response_model=List[FornecedorResponse])
 def dashboard(
     filial_id: Optional[int] = None, 
@@ -337,6 +385,7 @@ def dashboard(
         query = query.filter(extract('year', LancamentoDB.data_vencimento) == ano)
     
     query = query.options(contains_eager(FornecedorDB.lancamentos).joinedload(LancamentoDB.filial))
+    
     return query.all()
 
 @app.post("/lancamentos/")
@@ -353,7 +402,7 @@ def criar(item: LancamentoCreate, db: Session = Depends(get_db), user: UsuarioDB
 def editar(id: int, item: LancamentoCreate, db: Session = Depends(get_db), user: UsuarioDB = Depends(get_current_user)):
     db_item = db.query(LancamentoDB).filter(LancamentoDB.id == id).first()
     if not db_item:
-        raise HTTPException(404)
+        raise HTTPException(status_code=404, detail="Não encontrado")
     for k, v in item.dict().items():
         setattr(db_item, k, v)
     db.commit()
@@ -364,7 +413,7 @@ def editar(id: int, item: LancamentoCreate, db: Session = Depends(get_db), user:
 def atualizar_status(id: int, st: StatusUpdate, db: Session = Depends(get_db), user: UsuarioDB = Depends(get_current_user)):
     db_item = db.query(LancamentoDB).filter(LancamentoDB.id == id).first()
     if not db_item:
-        raise HTTPException(404)
+        raise HTTPException(status_code=404, detail="Não encontrado")
     db_item.status_pagamento = st.status
     db.commit()
     db.refresh(db_item)
