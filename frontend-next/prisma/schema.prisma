@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model filiais {
+  id            Int           @id @default(autoincrement())
+  codigo        String?       @unique @db.VarChar
+  nome_fantasia String?       @db.VarChar
+  lancamentos   lancamentos[]
+
+  @@index([id], map: "ix_filiais_id")
+}
+
+model fornecedores {
+  id                       Int           @id @default(autoincrement())
+  nome_empresa             String?       @unique @db.VarChar
+  lista_cnpjs              String?       @db.VarChar
+  lista_contratos          String?       @db.VarChar
+  lista_centro_custos      String?       @db.VarChar
+  padrao_descricao_servico String?       @db.VarChar
+  padrao_servico_protheus  String?       @db.VarChar
+  lancamentos              lancamentos[]
+
+  @@index([id], map: "ix_fornecedores_id")
+}
+
+model lancamentos {
+  id                 Int           @id @default(autoincrement())
+  fornecedor_id      Int?
+  filial_id          Int?
+  cnpj_usado         String?       @db.VarChar
+  contrato_usado     String?       @db.VarChar
+  centro_custo_usado String?       @db.VarChar
+  numero_nota        String?       @db.VarChar
+  serie              String?       @db.VarChar
+  valor              Float?
+  data_envio         DateTime?     @db.Date
+  data_vencimento    DateTime?     @db.Date
+  descricao_servico  String?       @db.VarChar
+  servico_protheus   String?       @db.VarChar
+  numero_medicao     String?       @db.VarChar
+  numero_pedido      String?       @db.VarChar
+  solicitacao_fluig  String?       @db.VarChar
+  observacao         String?       @db.VarChar
+  status_pagamento   String?       @db.VarChar
+  arquivo_nota       String?       @db.VarChar
+  arquivo_boleto     String?       @db.VarChar
+  updated_at         DateTime?     @db.Timestamp(6)
+  filial            filiais?      @relation(fields: [filial_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  fornecedor       fornecedores? @relation(fields: [fornecedor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([id], map: "ix_lancamentos_id")
+}
+
+model usuarios {
+  id            Int       @id @default(autoincrement())
+  username      String    @unique @db.VarChar
+  password_hash String    @db.VarChar
+  nome_completo String?   @db.VarChar
+  cpf           String?   @db.VarChar
+  setor         String?   @db.VarChar
+  cargo         String?   @db.VarChar
+  created_at    DateTime? @default(now()) @db.Timestamp(6)
+}
