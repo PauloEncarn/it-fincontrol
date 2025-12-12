@@ -83,7 +83,7 @@ const LoginScreen = ({ onLogin, addToast }) => {
         <div className="flex justify-center mb-8">
             <Image src="/logo-cicopal.png" alt="Cicopal" width={200} height={80} className="h-16 w-auto object-contain" priority onError={(e) => e.target.style.display = 'none'} />
         </div>
-        <h1 className="text-xl font-bold text-center text-slate-700 mb-8 tracking-tight uppercase">Financeiro <span className="text-[#1E22A8]">TI</span></h1>
+        <h1 className="text-xl font-bold text-center text-slate-700 mb-8 tracking-tight uppercase">Gestão de Notas <span className="text-[#1E22A8]">TI</span></h1>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="text-left"><label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Usuário</label><input className="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg text-slate-800 font-bold focus:bg-white focus:border-[#1E22A8] outline-none transition-all" value={username} onChange={e => setUsername(e.target.value)} autoFocus/></div>
           <div className="text-left"><label className="text-[10px] font-bold text-slate-400 uppercase ml-1 mb-1 block">Senha</label><input type="password" className="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg text-slate-800 font-bold focus:bg-white focus:border-[#1E22A8] outline-none transition-all" value={password} onChange={e => setPassword(e.target.value)}/></div>
@@ -268,7 +268,7 @@ function DashboardContent() {
             <button onClick={() => setIsMenuOpen(true)} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"><Menu size={24}/></button>
             <div className="text-white flex items-center gap-3 hidden md:flex">
                 <Image src="/logo-cicopal.png" alt="Cicopal" width={40} height={40} className="h-10 w-auto object-contain bg-white/10 rounded p-1" />
-                <div><h1 className="text-xl font-black tracking-tight leading-none">CICOPAL <span className="font-light opacity-80">FINANCEIRO</span></h1></div>
+                <div><h1 className="text-xl font-black tracking-tight leading-none">CICOPAL <span className="font-light opacity-80">GESTÃO DE NOTAS</span></h1></div>
             </div>
         </div>
 
