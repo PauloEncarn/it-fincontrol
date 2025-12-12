@@ -1,25 +1,59 @@
-import { NextResponse } from 'next/server'; // <--- O erro acontecia porque faltava essa linha!
+import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
+// LISTAR (GET) - Mantive igual
 // LISTAR (GET)
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const filialId = searchParams.get('filial_id');
+    const busca = searchParams.get('busca'); // <--- Novo parâmetro
     
-    const where = {};
+    // Configuração inicial do filtro
+    let where = {};
+
+    // 1. Filtro de Filial (sempre respeitado se existir)
     if (filialId) where.filial_id = parseInt(filialId);
 
-    console.log("🔍 Buscando lançamentos...");
+    // 2. Lógica da Busca Global
+    if (busca && busca.trim() !== '') {
+      const termo = busca.trim();
+      const isNumber = !isNaN(parseFloat(termo)) && isFinite(termo);
+
+      where.OR = [
+        // Busca textual (insensível a maiúsculas/minúsculas)
+        { numero_nota: { contains: termo, mode: 'insensitive' } },
+        { numero_pedido: { contains: termo, mode: 'insensitive' } },
+        { solicitacao_fluig: { contains: termo, mode: 'insensitive' } },
+        { numero_medicao: { contains: termo, mode: 'insensitive' } },
+        { cnpj_usado: { contains: termo, mode: 'insensitive' } },
+        { descricao_servico: { contains: termo, mode: 'insensitive' } }, // Bônus: busca na descrição
+        // Busca dentro da relação com Fornecedor
+        { fornecedor: { nome_empresa: { contains: termo, mode: 'insensitive' } } },
+        { fornecedor: { lista_cnpjs: { contains: termo, mode: 'insensitive' } } }
+      ];
+
+      // Se o termo for um número, tenta buscar pelo VALOR exato também
+      if (isNumber) {
+        where.OR.push({ valor: { equals: parseFloat(termo) } });
+      }
+    } 
+    
+    // ATENÇÃO: Se NÃO tiver busca, você provavelmente quer filtrar por mês no Dashboard
+    // Mas esta rota '/api/lancamentos' é usada tanto para listar tudo quanto para busca.
+    // O Dashboard usa '/api/dados-agrupados'. 
+    // Se você estiver usando essa rota para uma "Lista Geral", ok.
+    
+    console.log("🔍 Buscando lançamentos com filtro:", JSON.stringify(where));
 
     const dados = await prisma.lancamentos.findMany({
       where,
-      include: {
-        // Lembre-se: Singular porque mudamos no schema.prisma
-        filial: true,      
-        fornecedor: true   
+      include: { 
+        filial: true, 
+        fornecedor: true 
       },
-      orderBy: { id: 'desc' }
+      orderBy: { id: 'desc' },
+      take: 100 // Limite de segurança para não travar se buscar "a"
     });
 
     return NextResponse.json(dados);
@@ -29,58 +63,86 @@ export async function GET(request) {
   }
 }
 
-// CRIAR (POST)
+
+// CRIAR (POST COM LÓGICA DE REPETIÇÃO)
 export async function POST(request) {
   try {
     const data = await request.json();
-    console.log("📥 DADOS RECEBIDOS:", JSON.stringify(data, null, 2));
+    console.log("📥 Recebendo lançamento (Repetição):", data.repetir_por);
 
-    // 1. Validação Manual dos Campos Obrigatórios
-    if (!data.filial_id) throw new Error("Campo Obrigatório: Filial");
-    if (!data.fornecedor_id) throw new Error("Campo Obrigatório: Fornecedor");
-    if (!data.valor) throw new Error("Campo Obrigatório: Valor");
-    if (!data.numero_nota) throw new Error("Campo Obrigatório: Número da Nota");
+    // Validação básica
+    if (!data.filial_id || !data.fornecedor_id || !data.valor) {
+        throw new Error("Dados obrigatórios faltando");
+    }
 
-    // 2. Preparação dos Dados (Conversão de Tipos)
-    const cleanData = {
-      filial_id: parseInt(data.filial_id),
-      fornecedor_id: parseInt(data.fornecedor_id),
-      valor: parseFloat(data.valor),
-      numero_nota: String(data.numero_nota),
-      
-      // Datas: Se vier vazio ou inválido, usa a data atual para não travar
-      data_vencimento: data.data_vencimento ? new Date(data.data_vencimento) : new Date(),
-      data_envio: data.data_envio ? new Date(data.data_envio) : null,
+    const repeticoes = parseInt(data.repetir_por || '1');
+    const lancamentosParaCriar = [];
+    const dataBase = new Date(data.data_vencimento);
 
-      // Campos Opcionais
-      cnpj_usado: data.cnpj_usado || null,
-      contrato_usado: data.contrato_usado || null,
-      centro_custo_usado: data.centro_custo_usado || null,
-      serie: data.serie || 'U',
-      descricao_servico: data.descricao_servico || null,
-      servico_protheus: data.servico_protheus || null,
-      numero_medicao: data.numero_medicao || null,
-      numero_pedido: data.numero_pedido || null,
-      solicitacao_fluig: data.solicitacao_fluig || null,
-      observacao: data.observacao || null,
-      status_pagamento: data.status_pagamento || 'Pendente Lançamento',
-      arquivo_nota: data.arquivo_nota || null,
-      arquivo_boleto: data.arquivo_boleto || null,
-    };
+    // LOOP PARA GERAR AS CÓPIAS
+    for (let i = 0; i < repeticoes; i++) {
+        // Calcula a data do mês (Mês atual + i)
+        // Nota: O Javascript lida bem com virada de ano (12+1 vira mês 1 do ano seguinte)
+        const novaDataVencimento = new Date(dataBase);
+        novaDataVencimento.setMonth(dataBase.getMonth() + i);
 
-    console.log("🛠️ SALVANDO NO BANCO...", cleanData);
+        // Lógica: 
+        // Se i == 0 (Primeiro mês): Usa os dados exatos (Nota, Arquivo, Status).
+        // Se i > 0 (Meses futuros): Limpa Nota, Arquivo e define status como "Aguardando Fatura".
+        
+        const isFuturo = i > 0;
 
-    const novo = await prisma.lancamentos.create({ data: cleanData });
+        lancamentosParaCriar.push({
+            filial_id: parseInt(data.filial_id),
+            fornecedor_id: parseInt(data.fornecedor_id),
+            valor: parseFloat(data.valor),
+            
+            // Futuro não tem número de nota ainda
+            numero_nota: isFuturo ? `PREV-${i}` : String(data.numero_nota), 
+            serie: data.serie || 'U',
+            
+            data_vencimento: novaDataVencimento,
+            // Futuro não foi enviado ainda
+            data_envio: isFuturo ? null : (data.data_envio ? new Date(data.data_envio) : null),
+
+            // Opcionais
+            cnpj_usado: data.cnpj_usado || null,
+            contrato_usado: data.contrato_usado || null,
+            centro_custo_usado: data.centro_custo_usado || null,
+            descricao_servico: data.descricao_servico || null,
+            servico_protheus: data.servico_protheus || null,
+            numero_medicao: data.numero_medicao || null,
+            numero_pedido: data.numero_pedido || null,
+            solicitacao_fluig: data.solicitacao_fluig || null,
+            observacao: isFuturo ? `Parcela ${i+1}/${repeticoes} - ${data.observacao || ''}` : data.observacao || null,
+            
+            // Futuro sempre começa como "Aguardando Fatura" ou "Pendente"
+            status_pagamento: isFuturo ? 'Aguardando Fatura' : (data.status_pagamento || 'Pendente Lançamento'),
+            
+            // Futuro não tem arquivo
+            arquivo_nota: isFuturo ? null : (data.arquivo_nota || null),
+            arquivo_boleto: isFuturo ? null : (data.arquivo_boleto || null),
+        });
+    }
+
+    // TRANSACÃO: Salva tudo de uma vez. Se der erro em um, cancela tudo.
+    // createMany é muito mais rápido que fazer um loop de create
+    const resultado = await prisma.lancamentos.createMany({
+        data: lancamentosParaCriar
+    });
     
-    console.log("✅ SUCESSO! ID:", novo.id);
-    return NextResponse.json(novo);
+    console.log(`✅ Sucesso! Criados ${resultado.count} lançamentos.`);
+    
+    return NextResponse.json({ 
+        success: true, 
+        count: resultado.count, 
+        message: `${resultado.count} lançamentos gerados com sucesso!` 
+    });
 
   } catch (error) {
-    console.error("❌ ERRO CRÍTICO AO SALVAR:", error);
-    
-    // Retorna o erro detalhado para o navegador
+    console.error("❌ ERRO AO SALVAR EM LOTE:", error);
     return NextResponse.json({ 
-      error: "Falha ao salvar lançamento", 
+      error: "Erro ao salvar", 
       details: error.message 
     }, { status: 500 });
   }
