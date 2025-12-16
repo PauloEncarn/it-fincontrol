@@ -15,8 +15,8 @@ export async function POST(request) {
       port: 587,
       secure: false,
       auth: {
-        user: process.env.GMAIL.USER ,
-        pass: process.env.GMAIL.PASSWORD // Recomendo usar variável de ambiente aqui
+        user: process.env.GMAIL_USER ,
+        pass: process.env.GMAIL_PASS // Recomendo usar variável de ambiente aqui
       },
       tls: { rejectUnauthorized: false }
     });
