@@ -39,7 +39,6 @@ export async function POST(request) {
     // Tratamento dos dados
     const payload = {
       numero_nota: body.numero_nota,
-      data_emissao: body.data_emissao || null,
       data_vencimento: body.data_vencimento,
       valor: parseFloat(body.valor),
       observacoes: body.observacoes || null,
