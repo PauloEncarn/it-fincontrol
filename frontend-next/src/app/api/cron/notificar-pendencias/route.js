@@ -129,8 +129,8 @@ export async function GET(request) {
       port: 587,
       secure: false,
       auth: {
-        user: "automacaocicopal@gmail.com", // ⚠️ SUBSTITUA PELO SEU EMAIL REAL
-        pass: "vtsm kxqp hsjd vbib",    // ⚠️ SUBSTITUA PELA SENHA DE APP DE 16 DÍGITOS
+       user: process.env.GMAIL_USER ,
+        pass: process.env.GMAIL_PASS //
       },
       tls: { rejectUnauthorized: false }
     });
@@ -138,8 +138,8 @@ export async function GET(request) {
     console.log("📨 Enviando e-mail...");
     
     await transporter.sendMail({
-      from: '"Robô Financeiro" <automacaocicopal@gmail.com.br>',
-      to: "suporte.ba@cicopal.com.br", // ⚠️ QUEM VAI RECEBER O RELATÓRIO
+      from: '"Robô Gestão de notas " <automacaocicopal@gmail.com.br>',
+      to: "suporte.ba@cicopal.com.br, felipe.moreira@cicopal.com.br, contratos.ti@cicopal.com.br", // ⚠️ QUEM VAI RECEBER O RELATÓRIO
       subject: `🚨 [Pendências] ${pendencias.length} notas aguardam atenção`,
       html: htmlEmail
     });

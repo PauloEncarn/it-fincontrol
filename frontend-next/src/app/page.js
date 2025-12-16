@@ -343,7 +343,7 @@ function DashboardContent() {
 {/* FOOTER SIMPLES - CLEAN */}
 <footer className="fixed bottom-0 left-0 right-0 py-4 bg-white border-t border-gray-200 z-10 flex items-center justify-center">
   <p className="text-gray-500 text-sm font-medium">
-    © {new Date().getFullYear()} <span className="font-bold text-[#1E22A8]">Cicopal</span> <span className="mx-2 text-gray-300">|</span> IT FinControl 🤖
+    © {new Date().getFullYear()} <span className="font-bold text-[#1E22A8]">Cicopal</span> <span className="mx-2 text-gray-300">|</span> GESTÃO DE NOTAS 🤖
   </p>
 </footer>
 
