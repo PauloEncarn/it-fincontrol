@@ -3,6 +3,12 @@ import { createClient } from '@supabase/supabase-js';
 
 export async function POST(request) {
   try {
+console.log("DEBUG ENV:", {
+  url: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  hasKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY, // Retorna true se tiver chave, false se não
+  keyLength: process.env.SUPABASE_SERVICE_ROLE_KEY?.length // Retorna o tamanho da chave
+});
+
     const formData = await request.formData();
     const username = formData.get('username'); 
     const password = formData.get('password');
