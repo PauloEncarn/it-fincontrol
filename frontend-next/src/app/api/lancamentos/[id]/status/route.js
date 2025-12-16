@@ -8,42 +8,37 @@ const supabase = createClient(
 
 export async function PUT(request, context) {
   try {
+    // No Next.js 15, params é uma Promise, então usamos await
     const params = await context.params;
-    const id = params.id;
-    
+    const id = params.id; // O ID vem da pasta pai [id]
+
     const body = await request.json();
 
-    console.log(`🔍 [Status] Recebido para ID ${id}:`, body);
+    console.log(`🔄 [Status] Atualizando ID ${id}:`, body);
 
-    // 1. Tenta adivinhar qual campo o frontend enviou
-    // Às vezes o front manda { status: "Pago" } ou { status_pagamento: "Pago" }
-    let novoStatus = body.status_pagamento || body.status || body.novoStatus;
+    // Flexibilidade para ler o status
+    let novoStatus = body.status_pagamento || body.status;
 
-    // 2. Se o frontend mandou Boleano (true/false) em vez de texto
+    // Converte boleano se necessário
     if (novoStatus === true) novoStatus = 'Pago';
     if (novoStatus === false) novoStatus = 'Pendente';
 
     if (!novoStatus) {
-        console.error("❌ [Status] Nenhum status válido encontrado no corpo da requisição.");
         return NextResponse.json({ error: 'Status não informado' }, { status: 400 });
     }
 
-    // 3. Atualiza no Banco
+    // Atualiza no Banco
     const { error } = await supabase
       .from('lancamentos')
       .update({ status_pagamento: novoStatus })
       .eq('id', id);
 
-    if (error) {
-      console.error("❌ [Status] Erro Supabase:", error);
-      throw error;
-    }
+    if (error) throw error;
 
-    console.log(`✅ [Status] Atualizado para: ${novoStatus}`);
-    return NextResponse.json({ success: true, novo_status: novoStatus });
+    return NextResponse.json({ success: true });
 
   } catch (error) {
-    console.error("🔥 [Status] Erro Geral:", error);
+    console.error("🔥 Erro Status:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
