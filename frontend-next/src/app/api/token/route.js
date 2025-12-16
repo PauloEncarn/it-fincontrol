@@ -3,40 +3,44 @@ import { createClient } from '@supabase/supabase-js';
 
 export async function POST(request) {
   try {
-console.log("DEBUG ENV:", {
-  url: process.env.NEXT_PUBLIC_SUPABASE_URL,
-  hasKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY, // Retorna true se tiver chave, false se não
-  keyLength: process.env.SUPABASE_SERVICE_ROLE_KEY?.length // Retorna o tamanho da chave
-});
-
     const formData = await request.formData();
-    const username = formData.get('username'); 
-    const password = formData.get('password');
+    const usernameInput = formData.get('username'); // O que você digitou
+    const passwordInput = formData.get('password');
 
-    // Conectar com a chave Service Role (Admin) para ler a tabela de usuários
+    console.log(`🔍 Tentativa de login para: "${usernameInput}"`);
+
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
-    // 1. Buscar na tabela 'usuarios'
+    // 1. Buscar usuário
     const { data: usuario, error } = await supabase
       .from('usuarios') 
       .select('*')
-      .eq('username', username) // Confirme se a coluna no banco chama 'username'
+      .eq('username', usernameInput)
       .single();
 
-    // 2. Se não achar ou der erro
+    // LOG DETALHADO (Vai aparecer no painel da Vercel)
+    if (error) {
+        console.error("❌ Erro ao buscar no banco:", error.message, error.details);
+    } else {
+        console.log("✅ Usuário encontrado no banco:", usuario ? usuario.username : "Nenhum");
+    }
+
+    // 2. Verificações
     if (error || !usuario) {
+      console.log("⛔ Bloqueio: Usuário não encontrado.");
       return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 401 });
     }
 
-    // 3. Verificar a senha (Comparação direta de texto)
-    if (usuario.password !== password) {
+    if (usuario.password !== passwordInput) {
+      console.log(`⛔ Bloqueio: Senha incorreta. (Banco: ${usuario.password} | Digitado: ${passwordInput})`);
       return NextResponse.json({ error: 'Senha incorreta.' }, { status: 401 });
     }
 
-    // 4. Gerar um token simples (Base64) para o frontend achar que está logado
+    console.log("🚀 Login Aprovado!");
+
     const fakeToken = Buffer.from(`${usuario.username}:${Date.now()}`).toString('base64');
 
     return NextResponse.json({ 
@@ -51,7 +55,7 @@ console.log("DEBUG ENV:", {
     });
 
   } catch (error) {
-    console.error("Erro no Login:", error);
+    console.error("🔥 Erro Interno:", error);
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
   }
 }
