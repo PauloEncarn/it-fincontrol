@@ -6,42 +6,43 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// PUT: Atualizar fornecedor
 export async function PUT(request, context) {
   try {
-    const { id } = context.params;
+    // Correção para Next.js recente: await params
+    const params = await context.params; 
+    const id = params.id;
+    
     const body = await request.json();
-
-    const { error } = await supabase
-      .from('fornecedores')
-      .update(body)
-      .eq('id', id);
+    const { error } = await supabase.from('fornecedores').update(body).eq('id', id);
 
     if (error) throw error;
-
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// DELETE: Excluir fornecedor
 export async function DELETE(request, context) {
   try {
-    const { id } = context.params;
+    const params = await context.params;
+    const id = params.id;
 
-    // Opcional: Verificar se existem lançamentos vinculados antes de excluir
-    // Mas para simplificar agora, vamos tentar excluir direto. 
-    // Se tiver Foreign Key, o Supabase vai dar erro avisando (o que é bom).
-    const { error } = await supabase
-      .from('fornecedores')
-      .delete()
-      .eq('id', id);
+    const { error } = await supabase.from('fornecedores').delete().eq('id', id);
 
-    if (error) throw error;
+    if (error) {
+      // Código 23503 é violação de Foreign Key (tem notas vinculadas)
+      if (error.code === '23503') {
+        return NextResponse.json(
+          { error: 'Não é possível excluir: Este fornecedor possui lançamentos vinculados.' }, 
+          { status: 400 } // Retorna 400 (Bad Request) em vez de 500
+        );
+      }
+      throw error;
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Erro Delete Fornecedor:", error);
+    return NextResponse.json({ error: error.message || 'Erro ao excluir' }, { status: 500 });
   }
 }
