@@ -1,30 +1,42 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
-export async function PUT(request, props) {
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+// PUT: Atualizar filial
+export async function PUT(request, context) {
   try {
-    // 1. CORREÇÃO: Await no params
-    const params = await props.params;
-    const id = parseInt(params.id);
+    const { id } = context.params;
+    const body = await request.json();
 
-    const data = await request.json();
-    const { id: _, ...rest } = data; // Remove ID do corpo
+    const { error } = await supabase
+      .from('filiais')
+      .update(body)
+      .eq('id', id);
 
-    const atualizado = await prisma.filiais.update({
-      where: { id },
-      data: rest
-    });
-    return NextResponse.json(atualizado);
+    if (error) throw error;
+
+    return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-export async function DELETE(request, props) {
+// DELETE: Excluir filial
+export async function DELETE(request, context) {
   try {
-    const params = await props.params;
-    const id = parseInt(params.id);
+    const { id } = context.params;
 
-    await prisma.filiais.delete({ where: { id } });
+    const { error } = await supabase
+      .from('filiais')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

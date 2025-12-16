@@ -1,30 +1,45 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
-export async function PUT(request, props) {
+// PUT: Atualizar fornecedor
+export async function PUT(request, context) {
   try {
-    const params = await props.params;
-    const id = parseInt(params.id);
-    
-    const data = await request.json();
-    const { id: _, ...rest } = data;
+    const { id } = context.params;
+    const body = await request.json();
 
-    const atualizado = await prisma.fornecedores.update({
-      where: { id },
-      data: rest
-    });
-    return NextResponse.json(atualizado);
+    const { error } = await supabase
+      .from('fornecedores')
+      .update(body)
+      .eq('id', id);
+
+    if (error) throw error;
+
+    return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-export async function DELETE(request, props) {
+// DELETE: Excluir fornecedor
+export async function DELETE(request, context) {
   try {
-    const params = await props.params;
-    const id = parseInt(params.id);
+    const { id } = context.params;
 
-    await prisma.fornecedores.delete({ where: { id } });
+    // Opcional: Verificar se existem lançamentos vinculados antes de excluir
+    // Mas para simplificar agora, vamos tentar excluir direto. 
+    // Se tiver Foreign Key, o Supabase vai dar erro avisando (o que é bom).
+    const { error } = await supabase
+      .from('fornecedores')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

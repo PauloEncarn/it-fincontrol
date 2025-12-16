@@ -1,68 +1,54 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
-// EDITAR (PUT)
-export async function PUT(request, props) {
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+// PUT: Atualizar um lançamento
+export async function PUT(request, context) {
   try {
-    // 1. CORREÇÃO: Await no params
-    const params = await props.params;
-    const id = parseInt(params.id);
+    const { id } = context.params;
+    const body = await request.json();
 
-    const data = await request.json();
-    console.log(`🔄 Editando Lançamento ID: ${id}`, data);
-
-    // 2. Preparar dados (igual ao POST, mas sem ID)
-    const cleanData = {
-      filial_id: parseInt(data.filial_id),
-      fornecedor_id: parseInt(data.fornecedor_id),
-      valor: parseFloat(data.valor),
-      numero_nota: String(data.numero_nota),
-      
-      data_vencimento: new Date(data.data_vencimento),
-      data_envio: data.data_envio ? new Date(data.data_envio) : null,
-      
-      cnpj_usado: data.cnpj_usado || null,
-      contrato_usado: data.contrato_usado || null,
-      centro_custo_usado: data.centro_custo_usado || null,
-      serie: data.serie || 'U',
-      descricao_servico: data.descricao_servico || null,
-      servico_protheus: data.servico_protheus || null,
-      numero_medicao: data.numero_medicao || null,
-      numero_pedido: data.numero_pedido || null,
-      solicitacao_fluig: data.solicitacao_fluig || null,
-      observacao: data.observacao || null,
-      status_pagamento: data.status_pagamento,
-      arquivo_nota: data.arquivo_nota,
-      arquivo_boleto: data.arquivo_boleto,
-      
-      // IMPORTANTE: Removemos campos de relação para não dar erro
-      id: undefined,
-      filial: undefined,
-      fornecedor: undefined,
-      updated_at: new Date()
+    // Tratamento de campos: se data_envio vier vazia, vira NULL
+    const payload = {
+        ...body,
+        data_envio: body.data_envio === '' ? null : body.data_envio,
     };
 
-    const atualizado = await prisma.lancamentos.update({
-      where: { id },
-      data: cleanData
-    });
+    // Remove campos que não devem ser atualizados (como objetos aninhados de leitura)
+    delete payload.fornecedor;
+    delete payload.filial;
+    delete payload.id; // Não atualizamos o ID
 
-    return NextResponse.json(atualizado);
+    const { error } = await supabase
+      .from('lancamentos')
+      .update(payload)
+      .eq('id', id);
 
+    if (error) throw error;
+
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("❌ ERRO AO EDITAR LANÇAMENTO:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-// DELETAR (DELETE) - Caso precise futuramente
-export async function DELETE(request, props) {
+// DELETE: Excluir um lançamento
+export async function DELETE(request, context) {
   try {
-    const params = await props.params;
-    const id = parseInt(params.id);
+    const { id } = context.params;
 
-    await prisma.lancamentos.delete({ where: { id } });
+    const { error } = await supabase
+      .from('lancamentos')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
     return NextResponse.json({ success: true });
-
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
