@@ -296,11 +296,10 @@ function DashboardContent() {
         <ChevronDown className="absolute right-3 top-3 text-white/70 pointer-events-none" size={14}/>
       </div>
 
-      {/* 2. NOVO: BOTÃO EXPORTAR EXCEL 👇 */}
-      {/* Passamos 'dadosDashboard' que contém as notas filtradas do mês */}
+      
       <BotaoExportar dados={dadosDashboard} />
 
-      {/* 3. BOTÃO LANÇAR (JÁ EXISTIA) */}
+      
       <button 
         onClick={() => { setForm(initialForm); setIsEditMode(false); setShowModal(true); }} 
         className="bg-[#E30613] text-white hover:bg-white hover:text-[#E30613] px-5 py-2 rounded-lg font-black text-sm flex gap-2 items-center shadow-lg active:scale-95 whitespace-nowrap transition-colors"
