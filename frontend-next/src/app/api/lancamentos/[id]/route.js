@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
 
 // EDITAR (PUT)
 export async function PUT(request, props) {

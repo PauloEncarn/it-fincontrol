@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
 import { SignJWT } from 'jose';
 
 const SECRET_KEY = new TextEncoder().encode("SEGREDO_SUPER_SECRETO_DA_CICOPAL");
