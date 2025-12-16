@@ -3,52 +3,52 @@ import { createClient } from '@supabase/supabase-js';
 
 export async function POST(request) {
   try {
-    console.log("📥 Recebendo pedido de login...");
-
-    // 1. Validar Variáveis de Ambiente
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      console.error("❌ ERRO CRÍTICO: Variáveis do Supabase não encontradas!");
-      throw new Error("Configuração do servidor incompleta (Env Vars missing).");
-    }
-
-    // 2. Receber dados
     const formData = await request.formData();
-    const email = formData.get('username'); 
+    const username = formData.get('username'); 
     const password = formData.get('password');
 
-    console.log(`👤 Tentando logar usuário: ${email}`);
-
-    // 3. Conectar no Supabase
+    // Conectar com permissão de Admin (Service Role) para ler a tabela de usuários
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
-    // 4. Fazer Login
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email,
-      password: password,
-    });
+    // 1. Buscar o usuário na tabela 'usuarios' pelo username
+    // IMPORTANTE: Verifique se o nome da coluna no seu banco é 'username' ou 'login' ou 'email'
+    const { data: usuario, error } = await supabase
+      .from('usuarios') 
+      .select('*')
+      .eq('username', username) // <--- Se sua coluna chamar 'login', mude aqui para .eq('login', username)
+      .single();
 
-    if (error) {
-      console.error("⛔ Erro do Supabase:", error.message);
-      return NextResponse.json({ error: error.message }, { status: 401 });
+    // 2. Verificar se usuário existe
+    if (error || !usuario) {
+      return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 401 });
     }
 
-    console.log("✅ Login com sucesso!");
-    
-    // 5. Retornar Token
+    // 3. Verificar a senha
+    // ATENÇÃO: Aqui estou comparando texto puro (igual ao sistema antigo).
+    // Se no banco a senha estiver criptografada, a lógica muda.
+    if (usuario.password !== password) {
+      return NextResponse.json({ error: 'Senha incorreta.' }, { status: 401 });
+    }
+
+    // 4. Sucesso! Retornar um "token" falso mas funcional
+    // Como não estamos usando o Auth do Supabase, geramos um token simples
+    // para o frontend achar que está logado.
+    const fakeToken = Buffer.from(`${usuario.username}:${Date.now()}`).toString('base64');
+
     return NextResponse.json({ 
-      access_token: data.session.access_token, 
-      user: data.user 
+      access_token: fakeToken, 
+      user: {
+        id: usuario.id,
+        nome: usuario.nome_completo, // Ajuste conforme coluna do banco
+        username: usuario.username
+      } 
     });
 
   } catch (error) {
-    console.error("🔥 Erro Interno (500):", error);
-    // Retorna o erro detalhado para o frontend (apenas para debug agora)
-    return NextResponse.json({ 
-      error: 'Erro interno no servidor', 
-      details: error.message 
-    }, { status: 500 });
+    console.error("Erro no Login:", error);
+    return NextResponse.json({ error: 'Erro interno no servidor' }, { status: 500 });
   }
 }
