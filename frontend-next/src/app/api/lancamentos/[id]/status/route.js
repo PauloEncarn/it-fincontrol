@@ -6,24 +6,18 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// PUT: Atualizar APENAS o Status
 export async function PUT(request, context) {
   try {
-    const { id } = context.params;
+    const params = await context.params;
+    const id = params.id;
     const body = await request.json();
 
-    console.log(`🔄 Atualizando status do ID ${id}:`, body);
+    console.log(`🔄 Alterando Status ID ${id} para:`, body.status_pagamento);
 
-    // Montamos o objeto de atualização
+    // Como sua tabela NÃO tem coluna 'data_pagamento', atualizamos apenas o status.
     const updateData = {
       status_pagamento: body.status_pagamento
     };
-
-    // Se estiver marcando como Pago, pode ser que o front mande data_pagamento
-    // Se estiver voltando para Pendente, talvez queira limpar a data_pagamento (opcional)
-    if (body.data_pagamento !== undefined) {
-       updateData.data_pagamento = body.data_pagamento || null;
-    }
 
     const { error } = await supabase
       .from('lancamentos')
@@ -31,7 +25,7 @@ export async function PUT(request, context) {
       .eq('id', id);
 
     if (error) {
-      console.error("Erro Supabase:", error);
+      console.error("Erro Update Status:", error);
       throw error;
     }
 
