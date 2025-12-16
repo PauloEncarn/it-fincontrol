@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import path from 'path';
+// Importa a função que cria o visual do e-mail
+import { gerarEmailHtml } from '@/utils/emailTemplate'; 
 
-/**
- * @param {Request} request
- */
 export async function POST(request) {
   try {
     const data = await request.json();
@@ -16,35 +15,29 @@ export async function POST(request) {
       port: 587,
       secure: false,
       auth: {
-      user: "automacaocicopal@gmail.com", // ⚠️ SEU EMAIL AQUI
-        pass: "vtsm kxqp hsjd vbib",           // ⚠️ SUA SENHA AQUI
+        user: process.env.GMAIL.USER ,
+        pass: process.env.GMAIL.PASSWORD // Recomendo usar variável de ambiente aqui
       },
       tls: { rejectUnauthorized: false }
     });
 
-   // 2. PREPARAR ANEXOS (CORRIGIDO PARA PEGAR O NOME REAL)
+    // 2. PREPARAR ANEXOS
     const attachments = arquivos
         .filter((url) => url && typeof url === 'string' && url.length > 0)
         .map((url) => {
             const isUrl = url.startsWith('http') || url.startsWith('https');
             
-            // Lógica para extrair o nome real do arquivo da URL/Caminho
-            // 1. Pega a última parte depois da barra '/'
+            // Lógica para extrair o nome real
             let originalName = url.split('/').pop();
-            
-            // 2. Remove parâmetros de URL se existirem (tudo depois de '?')
             originalName = originalName.split('?')[0];
-
-            // 3. Decodifica caracteres especiais (ex: espaço que vira %20)
             originalName = decodeURIComponent(originalName);
 
             if (isUrl) {
                 return {
-                    filename: originalName, // Usa o nome real (ex: boleto.pdf)
+                    filename: originalName,
                     path: url 
                 };
             } else {
-                // Lógica para arquivo local (se houver)
                 const cleanPath = url.startsWith('/') ? url.slice(1) : url;
                 const fullPath = path.join(process.cwd(), 'public', cleanPath);
                 return {
@@ -53,8 +46,19 @@ export async function POST(request) {
                 };
             }
         });
-    // 3. TEXTO DO E-MAIL
-    const mensagem = `
+
+    // 3. GERAR O HTML BONITO 🎨
+    // Precisamos passar os dados com os nomes que a função espera
+    const htmlBody = gerarEmailHtml({
+        fornecedor: fornecedor,
+        numero_nota: numero_nota,
+        valor: parseFloat(valor),
+        data_vencimento: vencimento
+    });
+
+    // 4. TEXTO PURO (FALLBACK)
+    // Mantemos isso caso o servidor de e-mail da balança bloqueie HTML
+    const textBody = `
 Prezados,
 
 Segue boleto e nota para pagamento.
@@ -65,15 +69,16 @@ Valor: R$ ${parseFloat(valor).toLocaleString('pt-BR', {minimumFractionDigits: 2}
 Vencimento: ${new Date(vencimento).toLocaleDateString('pt-BR')}
 
 Atenciosamente,
-Equipe TI
+Equipe TI - IT FinControl
     `;
 
-    // 4. DISPARAR
+    // 5. DISPARAR
     await transporter.sendMail({
-      from: '"Financeiro TI" <automacaocicopal@gmail.com',
+      from: '"Financeiro TI" <automacaocicopal@gmail.com>',
       to: "suporte.ba@cicopal.com.br",
       subject: `NF: ${numero_nota} - ${fornecedor}`,
-      text: mensagem,
+      text: textBody, // Versão texto simples
+      html: htmlBody, // Versão HTML bonita (O Gmail vai priorizar essa)
       attachments: attachments
     });
 
