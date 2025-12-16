@@ -22,12 +22,10 @@
     "react-dom": "19.2.1"
   },
   "devDependencies": {
-    "@prisma/client": "^5.22.0",
     "@tailwindcss/postcss": "^4",
     "@types/nodemailer": "^7.0.4",
     "eslint": "^9",
     "eslint-config-next": "16.0.8",
-    "prisma": "^5.22.0",
     "tailwindcss": "^4"
   }
 }
