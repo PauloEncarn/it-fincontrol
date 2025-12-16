@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import BotaoExportar from '@/components/BotaoExportar';
 import axios from 'axios';
 import Image from 'next/image';
 import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -10,6 +11,7 @@ import {
   Building, Users, LogOut, UserPlus, Lock, Trash2, ChevronLeft, ChevronRight, Search,
   AlertCircle, Mail, Send
 } from 'lucide-react';
+
 
 // --- CONFIGURAÇÃO ---
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "/api").replace(/\/$/, "");
@@ -216,6 +218,8 @@ function DashboardContent() {
     } catch { addToast('error', 'Falha ao enviar.'); } finally { setSendingEmail(false); }
   };
 
+
+  
   // --- CORREÇÃO AQUI: Renomeado de salvarForm para salvarApenas ---
   const salvarApenas = async () => {
     if (!form.filial_id || !form.fornecedor_id || !form.valor || !form.numero_nota) return addToast('error', 'Preencha os campos obrigatórios!'); 
@@ -275,6 +279,7 @@ function DashboardContent() {
         <div className="flex items-center gap-4"><button onClick={() => setIsMenuOpen(true)} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"><Menu size={24}/></button><div className="text-white flex items-center gap-3 hidden md:flex"><Image src="/logo-cicopal.png" alt="Cicopal" width={40} height={40} className="h-10 w-auto object-contain bg-white/10 rounded p-1" /><div><h1 className="text-xl font-black tracking-tight leading-none">CICOPAL <span className="font-light opacity-80">GESTÃO DE NOTAS</span></h1></div></div></div>
         {currentView === 'dashboard' && (<div className="flex-1 max-w-2xl mx-4 relative"><input className="w-full bg-black/20 border border-white/10 text-white placeholder:text-white/60 rounded-xl pl-10 pr-4 py-2.5 outline-none focus:bg-black/40 font-bold" placeholder="Buscar..." value={termoBusca} onChange={(e) => setTermoBusca(e.target.value)} /><Search className="absolute left-3 top-3 text-white/60" size={18} />{termoBusca && (<button onClick={() => setTermoBusca('')} className="absolute right-3 top-3 text-white/60 hover:text-white"><X size={18}/></button>)}</div>)}
         <div className="flex gap-3 items-center">{currentView === 'dashboard' && (<div className="relative group hidden md:block"><select className="appearance-none bg-black/20 border border-white/10 text-white font-bold text-sm rounded-lg px-4 py-2 pr-10 outline-none focus:bg-black/30 cursor-pointer" value={filialFiltro} onChange={e => setFilialFiltro(e.target.value)}><option value="">🏢 Todas as Filiais</option>{filiais.map(f => <option key={f.id} value={f.id}>{f.codigo} - {f.nome_fantasia}</option>)}</select><ChevronDown className="absolute right-3 top-3 text-white/70 pointer-events-none" size={14}/></div>)}{currentView === 'dashboard' && <button onClick={() => { setForm(initialForm); setIsEditMode(false); setShowModal(true); }} className="bg-[#E30613] text-white hover:bg-white hover:text-[#E30613] px-5 py-2 rounded-lg font-black text-sm flex gap-2 items-center shadow-lg active:scale-95 whitespace-nowrap transition-colors"><Plus size={18}/> <span className="hidden md:inline">LANÇAR</span></button>}</div>
+        <BotaoExportar dados={lancamentos} />
       </header>
 
       <div className={`fixed inset-0 z-50 transition-all duration-300 ${isMenuOpen ? 'visible' : 'invisible'}`}><div className={`absolute inset-0 bg-[#1E22A8]/80 backdrop-blur-sm transition-opacity duration-300 ${isMenuOpen ? 'opacity-100' : 'opacity-0'}`} onClick={() => setIsMenuOpen(false)}></div><div className={`absolute left-0 top-0 bottom-0 w-80 bg-white shadow-2xl p-6 transform transition-transform duration-300 flex flex-col ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}><div className="flex justify-between items-center mb-10 text-[#1E22A8]"><h2 className="text-2xl font-black tracking-tighter">MENU</h2><button onClick={() => setIsMenuOpen(false)} className="hover:bg-slate-100 p-2 rounded-full"><X size={24}/></button></div><nav className="space-y-2 flex-1"><button onClick={() => { setCurrentView('dashboard'); setIsMenuOpen(false); }} className="w-full flex items-center gap-4 text-slate-600 font-bold p-4 rounded-xl hover:bg-slate-50"><Server size={20}/> DASHBOARD</button><button onClick={() => { setCurrentView('filiais'); setIsMenuOpen(false); }} className="w-full flex items-center gap-4 text-slate-600 font-bold p-4 rounded-xl hover:bg-slate-50"><Building size={20}/> FILIAIS</button><button onClick={() => { setCurrentView('fornecedores'); setIsMenuOpen(false); }} className="w-full flex items-center gap-4 text-slate-600 font-bold p-4 rounded-xl hover:bg-slate-50"><Users size={20}/> FORNECEDORES</button><button onClick={() => { setCurrentView('usuarios'); refetchUsuarios(); setIsMenuOpen(false); }} className="w-full flex items-center gap-4 text-slate-600 font-bold p-4 rounded-xl hover:bg-slate-50"><UserPlus size={20}/> USUÁRIOS</button></nav><button onClick={handleLogout} className="w-full flex items-center gap-4 text-[#E30613] font-bold p-4 rounded-xl hover:bg-red-50 mt-auto"><LogOut size={20}/> SAIR</button></div></div>

@@ -48,7 +48,7 @@ export function gerarEmailHtml(dados) {
           <p>Acesse o painel para visualizar o boleto e aprovar o pagamento.</p>
           
           <center>
-            <a href="https://it-fincontrol.vercel.app" class="btn">Acessar Sistema</a>
+            <a href="https://it-fincontrol.vercel.app/" class="btn">Acessar Sistema</a>
           </center>
         </div>
 

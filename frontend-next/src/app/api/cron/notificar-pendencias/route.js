@@ -111,7 +111,7 @@ export async function GET(request) {
             </table>
 
             <div style="margin-top: 30px; text-align: center;">
-                <a href="https://cicopal-financeiro-ti.vercel.app" style="background-color: #E30613; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 14px; display: inline-block;">
+                <a href="https://it-fincontrol.vercel.app/" style="background-color: #E30613; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 14px; display: inline-block;">
                     Acessar Sistema
                 </a>
             </div>
