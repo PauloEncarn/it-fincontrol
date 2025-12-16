@@ -75,7 +75,7 @@ Equipe TI - IT FinControl
     // 5. DISPARAR
     await transporter.sendMail({
       from: '"Financeiro TI" <automacaocicopal@gmail.com>',
-      to: "suporte.ba@cicopal.com.br",
+      to: "suporte.ba@cicopal.com.br, contratos.ti@cicopal.com.br",
       subject: `NF: ${numero_nota} - ${fornecedor}`,
       text: textBody, // Versão texto simples
       html: htmlBody, // Versão HTML bonita (O Gmail vai priorizar essa)
