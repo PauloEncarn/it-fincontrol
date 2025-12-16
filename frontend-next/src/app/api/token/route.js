@@ -1,46 +1,39 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import bcrypt from 'bcrypt';
 
 export async function POST(request) {
   try {
     const formData = await request.formData();
-    const usernameInput = formData.get('username'); // O que você digitou
-    const passwordInput = formData.get('password');
-
-    console.log(`🔍 Tentativa de login para: "${usernameInput}"`);
+    const username = formData.get('username'); 
+    const password = formData.get('password'); // Senha digitada (Carper@153)
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
-    // 1. Buscar usuário
+    // 1. Buscar usuário no banco
     const { data: usuario, error } = await supabase
       .from('usuarios') 
       .select('*')
-      .eq('username', usernameInput)
+      .eq('username', username)
       .single();
 
-    // LOG DETALHADO (Vai aparecer no painel da Vercel)
-    if (error) {
-        console.error("❌ Erro ao buscar no banco:", error.message, error.details);
-    } else {
-        console.log("✅ Usuário encontrado no banco:", usuario ? usuario.username : "Nenhum");
-    }
-
-    // 2. Verificações
     if (error || !usuario) {
-      console.log("⛔ Bloqueio: Usuário não encontrado.");
       return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 401 });
     }
 
-    if (usuario.password !== passwordInput) {
-      console.log(`⛔ Bloqueio: Senha incorreta. (Banco: ${usuario.password} | Digitado: ${passwordInput})`);
+    // 2. Verificar a senha COM CRIPTOGRAFIA
+    // O bcrypt pega o 'Carper@153', faz a matemática e vê se bate com o '$2a$12...'
+    const passwordMatch = await bcrypt.compare(password, usuario.password);
+
+    if (!passwordMatch) {
+      console.log("Senha incorreta (Hash não bateu)");
       return NextResponse.json({ error: 'Senha incorreta.' }, { status: 401 });
     }
 
-    console.log("🚀 Login Aprovado!");
-
+    // 3. Sucesso!
     const fakeToken = Buffer.from(`${usuario.username}:${Date.now()}`).toString('base64');
 
     return NextResponse.json({ 
@@ -55,7 +48,7 @@ export async function POST(request) {
     });
 
   } catch (error) {
-    console.error("🔥 Erro Interno:", error);
+    console.error("Erro no Login:", error);
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
   }
 }
