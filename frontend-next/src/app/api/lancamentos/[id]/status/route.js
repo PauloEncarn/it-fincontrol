@@ -6,7 +6,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-export async function PUT(request, context) {
+export async function PATCH(request, context) {
   try {
     // No Next.js 15, params é uma Promise, então usamos await
     const params = await context.params;
