@@ -340,10 +340,10 @@ function DashboardContent() {
         {currentView === 'usuarios' && (<div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in zoom-in-95"><div className="lg:col-span-1 bg-white rounded-3xl p-8 shadow-xl h-fit"><h3 className="text-xl font-black text-[#1E22A8] mb-4">NOVO USUÁRIO</h3><div className="space-y-4"><div><label className={LABEL_STYLE}>Nome</label><input className={INPUT_STYLE} value={formUser.nome_completo || ""} onChange={e=>setFormUser({...formUser, nome_completo:e.target.value})}/></div><div><label className={LABEL_STYLE}>Login</label><input className={INPUT_STYLE} value={formUser.username || ""} onChange={e=>setFormUser({...formUser, username:e.target.value})}/></div><div><label className={LABEL_STYLE}>Senha</label><input type="password" className={INPUT_STYLE} value={formUser.password || ""} onChange={e=>setFormUser({...formUser, password:e.target.value})}/></div><button onClick={criarUsuario} className={`w-full ${BUTTON_PRIMARY} mt-4`}>CADASTRAR</button></div></div><div className="lg:col-span-2 bg-white rounded-3xl p-8 shadow-xl"><h3 className="text-xl font-black text-[#1E22A8] mb-6">USUÁRIOS ATIVOS</h3><div className="space-y-4">{usuarios.map(u => (<div key={u.id} className="flex items-center justify-between p-4 border border-slate-100 rounded-xl bg-slate-50"><div className="flex items-center gap-4"><div className="bg-[#1E22A8] text-white h-10 w-10 rounded-full flex items-center justify-center font-bold text-lg">{u.nome_completo.charAt(0)}</div><div><p className="font-bold text-[#1E22A8]">{u.nome_completo}</p><p className="text-xs text-slate-400 font-bold uppercase">{u.cargo} • {u.setor}</p></div></div><span className="text-xs bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full font-bold">ATIVO</span></div>))}</div></div></div>)}
       </main>
 
-{/* FOOTER SIMPLES - CLEAN */}
-<footer className="fixed bottom-0 left-0 right-0 py-4 bg-white border-t border-gray-200 z-10 flex items-center justify-center">
-  <p className="text-gray-500 text-sm font-medium">
-    © {new Date().getFullYear()} <span className="font-bold text-[#1E22A8]">Cicopal</span> <span className="mx-2 text-gray-300">|</span> IT FinControl 🤖
+{/* FOOTER SIMPLES - AZUL SÓLIDO */}
+<footer className="fixed bottom-0 left-0 right-0 py-3 bg-[#1E22A8] z-10 flex items-center justify-center shadow-lg">
+  <p className="text-white/80 text-sm font-medium tracking-wide">
+    Cicopal &bull; IT FinControl
   </p>
 </footer>
 
