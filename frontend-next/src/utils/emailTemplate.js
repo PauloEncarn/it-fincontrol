@@ -35,8 +35,8 @@ export function gerarEmailHtml(dados) {
         </div>
 
         <div class="content">
-          <p>Olá, <strong>Equipe Financeira</strong>.</p>
-          <p>Um novo lançamento foi registrado no sistema e precisa de atenção.</p>
+          <p>Olá, <strong>Prezados</strong>.</p>
+          <p>Segue boleto e nota para lançamento:</p>
           
           <div class="card-info">
             <p style="margin: 5px 0;">🏢 <strong>Fornecedor:</strong> ${dados.fornecedor}</p>
