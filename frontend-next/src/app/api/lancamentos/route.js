@@ -6,40 +6,61 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// GET: Buscar lançamentos
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const busca = searchParams.get('busca');
 
   let query = supabase
     .from('lancamentos')
-    .select(`*, fornecedor:fornecedores(nome_empresa), filial:filiais(nome_fantasia)`)
+    .select(`
+      *,
+      fornecedor:fornecedores(nome_empresa),
+      filial:filiais(nome_fantasia)
+    `)
     .order('data_vencimento', { ascending: true });
 
-  if (busca) query = query.ilike('numero_nota', `%${busca}%`);
+  if (busca) {
+    query = query.ilike('numero_nota', `%${busca}%`);
+  }
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }
 
+// POST: Criar Lançamento (CORRIGIDO COM O SCHEMA DO BANCO)
 export async function POST(request) {
   try {
     const body = await request.json();
-    
+    console.log("📦 Recebendo POST:", body);
+
+    // --- AQUI ESTAVA O PROBLEMA ---
+    // Mapeamento: Esquerda (Nome no Banco) = Direita (Nome que vem do formulário)
     const payload = {
       numero_nota: body.numero_nota,
-      // data_emissao: body.data_emissao || null,  <-- REMOVIDO! Se a coluna não existe, essa linha não pode existir.
       data_vencimento: body.data_vencimento,
       valor: parseFloat(body.valor),
-      observacoes: body.observacoes || null,
-      link_boleto: body.link_boleto || null,
+      
+      // Correção 1: link_boleto -> arquivo_boleto
+      arquivo_boleto: body.link_boleto || null, 
+      
+      // Correção 2: observacoes -> observacao
+      observacao: body.observacoes || null, 
+      
       status_pagamento: body.status_pagamento || 'Pendente',
       data_envio: body.data_envio || null,
+      
+      // IDs e Campos Opcionais que existem na tabela
       fornecedor_id: parseInt(body.fornecedor_id),
-      filial_id: parseInt(body.filial_id)
+      filial_id: parseInt(body.filial_id),
+      
+      // Se o front mandar esses campos futuramente, já deixamos mapeado (opcional):
+      // numero_pedido: body.numero_pedido || null,
+      // servico_protheus: body.servico_protheus || null
     };
 
-    // Lógica de Repetição
+    // Lógica de Repetição (Parcelas)
     const repetir = parseInt(body.repetir_por) || 1;
     
     if (repetir > 1) {
@@ -67,7 +88,7 @@ export async function POST(request) {
     }
 
   } catch (error) {
-    console.error("Erro POST Lancamento:", error);
+    console.error("❌ Erro POST Lancamento:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
