@@ -340,9 +340,13 @@ function DashboardContent() {
         {currentView === 'usuarios' && (<div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in zoom-in-95"><div className="lg:col-span-1 bg-white rounded-3xl p-8 shadow-xl h-fit"><h3 className="text-xl font-black text-[#1E22A8] mb-4">NOVO USUÁRIO</h3><div className="space-y-4"><div><label className={LABEL_STYLE}>Nome</label><input className={INPUT_STYLE} value={formUser.nome_completo || ""} onChange={e=>setFormUser({...formUser, nome_completo:e.target.value})}/></div><div><label className={LABEL_STYLE}>Login</label><input className={INPUT_STYLE} value={formUser.username || ""} onChange={e=>setFormUser({...formUser, username:e.target.value})}/></div><div><label className={LABEL_STYLE}>Senha</label><input type="password" className={INPUT_STYLE} value={formUser.password || ""} onChange={e=>setFormUser({...formUser, password:e.target.value})}/></div><button onClick={criarUsuario} className={`w-full ${BUTTON_PRIMARY} mt-4`}>CADASTRAR</button></div></div><div className="lg:col-span-2 bg-white rounded-3xl p-8 shadow-xl"><h3 className="text-xl font-black text-[#1E22A8] mb-6">USUÁRIOS ATIVOS</h3><div className="space-y-4">{usuarios.map(u => (<div key={u.id} className="flex items-center justify-between p-4 border border-slate-100 rounded-xl bg-slate-50"><div className="flex items-center gap-4"><div className="bg-[#1E22A8] text-white h-10 w-10 rounded-full flex items-center justify-center font-bold text-lg">{u.nome_completo.charAt(0)}</div><div><p className="font-bold text-[#1E22A8]">{u.nome_completo}</p><p className="text-xs text-slate-400 font-bold uppercase">{u.cargo} • {u.setor}</p></div></div><span className="text-xs bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full font-bold">ATIVO</span></div>))}</div></div></div>)}
       </main>
 
-      {/* FOOTER */}
-      <footer className="fixed bottom-0 left-0 right-0 h-[100px] bg-gradient-to-r from-[#1E22A8] to-[#E30613] z-10 flex flex-col items-center justify-center shadow-[0_-10px_40px_rgba(0,0,0,0.1)] -mb-16 hover:mb-0 transition-all duration-300 group"><div className="w-full h-[1px] bg-white/20 mb-3"></div><div className="text-center"><h3 className="text-white/60 font-black text-xl uppercase tracking-[0.5em] group-hover:text-white transition-colors duration-300">Cicopal</h3><p className="text-white/60 text-[10px] font-bold mt-1 uppercase tracking-widest">Produzindo sabor de felicidade.</p></div><div className="absolute top-[-15px] left-1/2 -translate-x-1/2 bg-white p-1.5 rounded-full shadow-lg cursor-pointer group-hover:translate-y-1 transition-transform"><ArrowRight className="-rotate-90 text-[#F77F00]" size={16}/></div></footer>
-      
+{/* FOOTER SIMPLES - CLEAN */}
+<footer className="fixed bottom-0 left-0 right-0 py-4 bg-white border-t border-gray-200 z-10 flex items-center justify-center">
+  <p className="text-gray-500 text-sm font-medium">
+    © {new Date().getFullYear()} <span className="font-bold text-[#1E22A8]">Cicopal</span> <span className="mx-2 text-gray-300">|</span> IT FinControl 🤖
+  </p>
+</footer>
+
       {/* MODAL */}
       {showModal && (
         <div className="fixed inset-0 bg-[#1E22A8]/60 backdrop-blur-md z-[70] flex items-center justify-center p-4">
