@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Inicializa o Supabase corretamente
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// --- GET: LISTAR TODAS ---
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -34,31 +34,31 @@ export async function GET(request) {
   }
 }
 
+// --- POST: CRIAR NOVA ---
 export async function POST(request) {
   try {
-    // 1. Autenticação (Pegar usuário logado)
+    // 1. Tenta pegar o usuário logado para ser o Responsável
     const authHeader = request.headers.get('Authorization');
     const token = authHeader?.split(' ')[1];
-
-    if (!token) {
-        return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
-    }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
-    if (authError || !user) {
-        return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
+    let nomeResponsavel = 'Sistema'; // Valor padrão caso falhe a auth
+    
+    if (token) {
+        const { data: { user } } = await supabase.auth.getUser(token);
+        if (user) {
+            nomeResponsavel = user.user_metadata.nome_completo || user.user_metadata.username || user.email;
+        }
     }
-
-    const nomeResponsavel = user.user_metadata.nome_completo || user.user_metadata.username || user.email;
 
     const body = await request.json();
     
-    // 2. Montar Payload
+    // 2. Monta o objeto para salvar
     const payload = {
       ...body,
-      id: undefined,
-      responsavel: nomeResponsavel, // Preenchido automático
+      id: undefined, // Remove ID para o banco gerar
+      responsavel: nomeResponsavel,
+      
+      // Converte números para evitar erro de tipo
       filial_id: body.filial_id ? parseInt(body.filial_id) : null,
       fornecedor_id: body.fornecedor_id ? parseInt(body.fornecedor_id) : null,
       valor: body.valor ? parseFloat(body.valor) : 0,
@@ -74,7 +74,7 @@ export async function POST(request) {
 
     return NextResponse.json(data[0]);
   } catch (error) {
-    console.error("Erro ao criar solicitação:", error);
+    console.error("Erro no POST:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
