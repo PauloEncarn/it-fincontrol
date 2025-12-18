@@ -429,6 +429,7 @@ function DashboardContent() {
                                 <div className="grid grid-cols-2 md:grid-cols-5 gap-y-3 gap-x-6 text-sm text-slate-600 bg-slate-50 p-4 rounded-xl border border-slate-100"><div><strong className="block text-[#1E22A8] uppercase text-[10px] font-black mb-1">Vencimento</strong><span className="text-base font-bold text-slate-600">{n.data_vencimento.split('T')[0].split('-').reverse().join('/')}</span></div><div><strong className="block text-[#1E22A8] uppercase text-[10px] font-black mb-1">Envio TI</strong><span className="text-base font-bold text-slate-600">{n.data_envio ? n.data_envio.split('T')[0].split('-').reverse().join('/') : '-'}</span></div><div><strong className="block text-[#1E22A8] uppercase text-[10px] font-black mb-1">Centro Custo</strong><span className="text-base font-bold text-slate-600">{n.centro_custo_usado || '-'}</span></div><div><strong className="block text-[#1E22A8] uppercase text-[10px] font-black mb-1">Fluig</strong><span className="text-base font-bold text-slate-600">{n.solicitacao_fluig || '-'}</span></div><div className="relative"><strong className="block text-[#1E22A8] uppercase text-[10px] font-black mb-1">Status Atual</strong><select value={n.status_pagamento || ""} onChange={async (e) => { const st = e.target.value; mutationStatus.mutate({id: n.id, status: st}); }} className={`w-full appearance-none text-[11px] font-black uppercase py-1.5 px-3 rounded-lg border-2 cursor-pointer outline-none transition-all ${STATUS_STYLES[n.status_pagamento]?.bg} ${STATUS_STYLES[n.status_pagamento]?.border} ${STATUS_STYLES[n.status_pagamento]?.text}`}>{OPCOES_STATUS.map(s => <option key={s} value={s}>{s}</option>)}</select></div></div></div>))}</div>}</div>)})}</div > </>))}
         
         {/* --- NOVA ABA: SOLICITAÇÕES DE COMPRA --- */}
+        {/* --- NOVA ABA: SOLICITAÇÕES DE COMPRA (TABELA LINEAR) --- */}
         {currentView === 'solicitacoes' && (
           <div className="bg-white rounded-3xl p-8 shadow-xl animate-in zoom-in-95">
             <div className="flex justify-between mb-6">
@@ -438,46 +439,91 @@ function DashboardContent() {
               </h2>
               <button 
                 onClick={() => { setFormSolicitacao(initialFormSolicitacao); setShowModalSolicitacao(true); }} 
-                className="bg-[#1E22A8] text-white px-4 py-2 rounded-xl font-bold flex gap-2 items-center hover:bg-[#E30613] transition-colors"
+                className="bg-[#1E22A8] text-white px-4 py-2 rounded-xl font-bold flex gap-2 items-center hover:bg-[#E30613] transition-colors shadow-lg"
               >
                 <Plus size={18}/> Nova Solicitação
               </button>
             </div>
 
-            {/* LISTA DE SOLICITAÇÕES (TABELA EM CARDS) */}
-            <div className="space-y-3">
-              {solicitacoes.length === 0 ? (
-                <div className="text-center p-10 text-slate-400 font-bold">Nenhuma solicitação encontrada.</div>
-              ) : (
-                solicitacoes.map(s => (
-                  <div key={s.id} className="p-4 border-2 border-slate-100 rounded-xl hover:border-blue-300 transition-all bg-slate-50 flex flex-col md:flex-row justify-between gap-4 items-center">
-                    <div className="flex-1 space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-black text-[#1E22A8] text-lg">#{s.numero_sc || 'S/N'}</span>
-                          <span className="text-[10px] bg-white border px-2 py-0.5 rounded font-bold uppercase text-slate-500">{s.filial?.nome_fantasia}</span>
-                          <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase text-white ${s.status === 'Pendente' ? 'bg-amber-400' : s.status === 'Aprovado' ? 'bg-blue-500' : s.status === 'Pedido Realizado' ? 'bg-emerald-500' : 'bg-slate-400'}`}>
+            {/* TABELA LINEAR */}
+            <div className="overflow-hidden rounded-xl border border-slate-200">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-[#1E22A8] text-white">
+                  <tr>
+                    <th className="p-4 text-xs font-black uppercase tracking-widest w-[140px]">Status</th>
+                    <th className="p-4 text-xs font-black uppercase tracking-widest">Nº SC / Pedido</th>
+                    <th className="p-4 text-xs font-black uppercase tracking-widest">Item / Fornecedor</th>
+                    <th className="p-4 text-xs font-black uppercase tracking-widest">Solicitante</th>
+                    <th className="p-4 text-xs font-black uppercase tracking-widest text-right">Valor Est.</th>
+                    <th className="p-4 text-xs font-black uppercase tracking-widest text-center w-[100px]">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {solicitacoes.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" className="p-10 text-center text-slate-400 font-bold">
+                        Nenhuma solicitação encontrada.
+                      </td>
+                    </tr>
+                  ) : (
+                    solicitacoes.map((s, index) => (
+                      <tr key={s.id} className={`hover:bg-blue-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                        
+                        {/* COLUNA 1: STATUS */}
+                        <td className="p-4">
+                           <span className={`text-[10px] px-3 py-1 rounded-full font-black uppercase border shadow-sm block w-fit text-center
+                              ${s.status === 'Pendente' ? 'bg-amber-100 text-amber-700 border-amber-200' : 
+                                s.status === 'Aprovado' ? 'bg-blue-100 text-blue-700 border-blue-200' : 
+                                s.status === 'Pedido Realizado' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 
+                                s.status === 'Cancelado' ? 'bg-red-100 text-red-700 border-red-200' :
+                                'bg-slate-100 text-slate-600 border-slate-200'}`}>
                               {s.status}
-                          </span>
-                        </div>
-                        <div className="font-bold text-slate-700">{s.fornecedor?.nome_empresa || 'Fornecedor não informado'}</div>
-                        <div className="text-xs text-slate-500 font-bold uppercase flex gap-3">
-                          <span>SOLICITANTE: {s.solicitante}</span>
-                          <span>•</span>
-                          <span>ITEM: {s.servico || '-'}</span>
-                        </div>
-                    </div>
-                    
-                    <div className="text-right">
-                        <div className="text-[10px] font-bold text-slate-400 uppercase">Valor Estimado</div>
-                        <div className="text-xl font-black text-[#1E22A8]">R$ {parseFloat(s.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
-                    </div>
+                           </span>
+                        </td>
 
-                    <div className="flex gap-2">
-                        <button onClick={() => { setFormSolicitacao(s); setShowModalSolicitacao(true); }} className="p-2 bg-white border rounded-lg hover:text-[#1E22A8] transition-colors"><Edit2 size={18}/></button>
-                    </div>
-                  </div>
-                ))
-              )}
+                        {/* COLUNA 2: NUMEROS */}
+                        <td className="p-4">
+                           <div className="flex flex-col">
+                             <span className="font-bold text-[#1E22A8] text-sm">SC: {s.numero_sc || '-'}</span>
+                             <span className="text-xs text-slate-400 font-bold">PED: {s.numero_pedido || '-'}</span>
+                           </div>
+                        </td>
+
+                        {/* COLUNA 3: ITEM E FORNECEDOR */}
+                        <td className="p-4">
+                           <div className="font-bold text-slate-700">{s.servico || 'Sem descrição'}</div>
+                           <div className="text-xs text-slate-500 uppercase flex items-center gap-1">
+                              <Building size={10}/> {s.fornecedor?.nome_empresa || 'Forn. não informado'}
+                           </div>
+                        </td>
+
+                        {/* COLUNA 4: SOLICITANTE */}
+                        <td className="p-4 text-sm font-medium text-slate-600">
+                           {s.solicitante}
+                           <span className="block text-[10px] text-slate-400 font-bold uppercase">{s.filial?.nome_fantasia}</span>
+                        </td>
+
+                        {/* COLUNA 5: VALOR */}
+                        <td className="p-4 text-right font-black text-[#1E22A8]">
+                           R$ {parseFloat(s.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                        </td>
+
+                        {/* COLUNA 6: AÇÕES */}
+                        <td className="p-4 text-center">
+                           <button 
+                             onClick={() => { setFormSolicitacao(s); setShowModalSolicitacao(true); }} 
+                             className="p-2 text-slate-400 hover:text-[#1E22A8] hover:bg-white rounded-lg transition-all"
+                             title="Editar Solicitação"
+                           >
+                             <Edit2 size={18}/>
+                           </button>
+                        </td>
+
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
