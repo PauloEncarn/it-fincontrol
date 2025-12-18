@@ -6,89 +6,85 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// GET: Buscar lançamentos
+// --- GET: LISTAR NOTAS ---
 export async function GET(request) {
-  const { searchParams } = new URL(request.url);
-  const busca = searchParams.get('busca');
+  try {
+    const { searchParams } = new URL(request.url);
+    const busca = searchParams.get('busca');
 
-  let query = supabase
-    .from('lancamentos')
-    .select(`
-      *,
-      fornecedor:fornecedores(nome_empresa),
-      filial:filiais(nome_fantasia)
-    `)
-    .order('data_vencimento', { ascending: true });
+    let query = supabase
+      .from('lancamentos_notas')
+      .select(`
+        *,
+        filial:filiais(nome_fantasia, codigo),
+        fornecedor:fornecedores(nome_empresa)
+      `)
+      .order('id', { ascending: false });
 
-  if (busca) {
-    query = query.ilike('numero_nota', `%${busca}%`);
+    if (busca) {
+      // Busca inteligente em vários campos
+      query = query.or(`numero_nota.ilike.%${busca}%,numero_pedido.ilike.%${busca}%,descricao_servico.ilike.%${busca}%`);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    return NextResponse.json(data);
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
-
-  const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
 }
 
-// POST: Criar Lançamento (CORRIGIDO COM O SCHEMA DO BANCO)
+// --- POST: CRIAR NOTA ---
 export async function POST(request) {
   try {
     const body = await request.json();
-    console.log("📦 Recebendo POST:", body);
-
-    // --- AQUI ESTAVA O PROBLEMA ---
-    // Mapeamento: Esquerda (Nome no Banco) = Direita (Nome que vem do formulário)
+    
+    // MONTAGEM DO PAYLOAD (Garantindo que Contrato e CC sejam salvos)
     const payload = {
-      numero_nota: body.numero_nota,
-      data_vencimento: body.data_vencimento,
-      valor: parseFloat(body.valor),
+      // IDs e Chaves
+      filial_id: body.filial_id ? parseInt(body.filial_id) : null,
+      fornecedor_id: body.fornecedor_id ? parseInt(body.fornecedor_id) : null,
       
-      // Correção 1: link_boleto -> arquivo_boleto
-      arquivo_boleto: body.link_boleto || null, 
-      
-      // Correção 2: observacoes -> observacao
-      observacao: body.observacoes || null, 
-      
-      status_pagamento: body.status_pagamento || 'Pendente',
+      // Dados Financeiros
+      valor: body.valor ? parseFloat(body.valor) : 0,
+      data_vencimento: body.data_vencimento || null,
       data_envio: body.data_envio || null,
       
-      // IDs e Campos Opcionais que existem na tabela
-      fornecedor_id: parseInt(body.fornecedor_id),
-      filial_id: parseInt(body.filial_id),
+      // AQUI ESTAVA O PROBLEMA: Garantindo os campos "Usado" 👇
+      contrato_usado: body.contrato_usado || null,
+      centro_custo_usado: body.centro_custo_usado || null,
+      cnpj_usado: body.cnpj_usado || null,
       
-      // Se o front mandar esses campos futuramente, já deixamos mapeado (opcional):
-      // numero_pedido: body.numero_pedido || null,
-      // servico_protheus: body.servico_protheus || null
+      // Detalhes da Nota
+      numero_nota: body.numero_nota,
+      serie: body.serie,
+      
+      // Outros campos
+      descricao_servico: body.descricao_servico,
+      servico_protheus: body.servico_protheus,
+      numero_medicao: body.numero_medicao,
+      numero_pedido: body.numero_pedido,
+      solicitacao_fluig: body.solicitacao_fluig,
+      observacao: body.observacao,
+      
+      // Controle
+      status_pagamento: body.status_pagamento || 'Pendente Lançamento',
+      arquivo_nota: body.arquivo_nota,
+      arquivo_boleto: body.arquivo_boleto,
+      repetir_por: body.repetir_por // Se tiver lógica de repetição
     };
 
-    // Lógica de Repetição (Parcelas)
-    const repetir = parseInt(body.repetir_por) || 1;
-    
-    if (repetir > 1) {
-        const lancamentos = [];
-        let dataBase = new Date(payload.data_vencimento);
-        
-        for (let i = 0; i < repetir; i++) {
-            const novaNota = { ...payload };
-            if (i > 0) {
-                const novaData = new Date(dataBase);
-                novaData.setMonth(dataBase.getMonth() + i);
-                novaNota.data_vencimento = novaData.toISOString().split('T')[0];
-                novaNota.numero_nota = `${payload.numero_nota}-${i+1}/${repetir}`;
-            }
-            lancamentos.push(novaNota);
-        }
-        
-        const { data, error } = await supabase.from('lancamentos').insert(lancamentos).select();
-        if (error) throw error;
-        return NextResponse.json(data[0]); 
-    } else {
-        const { data, error } = await supabase.from('lancamentos').insert([payload]).select().single();
-        if (error) throw error;
-        return NextResponse.json(data);
-    }
+    const { data, error } = await supabase
+      .from('lancamentos_notas') // Confira se o nome da sua tabela é esse mesmo
+      .insert([payload])
+      .select();
 
+    if (error) throw error;
+
+    return NextResponse.json(data[0]);
   } catch (error) {
-    console.error("❌ Erro POST Lancamento:", error);
+    console.error("Erro no POST Lançamentos:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
