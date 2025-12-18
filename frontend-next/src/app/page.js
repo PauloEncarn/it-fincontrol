@@ -9,7 +9,7 @@ import {
   ChevronDown, Plus, Server, Menu, Calendar, Clock, AlertTriangle, CheckCircle, X, 
   UploadCloud, FileText, Copy, Edit2, Paperclip, ClipboardList, Loader2, ArrowRight, 
   Building, Users, LogOut, UserPlus, Lock, Trash2, ChevronLeft, ChevronRight, Search,
-  AlertCircle, Mail, Send, ShoppingCart
+  AlertCircle, Mail, Send, ShoppingCart // <--- ShoppingCart ADICIONADO AQUI
 } from 'lucide-react';
 
 
@@ -38,7 +38,10 @@ const STATUS_STYLES = {
   'Concluída': { bg: 'bg-emerald-50', border: 'border-emerald-500', text: 'text-emerald-600', icon: <CheckCircle/> },
 };
 const OPCOES_STATUS = ['Aguardando Fatura', 'Pendente Lançamento', 'Aguardando Pagamento', 'Email Enviado p/ Balança', 'Concluída'];
+
+// --- NOVA CONSTANTE DE STATUS DE COMPRA (Definida ANTES de ser usada) ---
 const OPCOES_STATUS_COMPRA = ['Pendente', 'Em Cotação', 'Aprovado', 'Pedido Realizado', 'Entregue', 'Cancelado'];
+
 // --- COMPONENTES VISUAIS ---
 
 const ToastContainer = ({ toasts, removeToast }) => (
@@ -118,71 +121,6 @@ const KpiCard = ({ title, count, colorHex, icon, isActive, onClick }) => (
 // --- COMPONENTE PRINCIPAL ---
 
 function DashboardContent() {
-
-const initialFormSolicitacao = {
-    id: null,
-    filial_id: '',
-    fornecedor_id: '',
-    solicitante: '', // Quem pediu (ex: Gerente)
-    cnpj: '',
-    condicao_pagamento: '',
-    valor: '',
-    numero_sc: '',      // Solicitação de Compra
-    numero_pedido: '',
-    servico: '',        // O que é (Mouse, Manutenção, etc)
-    servico_protheus: '',
-    centro_custo: '',
-    numero_nota: '',    // NFe quando chegar
-    fluig_id: '',
-    data_vencimento: '',
-    status: 'Pendente',
-    observacao: ''
-  };
-
-  const [formSolicitacao, setFormSolicitacao] = useState(initialFormSolicitacao);
-  const [showModalSolicitacao, setShowModalSolicitacao] = useState(false);
-
-  // --- BUSCA DE DADOS (QUERY) ---
-  const { data: solicitacoes = [], refetch: refetchSolicitacoes } = useQuery({
-    queryKey: ['solicitacoes', termoBusca],
-    queryFn: async () => {
-      const res = await axios.get(`${API_URL}/solicitacoes/${termoBusca ? `?busca=${termoBusca}` : ''}`, authConfig);
-      return res.data;
-    },
-    enabled: !!token && currentView === 'solicitacoes' // Só busca se estiver na aba certa
-  });
-
-  // --- SALVAR (MUTATION) ---
-  const mutationSolicitacao = useMutation({
-    mutationFn: (dados) => {
-      if (dados.id) return axios.put(`${API_URL}/solicitacoes/${dados.id}`, dados, authConfig);
-      return axios.post(`${API_URL}/solicitacoes/`, dados, authConfig);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries(['solicitacoes']);
-      addToast('success', 'Solicitação salva com sucesso!');
-      setShowModalSolicitacao(false);
-    },
-    onError: (err) => addToast('error', 'Erro ao salvar: ' + err.message)
-  });
-
-  // Função auxiliar para preencher dados quando troca o fornecedor na Solicitação
-  const handleFornecedorSolicitacao = (id) => {
-    const forn = fornecedores.find(f => f.id == id);
-    if (forn) {
-      setFormSolicitacao(prev => ({
-        ...prev,
-        fornecedor_id: id,
-        cnpj: (forn.lista_cnpjs || '').split(';')[0] || '', // Pega o primeiro CNPJ
-        centro_custo: (forn.lista_centro_custos || '').split(';')[0] || '', // Pega o primeiro CC
-        servico: forn.padrao_descricao_servico || '',
-        servico_protheus: forn.padrao_servico_protheus || ''
-      }));
-    } else {
-      setFormSolicitacao(prev => ({ ...prev, fornecedor_id: id }));
-    }
-  };
-
   const queryClient = useQueryClient();
   const [toasts, setToasts] = useState([]);
   const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
@@ -227,18 +165,67 @@ const initialFormSolicitacao = {
   const initialForm = { id: null, filial_id: '', fornecedor_id: '', cnpj_usado: '', contrato_usado: '', centro_custo_usado: '', numero_nota: '', serie: 'U', valor: '', data_envio: '', data_vencimento: '', descricao_servico: '', servico_protheus: '', numero_medicao: '', numero_pedido: '', solicitacao_fluig: '', observacao: '', status_pagamento: 'Pendente Lançamento', arquivo_nota: '', arquivo_boleto: '', repetir_por: '1' };
   const [form, setForm] = useState(initialForm);
 
+  // --- ESTADOS PARA SOLICITAÇÕES DE COMPRA (Inseridos corretamente no inicio) ---
+  const initialFormSolicitacao = {
+    id: null,
+    filial_id: '',
+    fornecedor_id: '',
+    solicitante: '', 
+    cnpj: '',
+    condicao_pagamento: '',
+    valor: '',
+    numero_sc: '',
+    numero_pedido: '',
+    servico: '', 
+    servico_protheus: '',
+    centro_custo: '',
+    numero_nota: '',
+    fluig_id: '',
+    data_vencimento: '',
+    status: 'Pendente',
+    observacao: ''
+  };
+
+  const [formSolicitacao, setFormSolicitacao] = useState(initialFormSolicitacao);
+  const [showModalSolicitacao, setShowModalSolicitacao] = useState(false);
+
+  // --- QUERIES ---
   const { data: filiais = [] } = useQuery({ queryKey: ['filiais'], queryFn: () => axios.get(`${API_URL}/filiais/`, authConfig).then(res => res.data), enabled: !!token });
   const { data: fornecedores = [] } = useQuery({ queryKey: ['fornecedores'], queryFn: () => axios.get(`${API_URL}/fornecedores/`, authConfig).then(res => res.data), enabled: !!token });
   const { data: dadosDashboard = [], isLoading: loadingDash } = useQuery({ queryKey: ['dashboard', filialFiltro, competencia.getMonth(), competencia.getFullYear()], queryFn: async () => { const params = { filial_id: filialFiltro || undefined, mes: competencia.getMonth() + 1, ano: competencia.getFullYear() }; const res = await axios.get(`${API_URL}/dados-agrupados/`, { ...authConfig, params }); let lista = []; res.data.forEach(forn => { if(forn.lancamentos) forn.lancamentos.forEach(nota => lista.push({ ...nota, nome_fornecedor: forn.nome_empresa })); }); return lista; }, enabled: !!token && !termoBusca });
   const { data: usuarios = [], refetch: refetchUsuarios } = useQuery({ queryKey: ['usuarios'], queryFn: () => axios.get(`${API_URL}/usuarios/`, authConfig).then(res => res.data), enabled: !!token && currentView === 'usuarios' });
   const { data: dadosBusca = [], isFetching: carregandoBusca } = useQuery({ queryKey: ['busca', termoBusca], queryFn: async () => { if (!termoBusca) return []; const res = await axios.get(`${API_URL}/lancamentos/?busca=${termoBusca}`, authConfig); return res.data; }, enabled: !!token && termoBusca.length > 2 });
+  
+  // Query de Solicitações
+  const { data: solicitacoes = [], refetch: refetchSolicitacoes } = useQuery({
+    queryKey: ['solicitacoes', termoBusca],
+    queryFn: async () => {
+      const res = await axios.get(`${API_URL}/solicitacoes/${termoBusca ? `?busca=${termoBusca}` : ''}`, authConfig);
+      return res.data;
+    },
+    enabled: !!token && currentView === 'solicitacoes'
+  });
 
-  // MUTATIONS (usando mutateAsync para permitir chain)
+  // --- MUTATIONS ---
   const mutationLancamento = useMutation({ mutationFn: (nota) => nota.id ? axios.put(`${API_URL}/lancamentos/${nota.id}`, nota, authConfig) : axios.post(`${API_URL}/lancamentos/`, nota, authConfig), onSuccess: () => { queryClient.invalidateQueries(['dashboard']); queryClient.invalidateQueries(['busca']); }});
   const mutationStatus = useMutation({ mutationFn: ({id, status}) => axios.patch(`${API_URL}/lancamentos/${id}/status`, { status }, authConfig), onSuccess: () => { queryClient.invalidateQueries(['dashboard']); queryClient.invalidateQueries(['busca']); addToast('success', 'Status atualizado!'); } });
   const mutationFilial = useMutation({ mutationFn: (data) => data.id ? axios.put(`${API_URL}/filiais/${data.id}`, data, authConfig) : axios.post(`${API_URL}/filiais/`, data, authConfig), onSuccess: () => { queryClient.invalidateQueries(['filiais']); setEditingFilial(null); addToast('success', 'Filial salva!'); } });
   const mutationDeleteFilial = useMutation({ mutationFn: (id) => axios.delete(`${API_URL}/filiais/${id}`, authConfig), onSuccess: () => { queryClient.invalidateQueries(['filiais']); addToast('success', 'Filial excluída!'); }, onError: () => addToast('error', 'Erro ao excluir filial.') });
   const mutationFornecedor = useMutation({ mutationFn: (data) => data.id ? axios.put(`${API_URL}/fornecedores/${data.id}`, data, authConfig) : axios.post(`${API_URL}/fornecedores/`, data, authConfig), onSuccess: () => { queryClient.invalidateQueries(['fornecedores']); setEditingFornecedor(null); addToast('success', 'Fornecedor salvo!'); } });
+  
+  // Mutation de Solicitações
+  const mutationSolicitacao = useMutation({
+    mutationFn: (dados) => {
+      if (dados.id) return axios.put(`${API_URL}/solicitacoes/${dados.id}`, dados, authConfig);
+      return axios.post(`${API_URL}/solicitacoes/`, dados, authConfig);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['solicitacoes']);
+      addToast('success', 'Solicitação salva com sucesso!');
+      setShowModalSolicitacao(false);
+    },
+    onError: (err) => addToast('error', 'Erro ao salvar: ' + err.message)
+  });
   
   // Helpers
   const handleLogin = (t) => { localStorage.setItem('token', t); setToken(t); };
@@ -257,6 +244,23 @@ const initialFormSolicitacao = {
   
   const nomeFornecedorAtual = fornecedores.find(f => f.id == form.fornecedor_id)?.nome_empresa || "";
   const mesExibicao = competencia.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+
+  // Helper para Solicitações
+  const handleFornecedorSolicitacao = (id) => {
+    const forn = fornecedores.find(f => f.id == id);
+    if (forn) {
+      setFormSolicitacao(prev => ({
+        ...prev,
+        fornecedor_id: id,
+        cnpj: (forn.lista_cnpjs || '').split(';')[0] || '', // Pega o primeiro CNPJ
+        centro_custo: (forn.lista_centro_custos || '').split(';')[0] || '', // Pega o primeiro CC
+        servico: forn.padrao_descricao_servico || '',
+        servico_protheus: forn.padrao_servico_protheus || ''
+      }));
+    } else {
+      setFormSolicitacao(prev => ({ ...prev, fornecedor_id: id }));
+    }
+  };
 
   // --- NOVA FUNÇÃO DE E-MAIL (GOPA) ---
   const handleEnviarEmail = async (dadosNota) => {
@@ -344,7 +348,7 @@ const initialFormSolicitacao = {
         <div className="flex items-center gap-4"><button onClick={() => setIsMenuOpen(true)} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"><Menu size={24}/></button><div className="text-white flex items-center gap-3 hidden md:flex"><Image src="/logo-cicopal.png" alt="Cicopal" width={40} height={40} className="h-10 w-auto object-contain bg-white/10 rounded p-1" /><div><h1 className="text-xl font-black tracking-tight leading-none">CICOPAL <span className="font-light opacity-80">GESTÃO DE NOTAS</span></h1></div></div></div>
         {currentView === 'dashboard' && (<div className="flex-1 max-w-2xl mx-4 relative"><input className="w-full bg-black/20 border border-white/10 text-white placeholder:text-white/60 rounded-xl pl-10 pr-4 py-2.5 outline-none focus:bg-black/40 font-bold" placeholder="Buscar..." value={termoBusca} onChange={(e) => setTermoBusca(e.target.value)} /><Search className="absolute left-3 top-3 text-white/60" size={18} />{termoBusca && (<button onClick={() => setTermoBusca('')} className="absolute right-3 top-3 text-white/60 hover:text-white"><X size={18}/></button>)}</div>)}
         
-        {/* PARTE CORRIGIDA DO HEADER (LADO DIREITO) */}
+        {/* PARTE DO HEADER (LADO DIREITO) */}
         <div className="flex gap-3 items-center">
             {currentView === 'dashboard' && (
                 <>
@@ -356,7 +360,6 @@ const initialFormSolicitacao = {
                         <ChevronDown className="absolute right-3 top-3 text-white/70 pointer-events-none" size={14}/>
                     </div>
 
-                    {/* BOTÃO EXPORTAR INSERIDO AQUI */}
                     <BotaoExportar dados={dadosDashboard} />
 
                     <button onClick={() => { setForm(initialForm); setIsEditMode(false); setShowModal(true); }} className="bg-[#E30613] text-white hover:bg-white hover:text-[#E30613] px-5 py-2 rounded-lg font-black text-sm flex gap-2 items-center shadow-lg active:scale-95 whitespace-nowrap transition-colors">
@@ -367,62 +370,7 @@ const initialFormSolicitacao = {
         </div>
       </header>
 
-      
-
-<nav className="space-y-2 flex-1">
-  <button
-    onClick={() => { 
-      setCurrentView('dashboard'); 
-      setIsMenuOpen(false); 
-    }}
-    className="w-full flex items-center gap-4 text-slate-600 font-bold p-4 rounded-xl hover:bg-slate-50"
-  >
-    <Server size={20}/> DASHBOARD
-  </button>
-
-  <button
-    onClick={() => { 
-      setCurrentView('filiais'); 
-      setIsMenuOpen(false); 
-    }}
-    className="w-full flex items-center gap-4 text-slate-600 font-bold p-4 rounded-xl hover:bg-slate-50"
-  >
-    <Building size={20}/> FILIAIS
-  </button>
-
-  <button
-    onClick={() => { 
-      setCurrentView('fornecedores'); 
-      setIsMenuOpen(false); 
-    }}
-    className="w-full flex items-center gap-4 text-slate-600 font-bold p-4 rounded-xl hover:bg-slate-50"
-  >
-    <Users size={20}/> FORNECEDORES
-  </button>
-
-  <button
-    onClick={() => { 
-      setCurrentView('usuarios'); 
-      refetchUsuarios(); 
-      setIsMenuOpen(false); 
-    }}
-    className="w-full flex items-center gap-4 text-slate-600 font-bold p-4 rounded-xl hover:bg-slate-50"
-  >
-    <UserPlus size={20}/> USUÁRIOS
-  </button>
-
-  {/* 🔽 BOTÃO ADICIONADO */}
-  <button
-    onClick={() => { 
-      setCurrentView('solicitacoes'); 
-      setIsMenuOpen(false); 
-    }}
-    className="w-full flex items-center gap-4 text-slate-600 font-bold p-4 rounded-xl hover:bg-slate-50"
-  >
-    <ShoppingCart size={20}/> SOLICITAÇÕES
-  </button>
-</nav>
-
+      <div className={`fixed inset-0 z-50 transition-all duration-300 ${isMenuOpen ? 'visible' : 'invisible'}`}><div className={`absolute inset-0 bg-[#1E22A8]/80 backdrop-blur-sm transition-opacity duration-300 ${isMenuOpen ? 'opacity-100' : 'opacity-0'}`} onClick={() => setIsMenuOpen(false)}></div><div className={`absolute left-0 top-0 bottom-0 w-80 bg-white shadow-2xl p-6 transform transition-transform duration-300 flex flex-col ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}><div className="flex justify-between items-center mb-10 text-[#1E22A8]"><h2 className="text-2xl font-black tracking-tighter">MENU</h2><button onClick={() => setIsMenuOpen(false)} className="hover:bg-slate-100 p-2 rounded-full"><X size={24}/></button></div><nav className="space-y-2 flex-1"><button onClick={() => { setCurrentView('dashboard'); setIsMenuOpen(false); }} className="w-full flex items-center gap-4 text-slate-600 font-bold p-4 rounded-xl hover:bg-slate-50"><Server size={20}/> DASHBOARD</button><button onClick={() => { setCurrentView('solicitacoes'); setIsMenuOpen(false); }} className="w-full flex items-center gap-4 text-slate-600 font-bold p-4 rounded-xl hover:bg-slate-50"><ShoppingCart size={20}/> SOLICITAÇÕES</button><button onClick={() => { setCurrentView('filiais'); setIsMenuOpen(false); }} className="w-full flex items-center gap-4 text-slate-600 font-bold p-4 rounded-xl hover:bg-slate-50"><Building size={20}/> FILIAIS</button><button onClick={() => { setCurrentView('fornecedores'); setIsMenuOpen(false); }} className="w-full flex items-center gap-4 text-slate-600 font-bold p-4 rounded-xl hover:bg-slate-50"><Users size={20}/> FORNECEDORES</button><button onClick={() => { setCurrentView('usuarios'); refetchUsuarios(); setIsMenuOpen(false); }} className="w-full flex items-center gap-4 text-slate-600 font-bold p-4 rounded-xl hover:bg-slate-50"><UserPlus size={20}/> USUÁRIOS</button></nav><button onClick={handleLogout} className="w-full flex items-center gap-4 text-[#E30613] font-bold p-4 rounded-xl hover:bg-red-50 mt-auto"><LogOut size={20}/> SAIR</button></div></div>
 
       <main className="max-w-[1600px] mx-auto p-6 space-y-10 mt-4">
         {termoBusca.length > 2 && currentView === 'dashboard' ? (
@@ -450,7 +398,6 @@ const initialFormSolicitacao = {
                                         <div className="flex gap-2 pl-6 border-l-2 border-slate-100 flex-col sm:flex-row">
                                             <button onClick={()=>copiarProtheus(n)} className="h-10 px-4 bg-[#1E22A8] text-white rounded-lg font-bold text-xs flex items-center justify-center gap-2 hover:bg-[#E30613] transition-colors shadow-sm" title="Copiar p/ Protheus"><ClipboardList size={16}/> Copiar</button>
                                             
-                                            {/* BOTÃO ENVIAR P/ BALANÇA (NO GRID) - EXPANDIDO PARA EVITAR ERRO */}
                                             {isNoteGopa(n) && n.status_pagamento !== 'Email Enviado p/ Balança' && (
                                                 <button 
                                                     onClick={() => handleEnviarEmail(n)} 
@@ -480,118 +427,64 @@ const initialFormSolicitacao = {
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 md:grid-cols-5 gap-y-3 gap-x-6 text-sm text-slate-600 bg-slate-50 p-4 rounded-xl border border-slate-100"><div><strong className="block text-[#1E22A8] uppercase text-[10px] font-black mb-1">Vencimento</strong><span className="text-base font-bold text-slate-600">{n.data_vencimento.split('T')[0].split('-').reverse().join('/')}</span></div><div><strong className="block text-[#1E22A8] uppercase text-[10px] font-black mb-1">Envio TI</strong><span className="text-base font-bold text-slate-600">{n.data_envio ? n.data_envio.split('T')[0].split('-').reverse().join('/') : '-'}</span></div><div><strong className="block text-[#1E22A8] uppercase text-[10px] font-black mb-1">Centro Custo</strong><span className="text-base font-bold text-slate-600">{n.centro_custo_usado || '-'}</span></div><div><strong className="block text-[#1E22A8] uppercase text-[10px] font-black mb-1">Fluig</strong><span className="text-base font-bold text-slate-600">{n.solicitacao_fluig || '-'}</span></div><div className="relative"><strong className="block text-[#1E22A8] uppercase text-[10px] font-black mb-1">Status Atual</strong><select value={n.status_pagamento || ""} onChange={async (e) => { const st = e.target.value; mutationStatus.mutate({id: n.id, status: st}); }} className={`w-full appearance-none text-[11px] font-black uppercase py-1.5 px-3 rounded-lg border-2 cursor-pointer outline-none transition-all ${STATUS_STYLES[n.status_pagamento]?.bg} ${STATUS_STYLES[n.status_pagamento]?.border} ${STATUS_STYLES[n.status_pagamento]?.text}`}>{OPCOES_STATUS.map(s => <option key={s} value={s}>{s}</option>)}</select></div></div></div>))}</div>}</div>)})}</div > </>))}
+        
+        {/* --- NOVA ABA: SOLICITAÇÕES DE COMPRA --- */}
+        {currentView === 'solicitacoes' && (
+          <div className="bg-white rounded-3xl p-8 shadow-xl animate-in zoom-in-95">
+            <div className="flex justify-between mb-6">
+              <h2 className="text-3xl font-black text-[#1E22A8] flex gap-3 items-center">
+                <div className="bg-[#1E22A8] p-2 rounded-lg text-white"><ShoppingCart/></div> 
+                SOLICITAÇÕES DE COMPRA
+              </h2>
+              <button 
+                onClick={() => { setFormSolicitacao(initialFormSolicitacao); setShowModalSolicitacao(true); }} 
+                className="bg-[#1E22A8] text-white px-4 py-2 rounded-xl font-bold flex gap-2 items-center hover:bg-[#E30613] transition-colors"
+              >
+                <Plus size={18}/> Nova Solicitação
+              </button>
+            </div>
+
+            {/* LISTA DE SOLICITAÇÕES (TABELA EM CARDS) */}
+            <div className="space-y-3">
+              {solicitacoes.length === 0 ? (
+                <div className="text-center p-10 text-slate-400 font-bold">Nenhuma solicitação encontrada.</div>
+              ) : (
+                solicitacoes.map(s => (
+                  <div key={s.id} className="p-4 border-2 border-slate-100 rounded-xl hover:border-blue-300 transition-all bg-slate-50 flex flex-col md:flex-row justify-between gap-4 items-center">
+                    <div className="flex-1 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-black text-[#1E22A8] text-lg">#{s.numero_sc || 'S/N'}</span>
+                          <span className="text-[10px] bg-white border px-2 py-0.5 rounded font-bold uppercase text-slate-500">{s.filial?.nome_fantasia}</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase text-white ${s.status === 'Pendente' ? 'bg-amber-400' : s.status === 'Aprovado' ? 'bg-blue-500' : s.status === 'Pedido Realizado' ? 'bg-emerald-500' : 'bg-slate-400'}`}>
+                              {s.status}
+                          </span>
+                        </div>
+                        <div className="font-bold text-slate-700">{s.fornecedor?.nome_empresa || 'Fornecedor não informado'}</div>
+                        <div className="text-xs text-slate-500 font-bold uppercase flex gap-3">
+                          <span>SOLICITANTE: {s.solicitante}</span>
+                          <span>•</span>
+                          <span>ITEM: {s.servico || '-'}</span>
+                        </div>
+                    </div>
+                    
+                    <div className="text-right">
+                        <div className="text-[10px] font-bold text-slate-400 uppercase">Valor Estimado</div>
+                        <div className="text-xl font-black text-[#1E22A8]">R$ {parseFloat(s.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
+                    </div>
+
+                    <div className="flex gap-2">
+                        <button onClick={() => { setFormSolicitacao(s); setShowModalSolicitacao(true); }} className="p-2 bg-white border rounded-lg hover:text-[#1E22A8] transition-colors"><Edit2 size={18}/></button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+        
         {currentView === 'filiais' && (<div className="bg-white rounded-3xl p-8 shadow-xl animate-in zoom-in-95"><div className="flex justify-between mb-6"><h2 className="text-3xl font-black text-[#1E22A8] flex gap-3 items-center"><div className="bg-[#1E22A8] p-2 rounded-lg text-white"><Building/></div> FILIAIS</h2><button onClick={()=>setEditingFilial({codigo:'', nome_fantasia:''})} className="bg-[#1E22A8] text-white px-4 py-2 rounded-xl font-bold flex gap-2"><Plus size={18}/> Nova</button></div>{editingFilial && <div className="bg-slate-50 p-4 rounded-xl mb-4 border border-blue-200 grid grid-cols-2 gap-4"><div><label className={LABEL_STYLE}>Código</label><input className={INPUT_STYLE} value={editingFilial.codigo || ""} onChange={e=>setEditingFilial({...editingFilial, codigo:e.target.value})}/></div><div><label className={LABEL_STYLE}>Nome</label><input className={INPUT_STYLE} value={editingFilial.nome_fantasia || ""} onChange={e=>setEditingFilial({...editingFilial, nome_fantasia:e.target.value})}/></div><div className="col-span-2 flex gap-2"><button onClick={()=>mutationFilial.mutate(editingFilial)} className="bg-green-500 text-white px-4 py-2 rounded-lg font-bold">Salvar</button><button onClick={()=>setEditingFilial(null)} className="bg-slate-300 text-slate-700 px-4 py-2 rounded-lg font-bold">Cancelar</button></div></div>}<div className="grid grid-cols-1 md:grid-cols-2 gap-4">{filiais.map(f => (<div key={f.id} className="p-4 border-2 border-slate-100 rounded-xl flex justify-between items-center group hover:border-blue-200"><div><span className="font-bold text-slate-700 block">{f.nome_fantasia}</span><span className="text-xs font-black bg-slate-200 text-slate-500 px-2 py-0.5 rounded-lg">{f.codigo}</span></div><div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={()=>setEditingFilial(f)} className="p-2 text-[#1E22A8] hover:bg-blue-50 rounded-lg"><Edit2 size={18}/></button><button onClick={()=>{openConfirm("Excluir Filial", `Deseja realmente excluir ${f.nome_fantasia}?`, () => mutationDeleteFilial.mutate(f.id))}} className="p-2 text-[#E30613] hover:bg-red-50 rounded-lg"><Trash2 size={18}/></button></div></div>))}</div></div>)}
         {currentView === 'fornecedores' && (<div className="bg-white rounded-3xl p-8 shadow-xl animate-in zoom-in-95"><div className="flex justify-between mb-6"><h2 className="text-3xl font-black text-[#1E22A8] flex gap-3 items-center"><div className="bg-[#1E22A8] p-2 rounded-lg text-white"><Users/></div> FORNECEDORES</h2><button onClick={()=>setEditingFornecedor({nome_empresa:'', lista_cnpjs:'', lista_contratos:'', lista_centro_custos:'', padrao_descricao_servico:'', padrao_servico_protheus:''})} className="bg-[#1E22A8] text-white px-4 py-2 rounded-xl font-bold flex gap-2"><Plus size={18}/> Nova</button></div>{editingFornecedor && <div className="bg-slate-50 p-6 rounded-xl mb-6 border border-blue-200 grid grid-cols-2 gap-4"><div className="col-span-2"><label className={LABEL_STYLE}>Nome</label><input className={INPUT_STYLE} value={editingFornecedor.nome_empresa || ""} onChange={e=>setEditingFornecedor({...editingFornecedor, nome_empresa:e.target.value})}/></div><div><label className={LABEL_STYLE}>CNPJs</label><input className={INPUT_STYLE} value={editingFornecedor.lista_cnpjs || ""} onChange={e=>setEditingFornecedor({...editingFornecedor, lista_cnpjs:e.target.value})}/></div><div><label className={LABEL_STYLE}>Contratos</label><input className={INPUT_STYLE} value={editingFornecedor.lista_contratos || ""} onChange={e=>setEditingFornecedor({...editingFornecedor, lista_contratos:e.target.value})}/></div><div className="col-span-2 flex gap-2"><button onClick={()=>mutationFornecedor.mutate(editingFornecedor)} className="bg-green-500 text-white px-4 py-2 rounded-lg font-bold">Salvar</button><button onClick={()=>setEditingFornecedor(null)} className="bg-slate-300 text-slate-700 px-4 py-2 rounded-lg font-bold">Cancelar</button></div></div>}<div className="grid grid-cols-1 gap-4">{fornecedores.map(f => (<div key={f.id} className="p-5 border-2 border-slate-100 rounded-xl hover:border-[#1E22A8] transition-colors group flex justify-between items-start"><div className="flex-1"><h3 className="font-black text-lg text-[#1E22A8] mb-2">{f.nome_empresa}</h3><div className="grid grid-cols-2 gap-4 text-xs text-slate-500"><div><strong className="block uppercase text-slate-400">Contratos</strong>{f.lista_contratos}</div><div><strong className="block uppercase text-slate-400">Centro de Custo</strong>{f.lista_centro_custos}</div></div></div><div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity ml-4"><button onClick={()=>setEditingFornecedor(f)} className="p-2 text-[#1E22A8] hover:bg-blue-50 rounded-lg"><Edit2 size={18}/></button><button onClick={()=>{openConfirm("Excluir Fornecedor", `Deseja realmente excluir ${f.nome_empresa}?`, () => axios.delete(`${API_URL}/fornecedores/${f.id}`, authConfig).then(()=>{queryClient.invalidateQueries(['fornecedores']); addToast('success', 'Fornecedor excluído!');}))}} className="p-2 text-[#E30613] hover:bg-red-50 rounded-lg"><Trash2 size={18}/></button></div></div>))}</div></div>)}
         {currentView === 'usuarios' && (<div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in zoom-in-95"><div className="lg:col-span-1 bg-white rounded-3xl p-8 shadow-xl h-fit"><h3 className="text-xl font-black text-[#1E22A8] mb-4">NOVO USUÁRIO</h3><div className="space-y-4"><div><label className={LABEL_STYLE}>Nome</label><input className={INPUT_STYLE} value={formUser.nome_completo || ""} onChange={e=>setFormUser({...formUser, nome_completo:e.target.value})}/></div><div><label className={LABEL_STYLE}>Login</label><input className={INPUT_STYLE} value={formUser.username || ""} onChange={e=>setFormUser({...formUser, username:e.target.value})}/></div><div><label className={LABEL_STYLE}>Senha</label><input type="password" className={INPUT_STYLE} value={formUser.password || ""} onChange={e=>setFormUser({...formUser, password:e.target.value})}/></div><button onClick={criarUsuario} className={`w-full ${BUTTON_PRIMARY} mt-4`}>CADASTRAR</button></div></div><div className="lg:col-span-2 bg-white rounded-3xl p-8 shadow-xl"><h3 className="text-xl font-black text-[#1E22A8] mb-6">USUÁRIOS ATIVOS</h3><div className="space-y-4">{usuarios.map(u => (<div key={u.id} className="flex items-center justify-between p-4 border border-slate-100 rounded-xl bg-slate-50"><div className="flex items-center gap-4"><div className="bg-[#1E22A8] text-white h-10 w-10 rounded-full flex items-center justify-center font-bold text-lg">{u.nome_completo.charAt(0)}</div><div><p className="font-bold text-[#1E22A8]">{u.nome_completo}</p><p className="text-xs text-slate-400 font-bold uppercase">{u.cargo} • {u.setor}</p></div></div><span className="text-xs bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full font-bold">ATIVO</span></div>))}</div></div></div>)}
-        {currentView === 'solicitacoes' && (
-  <div className="bg-white rounded-3xl p-8 shadow-xl animate-in zoom-in-95">
-    <div className="flex justify-between mb-6">
-      <h2 className="text-3xl font-black text-[#1E22A8] flex gap-3 items-center">
-        <div className="bg-[#1E22A8] p-2 rounded-lg text-white"><ShoppingCart/></div> 
-        SOLICITAÇÕES DE COMPRA
-      </h2>
-      <button 
-        onClick={() => { setFormSolicitacao(initialFormSolicitacao); setShowModalSolicitacao(true); }} 
-        className="bg-[#1E22A8] text-white px-4 py-2 rounded-xl font-bold flex gap-2 items-center hover:bg-[#E30613] transition-colors"
-      >
-        <Plus size={18}/> Nova Solicitação
-      </button>
-    </div>
-
-    {/* LISTA DE SOLICITAÇÕES (TABELA EM CARDS) */}
-    <div className="space-y-3">
-      {solicitacoes.length === 0 ? (
-        <div className="text-center p-10 text-slate-400 font-bold">Nenhuma solicitação encontrada.</div>
-      ) : (
-        solicitacoes.map(s => (
-          <div key={s.id} className="p-4 border-2 border-slate-100 rounded-xl hover:border-blue-300 transition-all bg-slate-50 flex flex-col md:flex-row justify-between gap-4 items-center">
-             <div className="flex-1 space-y-1">
-                <div className="flex items-center gap-2">
-                   <span className="font-black text-[#1E22A8] text-lg">#{s.numero_sc || 'S/N'}</span>
-                   <span className="text-[10px] bg-white border px-2 py-0.5 rounded font-bold uppercase text-slate-500">{s.filial?.nome_fantasia}</span>
-                   <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase text-white ${s.status === 'Pendente' ? 'bg-amber-400' : s.status === 'Aprovado' ? 'bg-blue-500' : s.status === 'Pedido Realizado' ? 'bg-emerald-500' : 'bg-slate-400'}`}>
-                      {s.status}
-                   </span>
-                </div>
-                <div className="font-bold text-slate-700">{s.fornecedor?.nome_empresa || 'Fornecedor não informado'}</div>
-                <div className="text-xs text-slate-500 font-bold uppercase flex gap-3">
-                   <span>SOLICITANTE: {s.solicitante}</span>
-                   <span>•</span>
-                   <span>ITEM: {s.servico || '-'}</span>
-                </div>
-             </div>
-             
-             <div className="text-right">
-                <div className="text-[10px] font-bold text-slate-400 uppercase">Valor Estimado</div>
-                <div className="text-xl font-black text-[#1E22A8]">R$ {parseFloat(s.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
-             </div>
-
-             <div className="flex gap-2">
-                <button onClick={() => { setFormSolicitacao(s); setShowModalSolicitacao(true); }} className="p-2 bg-white border rounded-lg hover:text-[#1E22A8] transition-colors"><Edit2 size={18}/></button>
-             </div>
-          </div>
-        ))
-      )}
-    </div>
-  </div>
-)}
-
-{/* --- MODAL DE SOLICITAÇÕES --- */}
-{showModalSolicitacao && (
-  <div className="fixed inset-0 bg-[#1E22A8]/60 backdrop-blur-md z-[80] flex items-center justify-center p-4">
-    <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95">
-       <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-          <h2 className="text-2xl font-black flex gap-3 text-[#1E22A8] items-center"><ShoppingCart/> {formSolicitacao.id ? 'EDITAR SOLICITAÇÃO' : 'NOVA SOLICITAÇÃO'}</h2>
-          <button onClick={() => setShowModalSolicitacao(false)} className="bg-white p-2 rounded-full hover:bg-red-50 text-slate-400 hover:text-[#E30613]"><X size={24}/></button>
-       </div>
-
-       <div className="flex-1 overflow-y-auto p-8 bg-white">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-             
-             {/* DADOS BÁSICOS */}
-             <div className="md:col-span-1"><label className={LABEL_STYLE}>Filial *</label><select className={INPUT_STYLE} value={formSolicitacao.filial_id || ""} onChange={e => setFormSolicitacao({...formSolicitacao, filial_id: e.target.value})}><option value="">Selecione...</option>{filiais.map(f => <option key={f.id} value={f.id}>{f.codigo} - {f.nome_fantasia}</option>)}</select></div>
-             <div className="md:col-span-1"><label className={LABEL_STYLE}>Solicitante *</label><input className={INPUT_STYLE} placeholder="Quem pediu?" value={formSolicitacao.solicitante || ""} onChange={e => setFormSolicitacao({...formSolicitacao, solicitante: e.target.value})}/></div>
-             <div className="md:col-span-2"><label className={LABEL_STYLE}>Fornecedor</label><select className={INPUT_STYLE} value={formSolicitacao.fornecedor_id || ""} onChange={e => handleFornecedorSolicitacao(e.target.value)}><option value="">Selecione...</option>{fornecedores.map(f => <option key={f.id} value={f.id}>{f.nome_empresa}</option>)}</select></div>
-
-             <div className="md:col-span-4 h-[1px] bg-slate-100 my-2"></div>
-
-             {/* DADOS FINANCEIROS */}
-             <div className="md:col-span-1"><label className={LABEL_STYLE}>CNPJ</label><input className={INPUT_STYLE} value={formSolicitacao.cnpj || ""} onChange={e => setFormSolicitacao({...formSolicitacao, cnpj: e.target.value})}/></div>
-             <div className="md:col-span-1"><label className={LABEL_STYLE}>Cond. Pagamento</label><input className={INPUT_STYLE} placeholder="Ex: 30 dias" value={formSolicitacao.condicao_pagamento || ""} onChange={e => setFormSolicitacao({...formSolicitacao, condicao_pagamento: e.target.value})}/></div>
-             <div className="md:col-span-1"><label className={LABEL_STYLE}>Valor R$</label><input type="number" className={INPUT_STYLE} value={formSolicitacao.valor || ""} onChange={e => setFormSolicitacao({...formSolicitacao, valor: e.target.value})}/></div>
-             <div className="md:col-span-1"><label className={LABEL_STYLE}>Vencimento (Previsto)</label><input type="date" className={INPUT_STYLE} value={formSolicitacao.data_vencimento || ""} onChange={e => setFormSolicitacao({...formSolicitacao, data_vencimento: e.target.value})}/></div>
-
-             {/* DETALHES DO PEDIDO */}
-             <div className="md:col-span-4 bg-blue-50 p-4 rounded-xl border border-blue-100 grid grid-cols-4 gap-4">
-                <div className="col-span-4 text-[#1E22A8] font-black text-xs uppercase tracking-widest flex gap-2 items-center"><FileText size={14}/> Detalhes do Pedido</div>
-                <div className="col-span-1"><label className={LABEL_STYLE}>Nº SC</label><input className={INPUT_STYLE} value={formSolicitacao.numero_sc || ""} onChange={e => setFormSolicitacao({...formSolicitacao, numero_sc: e.target.value})}/></div>
-                <div className="col-span-1"><label className={LABEL_STYLE}>Nº Pedido</label><input className={INPUT_STYLE} value={formSolicitacao.numero_pedido || ""} onChange={e => setFormSolicitacao({...formSolicitacao, numero_pedido: e.target.value})}/></div>
-                <div className="col-span-1"><label className={LABEL_STYLE}>Centro de Custo</label><input className={INPUT_STYLE} value={formSolicitacao.centro_custo || ""} onChange={e => setFormSolicitacao({...formSolicitacao, centro_custo: e.target.value})}/></div>
-                <div className="col-span-1"><label className={LABEL_STYLE}>Fluig</label><input className={INPUT_STYLE} value={formSolicitacao.fluig_id || ""} onChange={e => setFormSolicitacao({...formSolicitacao, fluig_id: e.target.value})}/></div>
-                <div className="col-span-2"><label className={LABEL_STYLE}>Serviço / Produto</label><input className={INPUT_STYLE} value={formSolicitacao.servico || ""} onChange={e => setFormSolicitacao({...formSolicitacao, servico: e.target.value})}/></div>
-                <div className="col-span-2"><label className={LABEL_STYLE}>Serviço (Protheus)</label><input className={INPUT_STYLE} value={formSolicitacao.servico_protheus || ""} onChange={e => setFormSolicitacao({...formSolicitacao, servico_protheus: e.target.value})}/></div>
-             </div>
-
-             {/* CONTROLE */}
-             <div className="md:col-span-2"><label className={LABEL_STYLE}>Nota Fiscal (Se houver)</label><input className={INPUT_STYLE} value={formSolicitacao.numero_nota || ""} onChange={e => setFormSolicitacao({...formSolicitacao, numero_nota: e.target.value})}/></div>
-             <div className="md:col-span-2">
-                <label className={LABEL_STYLE}>Status Atual</label>
-                <select className={INPUT_STYLE} value={formSolicitacao.status} onChange={e => setFormSolicitacao({...formSolicitacao, status: e.target.value})}>
-                   {OPCOES_STATUS_COMPRA.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-             </div>
-             
-             <div className="col-span-4"><label className={LABEL_STYLE}>Observações</label><textarea className={`${INPUT_STYLE} h-24 resize-none`} value={formSolicitacao.observacao || ""} onChange={e => setFormSolicitacao({...formSolicitacao, observacao: e.target.value})}/></div>
-          </div>
-       </div>
-
-       <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-4">
-          <button onClick={() => setShowModalSolicitacao(false)} className="px-6 py-3 rounded-xl font-bold text-slate-400 hover:text-[#E30613]">Cancelar</button>
-          <button onClick={() => mutationSolicitacao.mutate(formSolicitacao)} className="bg-[#1E22A8] text-white px-8 py-3 rounded-xl font-black shadow-lg hover:bg-blue-700 active:scale-95 transition-all">SALVAR SOLICITAÇÃO</button>
-       </div>
-    </div>
-  </div>
-)}
       </main>
 
 {/* FOOTER SIMPLES - CLEAN */}
@@ -601,7 +494,7 @@ const initialFormSolicitacao = {
   </p>
 </footer>
 
-      {/* MODAL */}
+      {/* MODAL PADRÃO (NOTAS) */}
       {showModal && (
         <div className="fixed inset-0 bg-[#1E22A8]/60 backdrop-blur-md z-[70] flex items-center justify-center p-4">
           <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 border border-white/50">
@@ -691,6 +584,63 @@ const initialFormSolicitacao = {
                 )}
              </div>
           </div>
+        </div>
+      )}
+
+      {/* MODAL NOVO: SOLICITAÇÕES DE COMPRA */}
+      {showModalSolicitacao && (
+        <div className="fixed inset-0 bg-[#1E22A8]/60 backdrop-blur-md z-[80] flex items-center justify-center p-4">
+            <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95">
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                    <h2 className="text-2xl font-black flex gap-3 text-[#1E22A8] items-center"><ShoppingCart/> {formSolicitacao.id ? 'EDITAR SOLICITAÇÃO' : 'NOVA SOLICITAÇÃO'}</h2>
+                    <button onClick={() => setShowModalSolicitacao(false)} className="bg-white p-2 rounded-full hover:bg-red-50 text-slate-400 hover:text-[#E30613]"><X size={24}/></button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-8 bg-white">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        
+                        {/* DADOS BÁSICOS */}
+                        <div className="md:col-span-1"><label className={LABEL_STYLE}>Filial *</label><select className={INPUT_STYLE} value={formSolicitacao.filial_id || ""} onChange={e => setFormSolicitacao({...formSolicitacao, filial_id: e.target.value})}><option value="">Selecione...</option>{filiais.map(f => <option key={f.id} value={f.id}>{f.codigo} - {f.nome_fantasia}</option>)}</select></div>
+                        <div className="md:col-span-1"><label className={LABEL_STYLE}>Solicitante *</label><input className={INPUT_STYLE} placeholder="Quem pediu?" value={formSolicitacao.solicitante || ""} onChange={e => setFormSolicitacao({...formSolicitacao, solicitante: e.target.value})}/></div>
+                        <div className="md:col-span-2"><label className={LABEL_STYLE}>Fornecedor</label><select className={INPUT_STYLE} value={formSolicitacao.fornecedor_id || ""} onChange={e => handleFornecedorSolicitacao(e.target.value)}><option value="">Selecione...</option>{fornecedores.map(f => <option key={f.id} value={f.id}>{f.nome_empresa}</option>)}</select></div>
+
+                        <div className="md:col-span-4 h-[1px] bg-slate-100 my-2"></div>
+
+                        {/* DADOS FINANCEIROS */}
+                        <div className="md:col-span-1"><label className={LABEL_STYLE}>CNPJ</label><input className={INPUT_STYLE} value={formSolicitacao.cnpj || ""} onChange={e => setFormSolicitacao({...formSolicitacao, cnpj: e.target.value})}/></div>
+                        <div className="md:col-span-1"><label className={LABEL_STYLE}>Cond. Pagamento</label><input className={INPUT_STYLE} placeholder="Ex: 30 dias" value={formSolicitacao.condicao_pagamento || ""} onChange={e => setFormSolicitacao({...formSolicitacao, condicao_pagamento: e.target.value})}/></div>
+                        <div className="md:col-span-1"><label className={LABEL_STYLE}>Valor R$</label><input type="number" className={INPUT_STYLE} value={formSolicitacao.valor || ""} onChange={e => setFormSolicitacao({...formSolicitacao, valor: e.target.value})}/></div>
+                        <div className="md:col-span-1"><label className={LABEL_STYLE}>Vencimento (Previsto)</label><input type="date" className={INPUT_STYLE} value={formSolicitacao.data_vencimento || ""} onChange={e => setFormSolicitacao({...formSolicitacao, data_vencimento: e.target.value})}/></div>
+
+                        {/* DETALHES DO PEDIDO */}
+                        <div className="md:col-span-4 bg-blue-50 p-4 rounded-xl border border-blue-100 grid grid-cols-4 gap-4">
+                            <div className="col-span-4 text-[#1E22A8] font-black text-xs uppercase tracking-widest flex gap-2 items-center"><FileText size={14}/> Detalhes do Pedido</div>
+                            <div className="col-span-1"><label className={LABEL_STYLE}>Nº SC</label><input className={INPUT_STYLE} value={formSolicitacao.numero_sc || ""} onChange={e => setFormSolicitacao({...formSolicitacao, numero_sc: e.target.value})}/></div>
+                            <div className="col-span-1"><label className={LABEL_STYLE}>Nº Pedido</label><input className={INPUT_STYLE} value={formSolicitacao.numero_pedido || ""} onChange={e => setFormSolicitacao({...formSolicitacao, numero_pedido: e.target.value})}/></div>
+                            <div className="col-span-1"><label className={LABEL_STYLE}>Centro de Custo</label><input className={INPUT_STYLE} value={formSolicitacao.centro_custo || ""} onChange={e => setFormSolicitacao({...formSolicitacao, centro_custo: e.target.value})}/></div>
+                            <div className="col-span-1"><label className={LABEL_STYLE}>Fluig</label><input className={INPUT_STYLE} value={formSolicitacao.fluig_id || ""} onChange={e => setFormSolicitacao({...formSolicitacao, fluig_id: e.target.value})}/></div>
+                            <div className="col-span-2"><label className={LABEL_STYLE}>Serviço / Produto</label><input className={INPUT_STYLE} value={formSolicitacao.servico || ""} onChange={e => setFormSolicitacao({...formSolicitacao, servico: e.target.value})}/></div>
+                            <div className="col-span-2"><label className={LABEL_STYLE}>Serviço (Protheus)</label><input className={INPUT_STYLE} value={formSolicitacao.servico_protheus || ""} onChange={e => setFormSolicitacao({...formSolicitacao, servico_protheus: e.target.value})}/></div>
+                        </div>
+
+                        {/* CONTROLE */}
+                        <div className="md:col-span-2"><label className={LABEL_STYLE}>Nota Fiscal (Se houver)</label><input className={INPUT_STYLE} value={formSolicitacao.numero_nota || ""} onChange={e => setFormSolicitacao({...formSolicitacao, numero_nota: e.target.value})}/></div>
+                        <div className="md:col-span-2">
+                            <label className={LABEL_STYLE}>Status Atual</label>
+                            <select className={INPUT_STYLE} value={formSolicitacao.status} onChange={e => setFormSolicitacao({...formSolicitacao, status: e.target.value})}>
+                            {OPCOES_STATUS_COMPRA.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                        </div>
+                        
+                        <div className="col-span-4"><label className={LABEL_STYLE}>Observações</label><textarea className={`${INPUT_STYLE} h-24 resize-none`} value={formSolicitacao.observacao || ""} onChange={e => setFormSolicitacao({...formSolicitacao, observacao: e.target.value})}/></div>
+                    </div>
+                </div>
+
+                <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-4">
+                    <button onClick={() => setShowModalSolicitacao(false)} className="px-6 py-3 rounded-xl font-bold text-slate-400 hover:text-[#E30613]">Cancelar</button>
+                    <button onClick={() => mutationSolicitacao.mutate(formSolicitacao)} className="bg-[#1E22A8] text-white px-8 py-3 rounded-xl font-black shadow-lg hover:bg-blue-700 active:scale-95 transition-all">SALVAR SOLICITAÇÃO</button>
+                </div>
+            </div>
         </div>
       )}
     </div>
