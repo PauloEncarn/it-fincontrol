@@ -6,62 +6,47 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// --- FUNÇÕES DE LIMPEZA (SANITIZERS) ---
-
-// Transforma qualquer coisa estranha em NULL ou NÚMERO VÁLIDO
+// --- HELPER: Limpeza de Dados ---
 const limparNumero = (valor) => {
-  // Se for nulo real ou undefined real
   if (valor === null || valor === undefined) return null;
-  
-  // Se for string, verifica se é lixo
   const stringVal = String(valor).trim();
-  if (stringVal === '' || stringVal === 'undefined' || stringVal === 'null' || stringVal === 'NaN') {
-    return null;
-  }
-
-  // Tenta converter
+  if (stringVal === '' || stringVal === 'undefined' || stringVal === 'null' || stringVal === 'NaN') return null;
   const numero = parseFloat(stringVal);
   return isNaN(numero) ? null : numero;
 };
 
-// Transforma "undefined" (texto) em NULL ou TEXTO VÁLIDO
 const limparTexto = (valor) => {
   if (valor === null || valor === undefined) return null;
   const stringVal = String(valor).trim();
-  if (stringVal === '' || stringVal === 'undefined' || stringVal === 'null') {
-    return null;
-  }
+  if (stringVal === '' || stringVal === 'undefined' || stringVal === 'null') return null;
   return stringVal;
 };
 
 // --- PUT: ATUALIZAR ---
-export async function PUT(request, { params }) {
+// ⚠️ Note que mudamos a forma de receber os parâmetros para funcionar no Next.js 15
+export async function PUT(request, context) {
   try {
-    const { id } = params;
+    // 1. Ler o ID com await (compatível com Next.js 15)
+    const params = await context.params;
+    const id = params.id;
     
-    // Proteção contra ID inválido na URL
+    // Debug: ver no terminal do VS Code o que está chegando
+    console.log("Tentando editar ID:", id);
+
+    // 2. Validação do ID
     if (!id || id === 'undefined' || id === 'null') {
-       return NextResponse.json({ error: "ID Inválido" }, { status: 400 });
+       return NextResponse.json({ error: "ID Inválido na URL" }, { status: 400 });
     }
 
     const body = await request.json();
 
-    // --- MONTAGEM BLINDADA DO PAYLOAD ---
-    // Aqui nós ignoramos completamente o que não queremos (como objetos 'filial': {...})
-    // E limpamos o que queremos.
-    
+    // 3. Montagem do Payload (Blindado)
     const payload = {
-      // IDs (Chaves estrangeiras)
       filial_id: limparNumero(body.filial_id),
       fornecedor_id: limparNumero(body.fornecedor_id),
+      valor: limparNumero(body.valor) || 0,
+      data_vencimento: limparTexto(body.data_vencimento),
       
-      // Valores Monetários
-      valor: limparNumero(body.valor) || 0, // Se for null, vira 0
-
-      // Datas
-      data_vencimento: limparTexto(body.data_vencimento), // Supabase aceita null ou string de data
-
-      // Campos de Texto
       solicitante: limparTexto(body.solicitante),
       cnpj: limparTexto(body.cnpj),
       condicao_pagamento: limparTexto(body.condicao_pagamento),
@@ -76,7 +61,6 @@ export async function PUT(request, { params }) {
       observacao: limparTexto(body.observacao)
     };
 
-    // Atualiza no banco
     const { data, error } = await supabase
       .from('solicitacoes_compra')
       .update(payload)
@@ -87,15 +71,17 @@ export async function PUT(request, { params }) {
 
     return NextResponse.json(data[0]);
   } catch (error) {
-    console.error("Erro no PUT (Backend Blindado):", error);
+    console.error("Erro no PUT:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
 // --- DELETE: EXCLUIR ---
-export async function DELETE(request, { params }) {
+export async function DELETE(request, context) {
   try {
-    const { id } = params;
+    const params = await context.params;
+    const id = params.id;
+
     if (!id || id === 'undefined') return NextResponse.json({ error: "ID inválido" }, { status: 400 });
 
     const { error } = await supabase.from('solicitacoes_compra').delete().eq('id', id);
