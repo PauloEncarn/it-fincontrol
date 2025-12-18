@@ -6,34 +6,48 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// --- FUNÇÃO DE SEGURANÇA PARA NÚMEROS ---
+// Transforma "undefined", "null", "", ou NaN em null.
+// Transforma "123" em 123.
+const safeInt = (valor) => {
+  if (valor === undefined || valor === null || valor === 'undefined' || valor === '') {
+    return null;
+  }
+  const numero = parseInt(valor);
+  return isNaN(numero) ? null : numero;
+};
+
 // --- PUT: ATUALIZAR ---
 export async function PUT(request, { params }) {
   try {
     const { id } = params; 
     const body = await request.json();
 
-    // 👇 AQUI ESTÁ A CORREÇÃO:
-    // Removemos 'filial' e 'fornecedor' (os objetos) além do ID e datas
+    // 1. Limpeza de Objetos (Remove o que não deve ser salvo)
     const { 
       id: idCorpo, 
       created_at, 
       responsavel, 
-      filial,      // <--- Remove o objeto aninhado
-      fornecedor,  // <--- Remove o objeto aninhado
+      filial,      // Remove objeto
+      fornecedor,  // Remove objeto
       ...dados 
     } = body;
 
+    // 2. Montagem Segura do Payload
     const payload = {
       ...dados,
       
-      // Garante que só manda os IDs numéricos
-      filial_id: body.filial_id ? parseInt(body.filial_id) : null,
-      fornecedor_id: body.fornecedor_id ? parseInt(body.fornecedor_id) : null,
+      // Usa o safeInt para evitar o erro "undefined"
+      filial_id: safeInt(body.filial_id),
+      fornecedor_id: safeInt(body.fornecedor_id),
       
-      // Tratamento de valores
+      // Tratamento de valores monetários
       valor: body.valor ? parseFloat(body.valor) : 0,
+      
+      // Tratamento de Datas (string vazia vira null)
       data_vencimento: body.data_vencimento || null,
       
+      // Tratamento de Textos Opcionais
       fluig_id: body.fluig_id || null,
       numero_sc: body.numero_sc || null,
       numero_pedido: body.numero_pedido || null,
