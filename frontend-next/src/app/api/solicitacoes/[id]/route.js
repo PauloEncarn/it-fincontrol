@@ -6,9 +6,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// --- FUNÇÃO DE SEGURANÇA PARA NÚMEROS ---
-// Transforma "undefined", "null", "", ou NaN em null.
-// Transforma "123" em 123.
+// Helper para limpar números
 const safeInt = (valor) => {
   if (valor === undefined || valor === null || valor === 'undefined' || valor === '') {
     return null;
@@ -23,37 +21,41 @@ export async function PUT(request, { params }) {
     const { id } = params; 
     const body = await request.json();
 
-    // 1. Limpeza de Objetos (Remove o que não deve ser salvo)
-    const { 
-      id: idCorpo, 
-      created_at, 
-      responsavel, 
-      filial,      // Remove objeto
-      fornecedor,  // Remove objeto
-      ...dados 
-    } = body;
-
-    // 2. Montagem Segura do Payload
+    // ⚠️ AQUI ESTÁ A SOLUÇÃO DEFINITIVA
+    // Em vez de usar "...body" (que traz lixo junto),
+    // nós criamos o objeto APENAS com os campos que existem no banco.
+    
     const payload = {
-      ...dados,
-      
-      // Usa o safeInt para evitar o erro "undefined"
+      // IDs (usando safeInt para evitar erro 22P02)
       filial_id: safeInt(body.filial_id),
       fornecedor_id: safeInt(body.fornecedor_id),
       
-      // Tratamento de valores monetários
+      // Textos Básicos
+      solicitante: body.solicitante,
+      cnpj: body.cnpj,
+      condicao_pagamento: body.condicao_pagamento,
+      
+      // Valores Numéricos
       valor: body.valor ? parseFloat(body.valor) : 0,
       
-      // Tratamento de Datas (string vazia vira null)
-      data_vencimento: body.data_vencimento || null,
+      // Detalhes
+      numero_sc: body.numero_sc,
+      numero_pedido: body.numero_pedido,
+      servico: body.servico,
+      servico_protheus: body.servico_protheus,
+      centro_custo: body.centro_custo,
       
-      // Tratamento de Textos Opcionais
-      fluig_id: body.fluig_id || null,
-      numero_sc: body.numero_sc || null,
-      numero_pedido: body.numero_pedido || null,
-      numero_nota: body.numero_nota || null,
+      // Controle Externo
+      numero_nota: body.numero_nota,
+      fluig_id: body.fluig_id,
+      
+      // Datas e Status
+      data_vencimento: body.data_vencimento || null,
+      status: body.status,
+      observacao: body.observacao
     };
 
+    // Agora o payload está 100% limpo, sem o objeto 'filial' ou 'fornecedor'
     const { data, error } = await supabase
       .from('solicitacoes_compra')
       .update(payload)
