@@ -6,56 +6,77 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// Helper para limpar números
-const safeInt = (valor) => {
-  if (valor === undefined || valor === null || valor === 'undefined' || valor === '') {
+// --- FUNÇÕES DE LIMPEZA (SANITIZERS) ---
+
+// Transforma qualquer coisa estranha em NULL ou NÚMERO VÁLIDO
+const limparNumero = (valor) => {
+  // Se for nulo real ou undefined real
+  if (valor === null || valor === undefined) return null;
+  
+  // Se for string, verifica se é lixo
+  const stringVal = String(valor).trim();
+  if (stringVal === '' || stringVal === 'undefined' || stringVal === 'null' || stringVal === 'NaN') {
     return null;
   }
-  const numero = parseInt(valor);
+
+  // Tenta converter
+  const numero = parseFloat(stringVal);
   return isNaN(numero) ? null : numero;
+};
+
+// Transforma "undefined" (texto) em NULL ou TEXTO VÁLIDO
+const limparTexto = (valor) => {
+  if (valor === null || valor === undefined) return null;
+  const stringVal = String(valor).trim();
+  if (stringVal === '' || stringVal === 'undefined' || stringVal === 'null') {
+    return null;
+  }
+  return stringVal;
 };
 
 // --- PUT: ATUALIZAR ---
 export async function PUT(request, { params }) {
   try {
-    const { id } = params; 
+    const { id } = params;
+    
+    // Proteção contra ID inválido na URL
+    if (!id || id === 'undefined' || id === 'null') {
+       return NextResponse.json({ error: "ID Inválido" }, { status: 400 });
+    }
+
     const body = await request.json();
 
-    // ⚠️ AQUI ESTÁ A SOLUÇÃO DEFINITIVA
-    // Em vez de usar "...body" (que traz lixo junto),
-    // nós criamos o objeto APENAS com os campos que existem no banco.
+    // --- MONTAGEM BLINDADA DO PAYLOAD ---
+    // Aqui nós ignoramos completamente o que não queremos (como objetos 'filial': {...})
+    // E limpamos o que queremos.
     
     const payload = {
-      // IDs (usando safeInt para evitar erro 22P02)
-      filial_id: safeInt(body.filial_id),
-      fornecedor_id: safeInt(body.fornecedor_id),
+      // IDs (Chaves estrangeiras)
+      filial_id: limparNumero(body.filial_id),
+      fornecedor_id: limparNumero(body.fornecedor_id),
       
-      // Textos Básicos
-      solicitante: body.solicitante,
-      cnpj: body.cnpj,
-      condicao_pagamento: body.condicao_pagamento,
-      
-      // Valores Numéricos
-      valor: body.valor ? parseFloat(body.valor) : 0,
-      
-      // Detalhes
-      numero_sc: body.numero_sc,
-      numero_pedido: body.numero_pedido,
-      servico: body.servico,
-      servico_protheus: body.servico_protheus,
-      centro_custo: body.centro_custo,
-      
-      // Controle Externo
-      numero_nota: body.numero_nota,
-      fluig_id: body.fluig_id,
-      
-      // Datas e Status
-      data_vencimento: body.data_vencimento || null,
-      status: body.status,
-      observacao: body.observacao
+      // Valores Monetários
+      valor: limparNumero(body.valor) || 0, // Se for null, vira 0
+
+      // Datas
+      data_vencimento: limparTexto(body.data_vencimento), // Supabase aceita null ou string de data
+
+      // Campos de Texto
+      solicitante: limparTexto(body.solicitante),
+      cnpj: limparTexto(body.cnpj),
+      condicao_pagamento: limparTexto(body.condicao_pagamento),
+      numero_sc: limparTexto(body.numero_sc),
+      numero_pedido: limparTexto(body.numero_pedido),
+      servico: limparTexto(body.servico),
+      servico_protheus: limparTexto(body.servico_protheus),
+      centro_custo: limparTexto(body.centro_custo),
+      numero_nota: limparTexto(body.numero_nota),
+      fluig_id: limparTexto(body.fluig_id),
+      status: limparTexto(body.status) || 'Pendente',
+      observacao: limparTexto(body.observacao)
     };
 
-    // Agora o payload está 100% limpo, sem o objeto 'filial' ou 'fornecedor'
+    // Atualiza no banco
     const { data, error } = await supabase
       .from('solicitacoes_compra')
       .update(payload)
@@ -66,7 +87,7 @@ export async function PUT(request, { params }) {
 
     return NextResponse.json(data[0]);
   } catch (error) {
-    console.error("Erro no PUT:", error);
+    console.error("Erro no PUT (Backend Blindado):", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -75,14 +96,11 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
   try {
     const { id } = params;
+    if (!id || id === 'undefined') return NextResponse.json({ error: "ID inválido" }, { status: 400 });
 
-    const { error } = await supabase
-      .from('solicitacoes_compra')
-      .delete()
-      .eq('id', id);
+    const { error } = await supabase.from('solicitacoes_compra').delete().eq('id', id);
 
     if (error) throw error;
-
     return NextResponse.json({ message: "Excluído com sucesso" });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
