@@ -34,14 +34,13 @@ export async function GET(request) {
   }
 }
 
-// --- POST: CRIAR NOVA ---
 export async function POST(request) {
   try {
-    // 1. Tenta pegar o usuário logado para ser o Responsável
+    // 1. Tenta pegar o usuário logado
     const authHeader = request.headers.get('Authorization');
     const token = authHeader?.split(' ')[1];
     
-    let nomeResponsavel = 'Sistema'; // Valor padrão caso falhe a auth
+    let nomeResponsavel = 'Sistema';
     
     if (token) {
         const { data: { user } } = await supabase.auth.getUser(token);
@@ -52,13 +51,16 @@ export async function POST(request) {
 
     const body = await request.json();
     
-    // 2. Monta o objeto para salvar
+    // 2. CORREÇÃO DO ERRO 23502: Remover o ID do objeto
+    // Usamos desestruturação para separar o 'id' do resto dos dados
+    const { id, ...dadosSemId } = body;
+    
+    // 3. Monta o objeto final
     const payload = {
-      ...body,
-      id: undefined, // Remove ID para o banco gerar
+      ...dadosSemId, // Usa apenas os dados SEM o ID
       responsavel: nomeResponsavel,
       
-      // Converte números para evitar erro de tipo
+      // Converte números e datas para evitar outros erros
       filial_id: body.filial_id ? parseInt(body.filial_id) : null,
       fornecedor_id: body.fornecedor_id ? parseInt(body.fornecedor_id) : null,
       valor: body.valor ? parseFloat(body.valor) : 0,

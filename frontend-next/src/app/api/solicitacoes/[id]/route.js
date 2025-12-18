@@ -6,26 +6,26 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// --- PUT: ATUALIZAR UMA SOLICITAÇÃO EXISTENTE ---
+// --- PUT: ATUALIZAR ---
 export async function PUT(request, { params }) {
   try {
-    const { id } = params;
+    const { id } = params; // Pega o ID da URL (esse é o que vale)
     const body = await request.json();
 
-    // Tratamento dos dados para evitar erro no banco
+    // 1. REMOVE O ID DE DENTRO DOS DADOS (Para não tentar alterar a chave primária)
+    const { id: idDoBody, created_at, responsavel, ...dadosEditaveis } = body;
+
+    // 2. Monta o payload seguro
     const payload = {
-      ...body,
-      id: undefined, // Não atualizamos o ID
-      responsavel: undefined, // Não mudamos quem criou
-      created_at: undefined,
+      ...dadosEditaveis,
       
-      // Garante tipos corretos
+      // Garante tipos corretos (igual fizemos no POST)
       filial_id: body.filial_id ? parseInt(body.filial_id) : null,
       fornecedor_id: body.fornecedor_id ? parseInt(body.fornecedor_id) : null,
       valor: body.valor ? parseFloat(body.valor) : 0,
       data_vencimento: body.data_vencimento || null,
       
-      // Garante que referências de outros sistemas sejam texto ou null
+      // Garante strings ou null
       fluig_id: body.fluig_id || null,
       numero_sc: body.numero_sc || null,
       numero_pedido: body.numero_pedido || null,
@@ -35,7 +35,7 @@ export async function PUT(request, { params }) {
     const { data, error } = await supabase
       .from('solicitacoes_compra')
       .update(payload)
-      .eq('id', id)
+      .eq('id', id) // Usa o ID da URL para achar qual atualizar
       .select();
 
     if (error) throw error;
@@ -47,7 +47,7 @@ export async function PUT(request, { params }) {
   }
 }
 
-// --- DELETE: EXCLUIR UMA SOLICITAÇÃO ---
+// --- DELETE: EXCLUIR ---
 export async function DELETE(request, { params }) {
   try {
     const { id } = params;
