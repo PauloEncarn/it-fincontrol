@@ -6,9 +6,26 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// --- HELPER: Limpeza de Dados ---
+const limparNumero = (valor) => {
+  if (valor === null || valor === undefined) return null;
+  const stringVal = String(valor).trim();
+  if (stringVal === '' || stringVal === 'undefined' || stringVal === 'null' || stringVal === 'NaN') return null;
+  const numero = parseFloat(stringVal);
+  return isNaN(numero) ? null : numero;
+};
+
+const limparTexto = (valor) => {
+  if (valor === null || valor === undefined) return null;
+  const stringVal = String(valor).trim();
+  if (stringVal === '' || stringVal === 'undefined' || stringVal === 'null') return null;
+  return stringVal;
+};
+
 // --- PUT: ATUALIZAR NOTA ---
 export async function PUT(request, context) {
   try {
+    // 1. Ler o ID corretamente (Compatível com Next.js 15)
     const params = await context.params;
     const id = params.id;
 
@@ -18,37 +35,48 @@ export async function PUT(request, context) {
 
     const body = await request.json();
 
-    // MONTAGEM MANUAL (Para evitar erros de objeto e garantir persistência)
+    // 2. MONTAGEM MANUAL (WHITELIST)
+    // Isso resolve dois problemas:
+    // A) Ignora objetos aninhados (filial: {}) que o front manda e quebram o banco.
+    // B) Garante que campos como contrato_usado sejam lidos explicitamente.
+
     const payload = {
-      filial_id: body.filial_id ? parseInt(body.filial_id) : null,
-      fornecedor_id: body.fornecedor_id ? parseInt(body.fornecedor_id) : null,
-      valor: body.valor ? parseFloat(body.valor) : 0,
+      // IDs e Chaves
+      filial_id: limparNumero(body.filial_id),
+      fornecedor_id: limparNumero(body.fornecedor_id),
       
-      data_vencimento: body.data_vencimento || null,
-      data_envio: body.data_envio || null,
+      // Dados Financeiros
+      valor: limparNumero(body.valor) || 0,
+      data_vencimento: limparTexto(body.data_vencimento),
+      data_envio: limparTexto(body.data_envio),
       
-      // GARANTINDO OS CAMPOS QUE ESTAVAM SUMINDO 👇
-      contrato_usado: body.contrato_usado || null,
-      centro_custo_usado: body.centro_custo_usado || null,
-      cnpj_usado: body.cnpj_usado || null,
+      // Campos Específicos de Lançamento
+      contrato_usado: limparTexto(body.contrato_usado),
+      centro_custo_usado: limparTexto(body.centro_custo_usado),
+      cnpj_usado: limparTexto(body.cnpj_usado),
       
-      numero_nota: body.numero_nota,
-      serie: body.serie,
+      // Detalhes da Nota
+      numero_nota: limparTexto(body.numero_nota),
+      serie: limparTexto(body.serie),
       
-      descricao_servico: body.descricao_servico,
-      servico_protheus: body.servico_protheus,
-      numero_medicao: body.numero_medicao,
-      numero_pedido: body.numero_pedido,
-      solicitacao_fluig: body.solicitacao_fluig,
-      observacao: body.observacao,
+      // Outros
+      descricao_servico: limparTexto(body.descricao_servico),
+      servico_protheus: limparTexto(body.servico_protheus),
+      numero_medicao: limparTexto(body.numero_medicao),
+      numero_pedido: limparTexto(body.numero_pedido),
+      solicitacao_fluig: limparTexto(body.solicitacao_fluig),
+      observacao: limparTexto(body.observacao),
       
-      status_pagamento: body.status_pagamento,
-      arquivo_nota: body.arquivo_nota,
-      arquivo_boleto: body.arquivo_boleto
+      // Controle e Arquivos
+      status_pagamento: limparTexto(body.status_pagamento),
+      arquivo_nota: limparTexto(body.arquivo_nota),
+      arquivo_boleto: limparTexto(body.arquivo_boleto),
+      // repetir_por: limparNumero(body.repetir_por) // Geralmente não se edita a repetição, mas se precisar, descomente
     };
 
+    // 3. Atualizar no Banco
     const { data, error } = await supabase
-      .from('lancamentos_notas')
+      .from('lancamentos') // <--- CORREÇÃO AQUI: Era 'lancamentos_notas', mudamos para 'lancamentos'
       .update(payload)
       .eq('id', id)
       .select();
@@ -71,7 +99,7 @@ export async function DELETE(request, context) {
     if (!id || id === 'undefined') return NextResponse.json({ error: "ID inválido" }, { status: 400 });
 
     const { error } = await supabase
-      .from('lancamentos_notas')
+      .from('lancamentos') // <--- CORREÇÃO AQUI TAMBÉM
       .delete()
       .eq('id', id);
 
