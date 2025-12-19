@@ -6,14 +6,15 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// --- GET: LISTAR NOTAS ---
+// --- GET: LISTAR NOTAS (BUSCA INTELIGENTE) ---
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const busca = searchParams.get('busca');
 
+    // 1. Inicia a query básica
     let query = supabase
-      .from('lancamentos') // <--- CORRIGIDO: Era 'lancamentos_notas'
+      .from('lancamentos')
       .select(`
         *,
         filial:filiais(nome_fantasia, codigo),
@@ -21,8 +22,21 @@ export async function GET(request) {
       `)
       .order('id', { ascending: false });
 
+    // 2. Lógica de Busca Avançada
     if (busca) {
-      query = query.or(`numero_nota.ilike.%${busca}%,numero_pedido.ilike.%${busca}%,descricao_servico.ilike.%${busca}%`);
+      // Lista de campos de TEXTO para pesquisar
+      // (Adicionei contrato_usado, cnpj_usado, numero_nota, pedido, descrição e observação)
+      let filtros = `numero_nota.ilike.%${busca}%,contrato_usado.ilike.%${busca}%,cnpj_usado.ilike.%${busca}%,descricao_servico.ilike.%${busca}%,numero_pedido.ilike.%${busca}%,observacao.ilike.%${busca}%`;
+
+      // Verificação especial para VALOR (Numérico)
+      // Se o usuário digitou um número válido (ex: 150.50), adicionamos a busca na coluna 'valor'
+      const valorNumerico = parseFloat(busca);
+      if (!isNaN(valorNumerico)) {
+        // Adiciona condição OR valor = X
+        filtros += `,valor.eq.${valorNumerico}`;
+      }
+
+      query = query.or(filtros);
     }
 
     const { data, error } = await query;
@@ -33,7 +47,6 @@ export async function GET(request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
-
 // --- POST: CRIAR NOTA ---
 export async function POST(request) {
   try {
