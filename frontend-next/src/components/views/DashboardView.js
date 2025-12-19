@@ -58,10 +58,6 @@ export default function DashboardView({
             <button onClick={() => mudarMes(1)} className="p-2 hover:bg-slate-100 rounded-full text-[#1E22A8]"><ChevronRight/></button>
         </div>
 
-<div>
-        <BotaoExportar dados={kpis} /> 
-    </div>
-        
 
         {/* LISTA AGRUPADA */}
         <div className="space-y-4">
@@ -151,6 +147,14 @@ export default function DashboardView({
                 );
             })}
         </div>
+{/* --- NOVO LOCAL DO BOTÃO (AQUI!) --- */}
+        <div className="flex justify-end mt-6 pb-4 border-t border-slate-200 pt-6">
+            <div className="flex flex-col items-end gap-2">
+                <span className="text-[10px] uppercase font-bold text-slate-400">Deseja baixar esses dados?</span>
+                <BotaoExportar dados={kpis} />
+            </div>
+        </div>
+
     </div>
   );
 }

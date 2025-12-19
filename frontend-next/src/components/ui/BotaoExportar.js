@@ -43,7 +43,8 @@ export default function BotaoExportar({ dados }) {
   return (
     <button
       onClick={handleExport}
-className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-[#1E22A8] bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-100"      title="Baixar planilha Excel"
+      className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg font-black text-sm flex gap-2 items-center shadow-lg active:scale-95 whitespace-nowrap transition-colors"
+      title="Baixar planilha Excel"
     >
       <Download size={18} />
       <span>EXPORTAR EXCEL</span>
