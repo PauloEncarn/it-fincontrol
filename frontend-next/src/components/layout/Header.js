@@ -1,7 +1,7 @@
 import React from 'react';
 import Image from 'next/image';
 import { Menu, Search, X, ChevronDown, Plus } from 'lucide-react';
-import BotaoExportar from '@/components/ui/BotaoExportar'; // Garanta que esse componente existe
+
 
 export default function Header({ 
     currentView, 
@@ -43,10 +43,8 @@ export default function Header({
                         <ChevronDown className="absolute right-3 top-3 text-white/70 pointer-events-none" size={14}/>
                     </div>
 
-                    <BotaoExportar dados={dadosExportacao} />
-
                     <button onClick={onNovoLancamento} className="bg-[#E30613] text-white hover:bg-white hover:text-[#E30613] px-5 py-2 rounded-lg font-black text-sm flex gap-2 items-center shadow-lg active:scale-95 whitespace-nowrap transition-colors">
-                        <Plus size={18}/> <span className="hidden md:inline">LANÇAR</span>
+                        <Plus size={18}/> <span className="hidden md:inline">LANÇAR NOTA</span>
                     </button>
                 </>
             )}

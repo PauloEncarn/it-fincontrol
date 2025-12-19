@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Server, ChevronDown, Edit2, Copy, Mail, FileText, Paperclip, ClipboardList, CheckCircle, Clock, AlertTriangle, Calendar } from 'lucide-react';
 import KpiCard from '@/components/ui/KpiCard';
+import BotaoExportar from '@/components/ui/BotaoExportar'; 
+import { Download } from 'lucide-react'; // Opcional, se quiser customizar ícone
 import { CORES, STATUS_STYLES, OPCOES_STATUS } from '@/utils/constants';
+
 
 export default function DashboardView({ 
     kpis, 
@@ -54,6 +57,11 @@ export default function DashboardView({
             </div>
             <button onClick={() => mudarMes(1)} className="p-2 hover:bg-slate-100 rounded-full text-[#1E22A8]"><ChevronRight/></button>
         </div>
+
+<div>
+        <BotaoExportar dados={kpis} /> 
+    </div>
+        
 
         {/* LISTA AGRUPADA */}
         <div className="space-y-4">
