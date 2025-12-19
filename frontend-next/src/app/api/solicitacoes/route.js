@@ -6,27 +6,45 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// --- GET: LISTAR TODAS ---
+// --- HELPER: Limpeza ---
+const limparTexto = (valor) => {
+    if (!valor) return null;
+    const s = String(valor).trim();
+    return s === '' || s === 'undefined' || s === 'null' ? null : s;
+};
+
+// --- GET: Listar Solicitações ---
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const busca = searchParams.get('busca');
 
+    // 1. Inicia a Query
+    // O segredo aqui é o .select() pegando as tabelas relacionadas
     let query = supabase
-      .from('solicitacoes_compra')
+      .from('solicitacoes_compra') // Verifique se o nome da tabela no Supabase é este mesmo
       .select(`
         *,
-        filial:filiais(nome_fantasia, codigo),
-        fornecedor:fornecedores(nome_empresa)
+        filial:filiais(id, nome_fantasia, codigo),
+        fornecedor:fornecedores(id, nome_empresa)
       `)
-      .order('id', { ascending: false });
+      .order('created_at', { ascending: false }); // As mais recentes primeiro
 
+    // 2. Filtro de Busca (Se tiver)
     if (busca) {
-      query = query.or(`numero_sc.ilike.%${busca}%,numero_pedido.ilike.%${busca}%,servico.ilike.%${busca}%,solicitante.ilike.%${busca}%`);
+      // Busca em colunas de texto e nas relações
+      const termo = `%${busca}%`;
+      query = query.or(`solicitante.ilike.${termo},numero_sc.ilike.${termo},numero_pedido.ilike.${termo},servico.ilike.${termo},status.ilike.${termo}`);
+      
+      // Dica: Buscar dentro de relação no Supabase é mais chato, então focamos nas colunas principais primeiro
     }
 
     const { data, error } = await query;
-    if (error) throw error;
+
+    if (error) {
+        console.error("Erro Supabase GET Solicitacoes:", error);
+        throw error;
+    }
 
     return NextResponse.json(data);
   } catch (error) {
@@ -34,57 +52,34 @@ export async function GET(request) {
   }
 }
 
-// --- POST: CRIAR NOVA (Corrigido e Blindado) ---
+// --- POST: Criar Solicitação ---
 export async function POST(request) {
   try {
-    // 1. Autenticação
-    const authHeader = request.headers.get('Authorization');
-    const token = authHeader?.split(' ')[1];
-    let nomeResponsavel = 'Sistema';
-    
-    if (token) {
-        const { data: { user } } = await supabase.auth.getUser(token);
-        if (user) {
-            nomeResponsavel = user.user_metadata.nome_completo || user.user_metadata.username || user.email;
-        }
+    const body = await request.json();
+
+    // Validação mínima
+    if (!body.filial_id || !body.solicitante) {
+        return NextResponse.json({ error: "Filial e Solicitante são obrigatórios" }, { status: 400 });
     }
 
-    const body = await request.json();
-    
-    // 2. MONTAGEM MANUAL (WHITELIST)
-    // Aqui nós escolhemos EXATAMENTE o que entra no banco.
-    // O campo 'contrato' será ignorado aqui, pois não o incluímos na lista.
-    
+    // Tratamento dos dados para evitar erros de tipo
     const payload = {
-      responsavel: nomeResponsavel, // Gerado pelo sistema
-
-      // Chaves Estrangeiras (Convertendo para garantir número)
-      filial_id: body.filial_id ? parseInt(body.filial_id) : null,
-      fornecedor_id: body.fornecedor_id ? parseInt(body.fornecedor_id) : null,
-      
-      // Valores
+      filial_id: body.filial_id,
+      fornecedor_id: body.fornecedor_id || null, // Pode ser nulo
+      solicitante: limparTexto(body.solicitante),
+      cnpj: limparTexto(body.cnpj),
+      condicao_pagamento: limparTexto(body.condicao_pagamento),
       valor: body.valor ? parseFloat(body.valor) : 0,
-      
-      // Datas
+      numero_sc: limparTexto(body.numero_sc),
+      numero_pedido: limparTexto(body.numero_pedido),
+      servico: limparTexto(body.servico),
+      servico_protheus: limparTexto(body.servico_protheus),
+      centro_custo: limparTexto(body.centro_custo),
+      numero_nota: limparTexto(body.numero_nota),
+      fluig_id: limparTexto(body.fluig_id),
       data_vencimento: body.data_vencimento || null,
-      
-      // Campos de Texto (SOMENTE OS QUE EXISTEM NO BANCO)
-      // Note que NÃO colocamos 'contrato' aqui.
-      solicitante: body.solicitante,
-      cnpj: body.cnpj,
-      condicao_pagamento: body.condicao_pagamento,
-      centro_custo: body.centro_custo,
-      
-      numero_sc: body.numero_sc,
-      numero_pedido: body.numero_pedido,
-      servico: body.servico,
-      servico_protheus: body.servico_protheus,
-      
-      numero_nota: body.numero_nota,
-      fluig_id: body.fluig_id,
-      
       status: body.status || 'Pendente',
-      observacao: body.observacao
+      observacao: limparTexto(body.observacao)
     };
 
     const { data, error } = await supabase
@@ -96,7 +91,7 @@ export async function POST(request) {
 
     return NextResponse.json(data[0]);
   } catch (error) {
-    console.error("Erro no POST Solicitacoes:", error);
+    console.error("Erro POST Solicitacoes:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
