@@ -150,7 +150,7 @@ export default function DashboardView({
 {/* --- NOVO LOCAL DO BOTÃO (AQUI!) --- */}
         <div className="flex justify-end mt-6 pb-4 border-t border-slate-200 pt-6">
             <div className="flex flex-col items-end gap-2">
-                <span className="text-[10px] uppercase font-bold text-slate-400">Deseja baixar esses dados?</span>
+                <span className="text-[10px] uppercase font-bold text-slate-400"></span>
                 <BotaoExportar dados={kpis} />
             </div>
         </div>
