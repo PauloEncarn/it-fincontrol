@@ -29,5 +29,6 @@ export default function SolicitacoesView({
          </table>
       </div>
     </div>
+    
   );
 }

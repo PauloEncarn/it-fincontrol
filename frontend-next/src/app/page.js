@@ -1,72 +1,391 @@
-import React from 'react';
-import { X, ShoppingCart, FileText } from 'lucide-react';
-import { STYLES, OPCOES_STATUS_COMPRA } from '@/utils/constants';
+'use client';
 
-export default function ModalSolicitacao({
-    isOpen,
-    onClose,
-    form,
-    setForm,
-    filiais,
-    fornecedores,
-    onSalvar,
-    onFornecedorChange
-}) {
-    if (!isOpen) return null;
+import React, { useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
+import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Loader2 } from 'lucide-react';
 
-    return (
-        <div className="fixed inset-0 bg-[#1E22A8]/60 backdrop-blur-md z-[80] flex items-center justify-center p-4">
-            <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95">
-                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                    <h2 className="text-2xl font-black flex gap-3 text-[#1E22A8] items-center"><ShoppingCart/> {form.id ? 'EDITAR SOLICITAÇÃO' : 'NOVA SOLICITAÇÃO'}</h2>
-                    <button onClick={onClose} className="bg-white p-2 rounded-full hover:bg-red-50 text-slate-400 hover:text-[#E30613]"><X size={24}/></button>
-                </div>
+// --- IMPORT DE CONSTANTES E CONFIGURAÇÃO ---
+import { API_URL } from '@/utils/constants';
 
-                <div className="flex-1 overflow-y-auto p-8 bg-white">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                        
-                        {/* DADOS BÁSICOS */}
-                        <div className="md:col-span-1"><label className={STYLES.label}>Filial *</label><select className={STYLES.input} value={form.filial_id || ""} onChange={e => setForm({...form, filial_id: e.target.value})}><option value="">Selecione...</option>{filiais.map(f => <option key={f.id} value={f.id}>{f.codigo} - {f.nome_fantasia}</option>)}</select></div>
-                        <div className="md:col-span-1"><label className={STYLES.label}>Solicitante *</label><input className={STYLES.input} placeholder="Quem pediu?" value={form.solicitante || ""} onChange={e => setForm({...form, solicitante: e.target.value})}/></div>
-                        <div className="md:col-span-2"><label className={STYLES.label}>Fornecedor</label><select className={STYLES.input} value={form.fornecedor_id || ""} onChange={e => onFornecedorChange(e.target.value)}><option value="">Selecione...</option>{fornecedores.map(f => <option key={f.id} value={f.id}>{f.nome_empresa}</option>)}</select></div>
+// --- IMPORTS DE UI (Componentes Visuais) ---
+import LoginScreen from '@/components/ui/LoginScreen';
+import ToastContainer from '@/components/ui/ToastContainer';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
-                        <div className="md:col-span-4 h-[1px] bg-slate-100 my-2"></div>
+// --- IMPORTS DE LAYOUT (Estrutura) ---
+import Header from '@/components/layout/Header';
+import Sidebar from '@/components/layout/Sidebar';
 
-                        {/* DADOS FINANCEIROS */}
-                        <div className="md:col-span-1"><label className={STYLES.label}>CNPJ</label><input className={STYLES.input} value={form.cnpj || ""} onChange={e => setForm({...form, cnpj: e.target.value})}/></div>
-                        <div className="md:col-span-1"><label className={STYLES.label}>Cond. Pagamento</label><input className={STYLES.input} placeholder="Ex: 30 dias" value={form.condicao_pagamento || ""} onChange={e => setForm({...form, condicao_pagamento: e.target.value})}/></div>
-                        <div className="md:col-span-1"><label className={STYLES.label}>Valor R$</label><input type="number" className={STYLES.input} value={form.valor || ""} onChange={e => setForm({...form, valor: e.target.value})}/></div>
-                        <div className="md:col-span-1"><label className={STYLES.label}>Vencimento (Previsto)</label><input type="date" className={STYLES.input} value={form.data_vencimento || ""} onChange={e => setForm({...form, data_vencimento: e.target.value})}/></div>
+// --- IMPORTS DE VIEWS (Conteúdo das Telas) ---
+import DashboardView from '@/components/views/DashboardView';
+import SearchResultsView from '@/components/views/SearchResultsView';
+import SolicitacoesView from '@/components/views/SolicitacoesView';
+import FiliaisView from '@/components/views/FiliaisView';
+import FornecedoresView from '@/components/views/FornecedoresView';
+import UsuariosView from '@/components/views/UsuariosView';
 
-                        {/* DETALHES DO PEDIDO */}
-                        <div className="md:col-span-4 bg-blue-50 p-4 rounded-xl border border-blue-100 grid grid-cols-4 gap-4">
-                            <div className="col-span-4 text-[#1E22A8] font-black text-xs uppercase tracking-widest flex gap-2 items-center"><FileText size={14}/> Detalhes do Pedido</div>
-                            <div className="col-span-1"><label className={STYLES.label}>Nº SC</label><input className={STYLES.input} value={form.numero_sc || ""} onChange={e => setForm({...form, numero_sc: e.target.value})}/></div>
-                            <div className="col-span-1"><label className={STYLES.label}>Nº Pedido</label><input className={STYLES.input} value={form.numero_pedido || ""} onChange={e => setForm({...form, numero_pedido: e.target.value})}/></div>
-                            <div className="col-span-1"><label className={STYLES.label}>Centro de Custo</label><input className={STYLES.input} value={form.centro_custo || ""} onChange={e => setForm({...form, centro_custo: e.target.value})}/></div>
-                            <div className="col-span-1"><label className={STYLES.label}>Fluig</label><input className={STYLES.input} value={form.fluig_id || ""} onChange={e => setForm({...form, fluig_id: e.target.value})}/></div>
-                            <div className="col-span-2"><label className={STYLES.label}>Serviço / Produto</label><input className={STYLES.input} value={form.servico || ""} onChange={e => setForm({...form, servico: e.target.value})}/></div>
-                            <div className="col-span-2"><label className={STYLES.label}>Serviço (Protheus)</label><input className={STYLES.input} value={form.servico_protheus || ""} onChange={e => setForm({...form, servico_protheus: e.target.value})}/></div>
-                        </div>
+// --- IMPORTS DE MODAIS (Formulários) ---
+import ModalLancamento from '@/components/modals/ModalLancamento';
+import ModalSolicitacao from '@/components/modals/ModalSolicitacao';
 
-                        {/* CONTROLE */}
-                        <div className="md:col-span-2"><label className={STYLES.label}>Nota Fiscal (Se houver)</label><input className={STYLES.input} value={form.numero_nota || ""} onChange={e => setForm({...form, numero_nota: e.target.value})}/></div>
-                        <div className="md:col-span-2">
-                            <label className={STYLES.label}>Status Atual</label>
-                            <select className={STYLES.input} value={form.status} onChange={e => setForm({...form, status: e.target.value})}>
-                            {OPCOES_STATUS_COMPRA.map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                        </div>
-                        
-                        <div className="col-span-4"><label className={STYLES.label}>Observações</label><textarea className={`${STYLES.input} h-24 resize-none`} value={form.observacao || ""} onChange={e => setForm({...form, observacao: e.target.value})}/></div>
-                    </div>
-                </div>
+// --- DADOS INICIAIS (Formulários vazios) ---
+const initialFormLancamento = { 
+    id: null, filial_id: '', fornecedor_id: '', cnpj_usado: '', contrato_usado: '', 
+    centro_custo_usado: '', numero_nota: '', serie: 'U', valor: '', data_envio: '', 
+    data_vencimento: '', descricao_servico: '', servico_protheus: '', numero_medicao: '', 
+    numero_pedido: '', solicitacao_fluig: '', observacao: '', status_pagamento: 'Pendente Lançamento', 
+    arquivo_nota: '', arquivo_boleto: '', repetir_por: '1' 
+};
 
-                <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-4">
-                    <button onClick={onClose} className="px-6 py-3 rounded-xl font-bold text-slate-400 hover:text-[#E30613]">Cancelar</button>
-                    <button onClick={onSalvar} className="bg-[#1E22A8] text-white px-8 py-3 rounded-xl font-black shadow-lg hover:bg-blue-700 active:scale-95 transition-all">SALVAR SOLICITAÇÃO</button>
-                </div>
-            </div>
-        </div>
-    );
+const initialFormSolicitacao = {
+    id: null, filial_id: '', fornecedor_id: '', solicitante: '', cnpj: '', 
+    condicao_pagamento: '', valor: '', numero_sc: '', numero_pedido: '', 
+    servico: '', servico_protheus: '', centro_custo: '', numero_nota: '', 
+    fluig_id: '', data_vencimento: '', status: 'Pendente', observacao: ''
+};
+
+function DashboardContent() {
+  const queryClient = useQueryClient();
+  
+  // --- ESTADOS GLOBAIS ---
+  const [token, setToken] = useState(null);
+  const [loadingInit, setLoadingInit] = useState(true);
+  const [currentView, setCurrentView] = useState('dashboard');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [toasts, setToasts] = useState([]);
+  const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
+
+  // --- FILTROS E BUSCA ---
+  const [competencia, setCompetencia] = useState(new Date());
+  const [filialFiltro, setFilialFiltro] = useState('');
+  const [statusFiltro, setStatusFiltro] = useState([]);
+  const [termoBusca, setTermoBusca] = useState('');
+
+  // --- CONTROLE DE MODAIS E EDIÇÃO ---
+  const [showModal, setShowModal] = useState(false); // Lancamento
+  const [showModalSolicitacao, setShowModalSolicitacao] = useState(false); // Solicitacao
+  const [form, setForm] = useState(initialFormLancamento);
+  const [formSolicitacao, setFormSolicitacao] = useState(initialFormSolicitacao);
+  const [opcoesFornecedor, setOpcoesFornecedor] = useState({ cnpjs: [], contratos: [], ccs: [] });
+  const [sendingEmail, setSendingEmail] = useState(false);
+
+  // --- CONFIG AXIOS ---
+  const authConfig = { headers: { Authorization: `Bearer ${token}` } };
+
+  // --- EFEITOS (INIT) ---
+  useEffect(() => {
+    const timer = setTimeout(() => { 
+        const storedToken = localStorage.getItem('token'); 
+        if (storedToken) setToken(storedToken); 
+        setLoadingInit(false); 
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // --- HELPERS GLOBAIS ---
+  const addToast = useCallback((type, message) => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, type, message }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+  }, []);
+
+  const openConfirm = (title, message, action) => {
+    setConfirmConfig({ isOpen: true, title, message, onConfirm: () => { action(); setConfirmConfig(p => ({...p, isOpen: false})); } });
+  };
+
+  const handleLogin = (t) => { localStorage.setItem('token', t); setToken(t); };
+  const handleLogout = () => { localStorage.removeItem('token'); setToken(null); queryClient.clear(); };
+
+  // --- QUERIES ---
+  const { data: filiais = [] } = useQuery({ queryKey: ['filiais'], queryFn: () => axios.get(`${API_URL}/filiais/`, authConfig).then(res => res.data), enabled: !!token });
+  const { data: fornecedores = [] } = useQuery({ queryKey: ['fornecedores'], queryFn: () => axios.get(`${API_URL}/fornecedores/`, authConfig).then(res => res.data), enabled: !!token });
+  const { data: usuarios = [] } = useQuery({ queryKey: ['usuarios'], queryFn: () => axios.get(`${API_URL}/usuarios/`, authConfig).then(res => res.data), enabled: !!token && currentView === 'usuarios' });
+  
+  // Dashboard Data
+  const { data: dadosDashboard = [], isLoading: loadingDash } = useQuery({ 
+      queryKey: ['dashboard', filialFiltro, competencia.getMonth(), competencia.getFullYear()], 
+      queryFn: async () => { 
+          const params = { filial_id: filialFiltro || undefined, mes: competencia.getMonth() + 1, ano: competencia.getFullYear() }; 
+          const res = await axios.get(`${API_URL}/dados-agrupados/`, { ...authConfig, params }); 
+          let lista = []; 
+          res.data.forEach(forn => { if(forn.lancamentos) forn.lancamentos.forEach(nota => lista.push({ ...nota, nome_fornecedor: forn.nome_empresa })); }); 
+          return lista; 
+      }, 
+      enabled: !!token && !termoBusca 
+  });
+
+  // Busca Inteligente
+  const { data: dadosBusca = [], isFetching: carregandoBusca } = useQuery({ 
+      queryKey: ['busca', termoBusca], 
+      queryFn: async () => { 
+          if (!termoBusca) return []; 
+          const res = await axios.get(`${API_URL}/lancamentos/?busca=${termoBusca}`, authConfig); 
+          return res.data; 
+      }, 
+      enabled: !!token && termoBusca.length > 2 
+  });
+
+  // Solicitações
+  const { data: solicitacoes = [] } = useQuery({
+    queryKey: ['solicitacoes', termoBusca],
+    queryFn: async () => {
+      const res = await axios.get(`${API_URL}/solicitacoes/${termoBusca ? `?busca=${termoBusca}` : ''}`, authConfig);
+      return res.data;
+    },
+    enabled: !!token && currentView === 'solicitacoes'
+  });
+
+  // --- MUTATIONS (Lógica de API) ---
+  const mutationLancamento = useMutation({ mutationFn: (nota) => nota.id ? axios.put(`${API_URL}/lancamentos/${nota.id}`, nota, authConfig) : axios.post(`${API_URL}/lancamentos/`, nota, authConfig), onSuccess: () => { queryClient.invalidateQueries(['dashboard']); queryClient.invalidateQueries(['busca']); }});
+  const mutationStatus = useMutation({ mutationFn: ({id, status}) => axios.patch(`${API_URL}/lancamentos/${id}/status`, { status }, authConfig), onSuccess: () => { queryClient.invalidateQueries(['dashboard']); queryClient.invalidateQueries(['busca']); addToast('success', 'Status atualizado!'); } });
+  const mutationFilial = useMutation({ mutationFn: (data) => data.id ? axios.put(`${API_URL}/filiais/${data.id}`, data, authConfig) : axios.post(`${API_URL}/filiais/`, data, authConfig), onSuccess: () => { queryClient.invalidateQueries(['filiais']); addToast('success', 'Filial salva!'); } });
+  const mutationFornecedor = useMutation({ mutationFn: (data) => data.id ? axios.put(`${API_URL}/fornecedores/${data.id}`, data, authConfig) : axios.post(`${API_URL}/fornecedores/`, data, authConfig), onSuccess: () => { queryClient.invalidateQueries(['fornecedores']); addToast('success', 'Fornecedor salvo!'); } });
+  const mutationSolicitacao = useMutation({ mutationFn: (dados) => dados.id ? axios.put(`${API_URL}/solicitacoes/${dados.id}`, dados, authConfig) : axios.post(`${API_URL}/solicitacoes/`, dados, authConfig), onSuccess: () => { queryClient.invalidateQueries(['solicitacoes']); addToast('success', 'Solicitação salva!'); setShowModalSolicitacao(false); }, onError: (err) => addToast('error', 'Erro ao salvar: ' + err.message) });
+  const mutationUsuario = useMutation({ mutationFn: (dados) => axios.post(`${API_URL}/usuarios/`, dados, authConfig), onSuccess: () => { queryClient.invalidateQueries(['usuarios']); addToast('success', 'Usuário criado!'); }, onError: () => addToast('error', 'Erro ao criar usuário.') });
+
+  // --- LÓGICA DE NEGÓCIO ---
+  
+  // GOPA Check
+  const isGopaFunc = (nota) => {
+    const fId = nota.filial_id || (form && form.filial_id);
+    const filial = filiais.find(f => f.id == fId);
+    return filial?.nome_fantasia?.toUpperCase().includes('GOPA') || filial?.nome_fantasia?.toUpperCase().includes('REFRESA');
+  };
+
+  // Preencher dados do Fornecedor ao selecionar
+  const handleFornecedorChange = (id) => { 
+      const forn = fornecedores.find(f => f.id == id); 
+      if (forn) { 
+          setOpcoesFornecedor({ cnpjs: (forn.lista_cnpjs || '').split(';'), contratos: (forn.lista_contratos || '').split(';'), ccs: (forn.lista_centro_custos || '').split(';') }); 
+          setForm(p => ({ ...p, fornecedor_id: id, cnpj_usado: '', contrato_usado: '', centro_custo_usado: '', descricao_servico: forn.padrao_descricao_servico || '', servico_protheus: forn.padrao_servico_protheus || '' })); 
+      } else {
+          setForm(p => ({...p, fornecedor_id: id}));
+      }
+  };
+
+  // Preencher fornecedor na Solicitação
+  const handleFornecedorSolicitacaoChange = (id) => {
+    const forn = fornecedores.find(f => f.id == id);
+    if (forn) {
+      setFormSolicitacao(prev => ({
+        ...prev,
+        fornecedor_id: id,
+        cnpj: (forn.lista_cnpjs || '').split(';')[0] || '',
+        centro_custo: (forn.lista_centro_custos || '').split(';')[0] || '',
+        servico: forn.padrao_descricao_servico || '',
+        servico_protheus: forn.padrao_servico_protheus || ''
+      }));
+    } else {
+      setFormSolicitacao(prev => ({ ...prev, fornecedor_id: id }));
+    }
+  };
+
+  // Abrir Modal de Edição (Lancamento)
+  const abrirEdicaoLancamento = (nota) => {
+      handleFornecedorChange(nota.fornecedor_id);
+      setTimeout(() => setForm({...nota, data_envio: nota.data_envio ? nota.data_envio.split('T')[0] : '', data_vencimento: nota.data_vencimento.split('T')[0]}), 50);
+      setShowModal(true);
+  };
+
+  // Duplicar Nota
+  const duplicarNota = (nota) => {
+      openConfirm("Duplicar Lançamento", "Deseja criar uma cópia?", () => {
+          handleFornecedorChange(nota.fornecedor_id);
+          setTimeout(() => setForm({ ...nota, id: null, numero_nota: '', arquivo_nota: '', arquivo_boleto: '', data_envio: '', status_pagamento: 'Pendente Lançamento', repetir_por: '1' }), 50);
+          setShowModal(true);
+      });
+  };
+
+  // Salvar Lancamento
+  const salvarLancamento = async () => {
+      if (!form.filial_id || !form.fornecedor_id || !form.valor || !form.numero_nota) return addToast('error', 'Preencha os campos obrigatórios!'); 
+      const payload = { ...form, data_envio: form.data_envio === '' ? null : form.data_envio }; 
+      try {
+          await mutationLancamento.mutateAsync(payload);
+          addToast('success', 'Lançamento salvo!');
+          setShowModal(false);
+      } catch {
+          addToast('error', 'Erro ao salvar.');
+      }
+  };
+
+  // Salvar e Enviar Email (GOPA)
+  const salvarEEnviar = async () => {
+      if (!form.arquivo_nota) return addToast('error', 'Anexe a nota fiscal para enviar.');
+      const payload = { ...form, data_envio: form.data_envio === '' ? null : form.data_envio };
+      try {
+          setSendingEmail(true);
+          const response = await mutationLancamento.mutateAsync(payload);
+          const notaSalva = response.data;
+          await handleEnviarEmail({...payload, id: notaSalva.id || form.id});
+          setShowModal(false);
+      } catch (e) {
+          addToast('error', 'Erro no processo Salvar/Enviar.');
+      } finally {
+          setSendingEmail(false);
+      }
+  };
+
+  const handleEnviarEmail = async (dadosNota) => {
+      const nota = dadosNota || form;
+      if (!nota.id || !nota.arquivo_nota) return addToast('error', 'Salve a nota e anexe arquivos.');
+      setSendingEmail(true);
+      try {
+          await axios.post(`${API_URL}/enviar-email`, {
+              numero_nota: nota.numero_nota, fornecedor: nota.nome_fornecedor, valor: nota.valor, vencimento: nota.data_vencimento, arquivos: [nota.arquivo_nota, nota.arquivo_boleto]
+          }, authConfig);
+          if(form.id === nota.id) setForm(p => ({...p, status_pagamento: 'Email Enviado p/ Balança'}));
+          mutationStatus.mutate({id: nota.id, status: 'Email Enviado p/ Balança'});
+          addToast('success', 'E-mail enviado!');
+      } catch { addToast('error', 'Falha ao enviar.'); } finally { setSendingEmail(false); }
+  };
+
+  // Agrupamento de Dados (Dashboard)
+  const getGroupedData = () => {
+      const notas = statusFiltro.length ? dadosDashboard.filter(n => statusFiltro.includes(n.status_pagamento)) : dadosDashboard;
+      const grupos = {};
+      notas.forEach(n => { if(!grupos[n.nome_fornecedor]) grupos[n.nome_fornecedor]=[]; grupos[n.nome_fornecedor].push(n); });
+      return Object.entries(grupos).sort((a,b) => a[0].localeCompare(b[0]));
+  };
+
+  // --- RENDER ---
+  if (loadingInit) return <div className="flex items-center justify-center h-screen"><Loader2 className="animate-spin text-[#1E22A8]" size={48}/></div>;
+  if (!token) return <LoginScreen onLogin={handleLogin} addToast={addToast} />;
+
+  return (
+    <div className="min-h-screen bg-[#F0F2F5] pb-40">
+        <ToastContainer toasts={toasts} removeToast={(id) => setToasts(p => p.filter(t => t.id !== id))} />
+        <ConfirmDialog isOpen={confirmConfig.isOpen} title={confirmConfig.title} message={confirmConfig.message} onConfirm={confirmConfig.onConfirm} onCancel={() => setConfirmConfig(p => ({...p, isOpen: false}))} />
+        
+        {loadingDash && <div className="fixed inset-0 bg-white/80 z-[60] flex items-center justify-center"><Loader2 className="animate-spin text-[#1E22A8]" size={48}/></div>}
+
+        <Header 
+            currentView={currentView}
+            onOpenMenu={() => setIsMenuOpen(true)}
+            termoBusca={termoBusca}
+            setTermoBusca={setTermoBusca}
+            filiais={filiais}
+            filialFiltro={filialFiltro}
+            setFilialFiltro={setFilialFiltro}
+            onNovoLancamento={() => { setForm(initialFormLancamento); setShowModal(true); }}
+            dadosExportacao={dadosDashboard}
+        />
+
+        <Sidebar 
+            isOpen={isMenuOpen} 
+            onClose={() => setIsMenuOpen(false)} 
+            currentView={currentView} 
+            onChangeView={setCurrentView} 
+            onLogout={handleLogout}
+        />
+
+        <main className="max-w-[1600px] mx-auto p-6 space-y-10 mt-4">
+            
+            {/* VIEW DE RESULTADOS DE BUSCA */}
+            {termoBusca.length > 2 && currentView === 'dashboard' ? (
+                <SearchResultsView 
+                    termoBusca={termoBusca}
+                    carregando={carregandoBusca}
+                    resultados={dadosBusca}
+                    onEditar={abrirEdicaoLancamento}
+                />
+            ) : (
+                <>
+                    {currentView === 'dashboard' && (
+                        <DashboardView 
+                            kpis={dadosDashboard}
+                            filtros={statusFiltro}
+                            onFilter={(s) => setStatusFiltro(p => p.includes(s) ? p.filter(i => i !== s) : [...p, s])}
+                            dadosAgrupados={getGroupedData()}
+                            competencia={competencia}
+                            mudarMes={(d) => { const nd = new Date(competencia); nd.setMonth(competencia.getMonth() + d); setCompetencia(nd); }}
+                            onEditar={abrirEdicaoLancamento}
+                            onDuplicar={duplicarNota}
+                            onCopiarProtheus={(n) => navigator.clipboard.writeText(`${n.fornecedor?.nome_empresa} | CPF/CNPJ: ${n.cnpj_usado||'?'} | NF: ${n.numero_nota} | Valor R$: ${n.valor.toLocaleString('pt-BR',{minimumFractionDigits:2})}`).then(()=>addToast('success', "Copiado!"))}
+                            onEnviarEmail={handleEnviarEmail}
+                            onDownload={(path) => window.open(path.startsWith('http') ? path : `${API_URL}/${path}`, '_blank')}
+                            onStatusChange={(id, st) => mutationStatus.mutate({id, status: st})}
+                            isGopaFunc={isGopaFunc}
+                        />
+                    )}
+
+                    {currentView === 'solicitacoes' && (
+                        <SolicitacoesView 
+                            solicitacoes={solicitacoes}
+                            onNovaSolicitacao={() => { setFormSolicitacao(initialFormSolicitacao); setShowModalSolicitacao(true); }}
+                            onEditarSolicitacao={(s) => { setFormSolicitacao(s); setShowModalSolicitacao(true); }}
+                        />
+                    )}
+
+                    {currentView === 'filiais' && (
+                        <FiliaisView 
+                            filiais={filiais}
+                            onSalvar={(f) => mutationFilial.mutate(f)}
+                            onExcluir={(f) => openConfirm("Excluir Filial", `Deseja excluir ${f.nome_fantasia}?`, () => axios.delete(`${API_URL}/filiais/${f.id}`, authConfig).then(() => { queryClient.invalidateQueries(['filiais']); addToast('success', 'Filial excluída!'); }))}
+                        />
+                    )}
+
+                    {currentView === 'fornecedores' && (
+                        <FornecedoresView 
+                            fornecedores={fornecedores}
+                            onSalvar={(f) => mutationFornecedor.mutate(f)}
+                            onExcluir={(f) => openConfirm("Excluir Fornecedor", `Deseja excluir ${f.nome_empresa}?`, () => axios.delete(`${API_URL}/fornecedores/${f.id}`, authConfig).then(() => { queryClient.invalidateQueries(['fornecedores']); addToast('success', 'Fornecedor excluído!'); }))}
+                        />
+                    )}
+
+                    {currentView === 'usuarios' && (
+                        <UsuariosView 
+                            usuarios={usuarios}
+                            onCriarUsuario={(u) => mutationUsuario.mutate(u)}
+                        />
+                    )}
+                </>
+            )}
+        </main>
+
+        <footer className="fixed bottom-0 left-0 right-0 py-4 bg-white border-t border-gray-200 z-10 flex items-center justify-center">
+            <p className="text-gray-500 text-sm font-medium">
+                © {new Date().getFullYear()} <span className="font-bold text-[#1E22A8]">Cicopal</span> <span className="mx-2 text-gray-300">|</span> GESTÃO DE NOTAS 🤖
+            </p>
+        </footer>
+
+        {/* MODAIS */}
+        <ModalLancamento 
+            isOpen={showModal}
+            onClose={() => setShowModal(false)}
+            form={form}
+            setForm={setForm}
+            filiais={filiais}
+            fornecedores={fornecedores}
+            opcoesFornecedor={opcoesFornecedor}
+            onFornecedorChange={handleFornecedorChange}
+            onSalvar={salvarLancamento}
+            onSalvarEEnviar={salvarEEnviar}
+            sendingEmail={sendingEmail}
+            addToast={addToast}
+            isGopa={isGopaFunc({filial_id: form.filial_id})}
+        />
+
+        <ModalSolicitacao 
+            isOpen={showModalSolicitacao}
+            onClose={() => setShowModalSolicitacao(false)}
+            form={formSolicitacao}
+            setForm={setFormSolicitacao}
+            filiais={filiais}
+            fornecedores={fornecedores}
+            onSalvar={() => mutationSolicitacao.mutate(formSolicitacao)}
+            onFornecedorChange={handleFornecedorSolicitacaoChange}
+        />
+    </div>
+  );
+}
+
+export default function Home() {
+  const [queryClient] = useState(() => new QueryClient());
+  return (
+    <QueryClientProvider client={queryClient}>
+        <DashboardContent />
+    </QueryClientProvider>
+  );
 }

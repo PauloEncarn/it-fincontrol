@@ -50,5 +50,6 @@ export default function SearchResultsView({ termoBusca, carregando, resultados, 
             </div>
         )}
     </div>
+    
   );
 }
