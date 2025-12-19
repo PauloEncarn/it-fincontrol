@@ -13,7 +13,7 @@ export async function GET(request) {
     const busca = searchParams.get('busca');
 
     let query = supabase
-      .from('lancamentos_notas')
+      .from('lancamentos') // <--- CORRIGIDO: Era 'lancamentos_notas'
       .select(`
         *,
         filial:filiais(nome_fantasia, codigo),
@@ -22,7 +22,6 @@ export async function GET(request) {
       .order('id', { ascending: false });
 
     if (busca) {
-      // Busca inteligente em vários campos
       query = query.or(`numero_nota.ilike.%${busca}%,numero_pedido.ilike.%${busca}%,descricao_servico.ilike.%${busca}%`);
     }
 
@@ -40,7 +39,7 @@ export async function POST(request) {
   try {
     const body = await request.json();
     
-    // MONTAGEM DO PAYLOAD (Garantindo que Contrato e CC sejam salvos)
+    // MONTAGEM DO PAYLOAD
     const payload = {
       // IDs e Chaves
       filial_id: body.filial_id ? parseInt(body.filial_id) : null,
@@ -51,16 +50,16 @@ export async function POST(request) {
       data_vencimento: body.data_vencimento || null,
       data_envio: body.data_envio || null,
       
-      // AQUI ESTAVA O PROBLEMA: Garantindo os campos "Usado" 👇
+      // Campos "Usado" (Esses devem existir na tabela 'lancamentos')
       contrato_usado: body.contrato_usado || null,
       centro_custo_usado: body.centro_custo_usado || null,
       cnpj_usado: body.cnpj_usado || null,
       
-      // Detalhes da Nota
+      // Detalhes
       numero_nota: body.numero_nota,
       serie: body.serie,
       
-      // Outros campos
+      // Outros
       descricao_servico: body.descricao_servico,
       servico_protheus: body.servico_protheus,
       numero_medicao: body.numero_medicao,
@@ -72,11 +71,11 @@ export async function POST(request) {
       status_pagamento: body.status_pagamento || 'Pendente Lançamento',
       arquivo_nota: body.arquivo_nota,
       arquivo_boleto: body.arquivo_boleto,
-      repetir_por: body.repetir_por // Se tiver lógica de repetição
+      repetir_por: body.repetir_por
     };
 
     const { data, error } = await supabase
-      .from('lancamentos_notas') // Confira se o nome da sua tabela é esse mesmo
+      .from('lancamentos') // <--- CORRIGIDO: Era 'lancamentos_notas'
       .insert([payload])
       .select();
 

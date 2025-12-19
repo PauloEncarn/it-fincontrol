@@ -34,12 +34,12 @@ export async function GET(request) {
   }
 }
 
+// --- POST: CRIAR NOVA (Corrigido e Blindado) ---
 export async function POST(request) {
   try {
-    // 1. Tenta pegar o usuário logado
+    // 1. Autenticação
     const authHeader = request.headers.get('Authorization');
     const token = authHeader?.split(' ')[1];
-    
     let nomeResponsavel = 'Sistema';
     
     if (token) {
@@ -51,20 +51,40 @@ export async function POST(request) {
 
     const body = await request.json();
     
-    // 2. CORREÇÃO DO ERRO 23502: Remover o ID do objeto
-    // Usamos desestruturação para separar o 'id' do resto dos dados
-    const { id, ...dadosSemId } = body;
+    // 2. MONTAGEM MANUAL (WHITELIST)
+    // Aqui nós escolhemos EXATAMENTE o que entra no banco.
+    // O campo 'contrato' será ignorado aqui, pois não o incluímos na lista.
     
-    // 3. Monta o objeto final
     const payload = {
-      ...dadosSemId, // Usa apenas os dados SEM o ID
-      responsavel: nomeResponsavel,
-      
-      // Converte números e datas para evitar outros erros
+      responsavel: nomeResponsavel, // Gerado pelo sistema
+
+      // Chaves Estrangeiras (Convertendo para garantir número)
       filial_id: body.filial_id ? parseInt(body.filial_id) : null,
       fornecedor_id: body.fornecedor_id ? parseInt(body.fornecedor_id) : null,
+      
+      // Valores
       valor: body.valor ? parseFloat(body.valor) : 0,
+      
+      // Datas
       data_vencimento: body.data_vencimento || null,
+      
+      // Campos de Texto (SOMENTE OS QUE EXISTEM NO BANCO)
+      // Note que NÃO colocamos 'contrato' aqui.
+      solicitante: body.solicitante,
+      cnpj: body.cnpj,
+      condicao_pagamento: body.condicao_pagamento,
+      centro_custo: body.centro_custo,
+      
+      numero_sc: body.numero_sc,
+      numero_pedido: body.numero_pedido,
+      servico: body.servico,
+      servico_protheus: body.servico_protheus,
+      
+      numero_nota: body.numero_nota,
+      fluig_id: body.fluig_id,
+      
+      status: body.status || 'Pendente',
+      observacao: body.observacao
     };
 
     const { data, error } = await supabase
@@ -76,7 +96,7 @@ export async function POST(request) {
 
     return NextResponse.json(data[0]);
   } catch (error) {
-    console.error("Erro no POST:", error);
+    console.error("Erro no POST Solicitacoes:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
