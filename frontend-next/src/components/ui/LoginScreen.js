@@ -32,6 +32,7 @@ export default function LoginScreen({ onLogin, addToast }) {
       try { 
           if (isRegistering) {
             // --- MODO CADASTRO ---
+
             // Verifica campos obrigatórios
             if(!formData.username || !formData.password || !formData.nome_completo) {
                 addToast('error', 'Preencha todos os campos obrigatórios.');
@@ -43,7 +44,7 @@ export default function LoginScreen({ onLogin, addToast }) {
             // ATENÇÃO: Seu backend precisa permitir criar usuário sem estar logado (Public)
             await axios.post(`${API_URL}/usuarios`, formData);
             
-            addToast('success', 'Conta criada! Faça login agora.');
+            addToast('success', 'Solicitação enviada! Aguarde a liberação do Administrador.');
             setIsRegistering(false); // Volta para tela de login
             setFormData({ ...formData, password: '' }); // Limpa senha
           } else {

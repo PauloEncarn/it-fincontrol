@@ -34,6 +34,12 @@ export async function POST(request) {
     // Sucesso
     const fakeToken = Buffer.from(`${usuario.username}:${Date.now()}`).toString('base64');
 
+    if (user.ativo === false) {
+  return NextResponse.json({ 
+    error: "Seu cadastro aguarda aprovação do Administrador." 
+  }, { status: 403 });
+}
+
     return NextResponse.json({ 
       access_token: fakeToken, 
       user: {

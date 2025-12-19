@@ -147,6 +147,15 @@ function DashboardContent() {
   const mutationFornecedor = useMutation({ mutationFn: (data) => data.id ? axios.put(`${API_URL}/fornecedores/${data.id}`, data, authConfig) : axios.post(`${API_URL}/fornecedores/`, data, authConfig), onSuccess: () => { queryClient.invalidateQueries(['fornecedores']); addToast('success', 'Fornecedor salvo!'); } });
   const mutationSolicitacao = useMutation({ mutationFn: (dados) => dados.id ? axios.put(`${API_URL}/solicitacoes/${dados.id}`, dados, authConfig) : axios.post(`${API_URL}/solicitacoes/`, dados, authConfig), onSuccess: () => { queryClient.invalidateQueries(['solicitacoes']); addToast('success', 'Solicitação salva!'); setShowModalSolicitacao(false); }, onError: (err) => addToast('error', 'Erro ao salvar: ' + err.message) });
   const mutationUsuario = useMutation({ mutationFn: (dados) => axios.post(`${API_URL}/usuarios/`, dados, authConfig), onSuccess: () => { queryClient.invalidateQueries(['usuarios']); addToast('success', 'Usuário criado!'); }, onError: () => addToast('error', 'Erro ao criar usuário.') });
+  const mutationUsuarioStatus = useMutation({
+  mutationFn: ({ id, ativo }) => axios.put(`${API_URL}/usuarios/${id}`, { ativo }, authConfig),
+  onSuccess: () => { 
+      queryClient.invalidateQueries(['usuarios']); 
+      addToast('success', 'Acesso do usuário atualizado!'); 
+  },
+  onError: () => addToast('error', 'Erro ao atualizar acesso.')
+});
+
 
   // --- LÓGICA DE NEGÓCIO ---
   
@@ -340,9 +349,10 @@ function DashboardContent() {
 
                     {currentView === 'usuarios' && (
                         <UsuariosView 
-                            usuarios={usuarios}
-                            onCriarUsuario={(u) => mutationUsuario.mutate(u)}
-                        />
+        usuarios={usuarios}
+        onCriarUsuario={(u) => mutationUsuario.mutate(u)}
+        onToggleStatus={(id, novoStatus) => mutationUsuarioStatus.mutate({ id, ativo: novoStatus })} // <--- ESSA LINHA
+    />
                     )}
                 </>
             )}
