@@ -125,17 +125,21 @@ function DashboardContent() {
       }, 
       enabled: !!token && termoBusca.length > 2 
   });
-
   // Solicitações
   const { data: solicitacoes = [] } = useQuery({
     queryKey: ['solicitacoes', termoBusca],
     queryFn: async () => {
-      const res = await axios.get(`${API_URL}/solicitacoes/${termoBusca ? `?busca=${termoBusca}` : ''}`, authConfig);
+      // CORREÇÃO: Usamos 'params' do axios em vez de montar string na mão
+      // Isso evita a barra "/" indesejada no final da URL
+      const res = await axios.get(`${API_URL}/solicitacoes`, {
+         params: { busca: termoBusca || undefined },
+         ...authConfig
+      });
+      console.log("📦 Dados Solicitações:", res.data); // Debug no Console (F12)
       return res.data;
     },
     enabled: !!token && currentView === 'solicitacoes'
   });
-
   // --- MUTATIONS (Lógica de API) ---
   const mutationLancamento = useMutation({ mutationFn: (nota) => nota.id ? axios.put(`${API_URL}/lancamentos/${nota.id}`, nota, authConfig) : axios.post(`${API_URL}/lancamentos/`, nota, authConfig), onSuccess: () => { queryClient.invalidateQueries(['dashboard']); queryClient.invalidateQueries(['busca']); }});
   const mutationStatus = useMutation({ mutationFn: ({id, status}) => axios.patch(`${API_URL}/lancamentos/${id}/status`, { status }, authConfig), onSuccess: () => { queryClient.invalidateQueries(['dashboard']); queryClient.invalidateQueries(['busca']); addToast('success', 'Status atualizado!'); } });
