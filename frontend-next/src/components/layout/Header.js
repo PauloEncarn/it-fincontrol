@@ -1,7 +1,7 @@
 import React from 'react';
 import Image from 'next/image';
 import { Menu, Search, X, ChevronDown, Plus } from 'lucide-react';
-import BotaoExportar from '@/components/BotaoExportar'; // Garanta que esse componente existe
+import BotaoExportar from '@/components/ui/BotaoExportar'; // Garanta que esse componente existe
 
 export default function Header({ 
     currentView, 
