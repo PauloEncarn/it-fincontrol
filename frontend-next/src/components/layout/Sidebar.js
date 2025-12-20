@@ -1,8 +1,8 @@
 import React from 'react';
 import Image from 'next/image';
-import { LayoutDashboard, ShoppingCart, Users, Building, FileText, User, LogOut } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Users, Building, FileText, User, LogOut, X } from 'lucide-react';
 
-export default function Sidebar({ activeView, setActiveView, onLogout }) {
+export default function Sidebar({ activeView, setActiveView, onLogout, isOpen, onClose }) {
   
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
@@ -14,28 +14,42 @@ export default function Sidebar({ activeView, setActiveView, onLogout }) {
   ];
 
   return (
-    
-  <aside className="w-72 bg-white min-h-screen shadow-2xl flex flex-col justify-between z-50">
-        {/* TOPO: Logo */}
-        <div className="p-8 pb-4 flex justify-center">
-            <Image 
-                src="/logo-cicopal.png" 
-                alt="Cicopal" 
-                width={160} 
-                height={60} 
-                className="h-12 w-auto object-contain"
-                priority
-            />
+    <>
+      {/* 1. OVERLAY (Fundo Escuro/Desfocado) */}
+      {/* Só aparece se isOpen for true */}
+      <div 
+        className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        onClick={onClose} // Fecha se clicar no fundo
+      />
+
+      {/* 2. A GAVETA (Sidebar) */}
+      <aside className={`
+          fixed top-0 left-0 z-50 h-screen w-72 bg-white shadow-2xl flex flex-col justify-between
+          transform transition-transform duration-300 ease-out
+          ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        
+        {/* TOPO */}
+        <div className="p-6 flex justify-between items-center">
+            <div className="w-32">
+                <Image src="/logo-cicopal.png" alt="Cicopal" width={120} height={40} className="w-full h-auto object-contain" />
+            </div>
+            <button onClick={onClose} className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1 rounded-full transition-colors">
+                <X size={24} />
+            </button>
         </div>
 
         {/* MENU */}
-        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto custom-scrollbar">
-          <p className="px-4 text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Menu Principal</p>
+        <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto custom-scrollbar">
+          <p className="px-4 text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Navegação</p>
           
           {menuItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => setActiveView(item.id)}
+              onClick={() => { 
+                  setActiveView(item.id); 
+                  onClose(); // <--- O PULO DO GATO: Fecha ao clicar!
+              }}
               className={`w-full flex items-center gap-4 px-4 py-4 rounded-xl transition-all duration-200 group font-bold text-sm
                 ${activeView === item.id 
                   ? 'bg-[#1E22A8] text-white shadow-lg shadow-blue-900/20 translate-x-1' 
@@ -50,17 +64,13 @@ export default function Sidebar({ activeView, setActiveView, onLogout }) {
           ))}
         </nav>
 
-        {/* FOOTER */}
+        {/* RODAPÉ */}
         <div className="p-4 border-t border-slate-100">
-          <button 
-            onClick={onLogout}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 text-red-500 hover:bg-red-50 rounded-xl font-bold transition-colors text-sm"
-          >
-            <LogOut size={18} />
-            SAIR DO SISTEMA
+          <button onClick={onLogout} className="w-full flex items-center justify-center gap-2 px-4 py-3 text-red-500 hover:bg-red-50 rounded-xl font-bold transition-colors text-sm">
+            <LogOut size={18} /> SAIR
           </button>
-          <p className="text-center text-[10px] text-slate-300 mt-4 font-medium">v1.0.0 • TI Cicopal</p>
         </div>
-    </aside>
+      </aside>
+    </>
   );
 }
