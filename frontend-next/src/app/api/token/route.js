@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { SignJWT } from 'jose';
+import { compare } from 'bcryptjs'; // <--- Importante
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -9,7 +10,6 @@ const supabase = createClient(
 
 export async function POST(request) {
   try {
-    // 1. Tenta ler tanto JSON quanto FormData (pra garantir)
     let username, password;
     const contentType = request.headers.get("content-type") || "";
 
@@ -23,11 +23,7 @@ export async function POST(request) {
         password = formData.get('password');
     }
 
-    console.log("🔍 --- INÍCIO DEBUG LOGIN ---");
-    console.log(`👤 Usuário enviado: "${username}"`);
-    console.log(`🔑 Senha enviada: "${password}"`);
-
-    // 2. Busca o usuário
+    // 1. Busca o usuário
     const { data: user, error } = await supabase
       .from('usuarios')
       .select('*')
@@ -35,34 +31,32 @@ export async function POST(request) {
       .single();
 
     if (error || !user) {
-        console.log("❌ Usuário não encontrado no banco ou erro:", error);
         return NextResponse.json({ error: "Usuário não encontrado." }, { status: 401 });
     }
 
-    console.log("🗄️ Dados vindos do banco:", user);
-    console.log(`🆚 Comparando: "${password}" (Input) == "${user.senha}" (Banco.senha) OU "${user.password}" (Banco.password)`);
+    // 2. VERIFICAÇÃO DE SENHA COM BCRYPT ✅
+    // O banco tem o hash na coluna 'password_hash' (ou 'password', vamos garantir pegando o que tiver valor)
+    const hashDoBanco = user.password_hash || user.password;
 
-    // 3. Verificação de Senha (com Trim para ignorar espaços extras)
-    const senhaBanco = user.senha || user.password; // Tenta pegar de uma coluna ou outra
-    
-    // Converte tudo para string e remove espaços para evitar erros bobos
-    const senhaInputLimpa = String(password).trim();
-    const senhaBancoLimpa = String(senhaBanco).trim();
+    if (!hashDoBanco) {
+        // Se o usuário não tiver senha definida
+        return NextResponse.json({ error: "Senha não definida para este usuário." }, { status: 401 });
+    }
 
-    if (senhaInputLimpa !== senhaBancoLimpa) {
-        console.log("🚫 Senhas não batem!");
+    // A mágica acontece aqui: O bcrypt compara o texto 'Carper@153' com o hash do banco
+    const senhaCorreta = await compare(password, hashDoBanco);
+
+    if (!senhaCorreta) {
+        console.log("🚫 Senha inválida (bcrypt não bateu)");
         return NextResponse.json({ error: "Senha incorreta." }, { status: 401 });
     }
 
-    // 4. Verificação de Ativo
+    // 3. Verificação de Ativo
     if (user.ativo === false) {
-        console.log("🚫 Usuário inativo.");
         return NextResponse.json({ error: "Seu cadastro aguarda aprovação do Administrador." }, { status: 403 });
     }
 
-    console.log("✅ Login Sucesso!");
-
-    // 5. Gera Token
+    // 4. Gera Token
     const secret = new TextEncoder().encode(process.env.SUPABASE_SERVICE_ROLE_KEY || 'segredo');
     const token = await new SignJWT({ 
         sub: user.id, 
@@ -78,7 +72,7 @@ export async function POST(request) {
     return NextResponse.json({ access_token: token });
 
   } catch (error) {
-    console.error("🔥 Erro Fatal Login:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Erro Login:", error);
+    return NextResponse.json({ error: "Erro interno" }, { status: 500 });
   }
 }
