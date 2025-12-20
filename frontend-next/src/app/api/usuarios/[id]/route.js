@@ -6,27 +6,21 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// --- PUT: ATUALIZAR STATUS (APROVAR/BLOQUEAR) ---
 export async function PUT(request, { params }) {
   try {
-    // --- CORREÇÃO IMPORTANTE PARA NEXT.JS 15 ---
-    // O params agora é uma Promise, precisamos do await
-    const { id } = await params; 
+    const { id } = await params; // Obrigatório no Next 15
 
     const body = await request.json();
 
-    console.log(`🔄 Tentando atualizar Usuário ID: ${id}`);
-    console.log(`📝 Dados recebidos:`, body);
-
-    // Validação de segurança
     if (!id || id === 'undefined') {
-        return NextResponse.json({ error: "ID do usuário inválido" }, { status: 400 });
+        return NextResponse.json({ error: "ID inválido" }, { status: 400 });
     }
 
     if (typeof body.ativo !== 'boolean') {
         return NextResponse.json({ error: "O campo 'ativo' deve ser booleano" }, { status: 400 });
     }
 
-    // Atualiza no banco
     const { data, error } = await supabase
       .from('usuarios')
       .update({ ativo: body.ativo })
@@ -38,7 +32,32 @@ export async function PUT(request, { params }) {
     return NextResponse.json(data[0]);
 
   } catch (error) {
-    console.error("Erro ao atualizar usuário:", error);
+    console.error("Erro PUT Usuário:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+}
+
+// --- DELETE: EXCLUIR USUÁRIO (AQUI ESTAVA FALTANDO) ---
+export async function DELETE(request, { params }) {
+    try {
+        const { id } = await params; // Obrigatório no Next 15
+
+        if (!id || id === 'undefined') {
+            return NextResponse.json({ error: "ID inválido" }, { status: 400 });
+        }
+        
+        // Deleta do Supabase
+        const { error } = await supabase
+            .from('usuarios')
+            .delete()
+            .eq('id', id);
+        
+        if (error) throw error;
+        
+        return NextResponse.json({ message: "Usuário excluído com sucesso" });
+
+    } catch (error) {
+        console.error("Erro DELETE Usuário:", error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 }
