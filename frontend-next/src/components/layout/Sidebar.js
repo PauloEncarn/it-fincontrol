@@ -14,8 +14,8 @@ export default function Sidebar({ activeView, setActiveView, onLogout }) {
   ];
 
   return (
-    <aside className="w-72 bg-white h-screen shadow-2xl flex flex-col justify-between sticky top-0 z-50">
-        
+    
+  <aside className="w-72 bg-white min-h-screen shadow-2xl flex flex-col justify-between z-50">
         {/* TOPO: Logo */}
         <div className="p-8 pb-4 flex justify-center">
             <Image 
