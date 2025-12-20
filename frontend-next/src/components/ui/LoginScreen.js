@@ -53,23 +53,39 @@ export default function LoginScreen({ onLogin, addToast }) {
           }
 
       } catch (error) { 
-          console.error("Erro Login/Cadastro:", error);
-
-          // --- AQUI ESTÁ A CORREÇÃO MÁGICA ---
-          // Tentamos pegar a mensagem exata que o Backend mandou (ex: "Acesso bloqueado...")
-          const mensagemServidor = error.response?.data?.error || error.response?.data?.detail;
+          console.error("🔥 ERRO COMPLETO:", error);
           
-          if (mensagemServidor) {
-              // Se o servidor mandou mensagem, mostramos ELA
-              addToast('error', mensagemServidor);
+          // Tenta extrair a mensagem de várias formas possíveis
+          let mensagemErro = 'Erro desconhecido ao tentar acessar.';
+
+          if (error.response) {
+              // O servidor respondeu, mas com erro (401, 403, 500)
+              console.log("📦 Dados do servidor:", error.response.data);
+              
+              if (error.response.data?.error) {
+                  mensagemErro = error.response.data.error;
+              } else if (error.response.data?.message) {
+                  mensagemErro = error.response.data.message;
+              } else if (typeof error.response.data === 'string') {
+                  mensagemErro = error.response.data; // Às vezes vem como texto puro
+              }
+          } else if (error.request) {
+              // O servidor nem respondeu (Servidor desligado ou sem internet)
+              mensagemErro = 'Sem conexão com o servidor.';
           } else {
-              // Se o servidor morreu ou deu erro 500 sem mensagem, mostramos genérica
-              addToast('error', isRegistering ? 'Erro ao criar conta. Tente novamente.' : 'Falha ao conectar ao servidor.'); 
+              // Erro na montagem da requisição
+              mensagemErro = error.message;
           }
+
+          // Exibe o Toast com a mensagem final processada
+          addToast('error', mensagemErro);
 
       } finally { 
           setLoading(false); 
-      } 
+      }
+
+
+
   };
 
   return (
