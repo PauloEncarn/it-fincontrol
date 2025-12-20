@@ -1,17 +1,18 @@
 import React from 'react';
-import { Search, Plus, Download, Menu, Filter } from 'lucide-react'; // Adicionei Menu e Filter
-import BotaoExportar from '@/components/ui/BotaoExportar';
+// Removi o 'Download' dos imports pois não é mais usado aqui
+import { Search, Plus, Menu, Filter } from 'lucide-react'; 
+// Removi o import do BotaoExportar
 
 export default function Header({ 
     currentView, 
-    onOpenMenu, // <--- Recebe a função de abrir o menu
+    onOpenMenu, 
     termoBusca, 
     setTermoBusca, 
     filiais, 
     filialFiltro, 
     setFilialFiltro, 
-    onNovoLancamento, 
-    dadosExportacao 
+    onNovoLancamento
+    // dadosExportacao - não precisamos mais receber essa prop aqui
 }) {
 
   // Título dinâmico baseado na View
@@ -30,11 +31,12 @@ export default function Header({
   return (
     <div className="bg-white px-8 py-5 flex flex-col gap-6 shadow-sm border-b border-slate-100 sticky top-0 z-30">
         
-        {/* LINHA SUPERIOR: Menu + Título + Busca */}
+        {/* LINHA SUPERIOR: Menu + Título + Busca + Ações */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             
+            {/* LADO ESQUERDO: Botão Menu e Título */}
             <div className="flex items-center gap-4 w-full md:w-auto">
-                {/* BOTÃO DO MENU (Gaveta) */}
+                {/* BOTÃO DO MENU (Gaveta) - Mantém o tom azul no hover */}
                 <button 
                     onClick={onOpenMenu}
                     className="p-2 text-[#1E22A8] hover:bg-slate-50 rounded-lg transition-colors"
@@ -43,6 +45,7 @@ export default function Header({
                 </button>
 
                 <div>
+                    {/* Título no tom azul */}
                     <h1 className="text-2xl font-black text-[#1E22A8] tracking-tight">{getTitulo()}</h1>
                     <p className="text-xs text-slate-400 font-bold uppercase tracking-widest hidden md:block">
                         Visão Geral do Sistema
@@ -50,7 +53,7 @@ export default function Header({
                 </div>
             </div>
 
-            {/* BARRA DE BUSCA CENTRAL */}
+            {/* CENTRO: Barra de Busca (Foco azul) */}
             <div className="relative w-full md:w-96 group">
                 <input 
                     value={termoBusca}
@@ -61,10 +64,11 @@ export default function Header({
                 <Search className="absolute left-4 top-3.5 text-slate-400 group-focus-within:text-[#1E22A8] transition-colors" size={20}/>
             </div>
 
-            {/* BOTÕES DE AÇÃO (Direita) */}
-            <div className="flex gap-3 w-full md:w-auto justify-end">
+            {/* LADO DIREITO: Filtros e Botão Novo */}
+            <div className="flex gap-3 w-full md:w-auto justify-end items-center">
                 {currentView === 'dashboard' && (
                     <>
+                        {/* Filtro de Filiais */}
                         <div className="relative">
                             <select 
                                 value={filialFiltro}
@@ -76,9 +80,10 @@ export default function Header({
                             </select>
                             <Filter className="absolute left-3 top-3.5 text-slate-400 pointer-events-none" size={16}/>
                         </div>
-
-                        <BotaoExportar dados={dadosExportacao} />
                         
+                        {/* O Botão Exportar foi removido daqui */}
+                        
+                        {/* Botão Novo Lançamento (Azul Cicopal) */}
                         <button 
                             onClick={onNovoLancamento} 
                             className="bg-[#1E22A8] hover:bg-[#E30613] text-white px-6 py-3 rounded-xl font-black text-xs flex gap-2 items-center shadow-lg shadow-blue-900/20 transition-all active:scale-95"
