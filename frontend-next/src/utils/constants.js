@@ -3,21 +3,23 @@ import { Clock, AlertTriangle, Calendar, Mail, CheckCircle } from 'lucide-react'
 
 export const API_URL = (process.env.NEXT_PUBLIC_API_URL || "/api").replace(/\/$/, "");
 
-// Paleta de Cores do Sistema
-export const CORES = {
-    azulCicopal: '#1E22A8',
-    vermelhoCicopal: '#E30613',
-    amareloAlerta: '#F9C531',
-    verdeSucesso: '#10B981',
-};
-
-// Opções para Dropdowns
+// Opções de Status para NOTAS FISCAIS
 export const OPCOES_STATUS = [
     'Pendente Lançamento', 
     'Aguardando Fatura', 
     'Aguardando Pagamento', 
     'Concluída',
     'Cancelada'
+];
+
+// Opções de Status para SOLICITAÇÕES DE COMPRA (O que faltava!)
+export const OPCOES_STATUS_COMPRA = [
+    'Pendente',
+    'Em Cotação',
+    'Aguardando Aprovação',
+    'Aprovado',
+    'Reprovado',
+    'Concluído'
 ];
 
 // Estilos dinâmicos para etiquetas de status (NotasView)
@@ -30,7 +32,7 @@ export const STATUS_STYLES = {
     'Email Enviado p/ Balança': { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-200' }
 };
 
-// --- O QUE ESTAVA FALTANDO PARA O USUARIOSVIEW ---
+// Estilos gerais de UI (Inputs e Botões)
 export const STYLES = {
     input: "w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-bold text-slate-700 outline-none focus:border-[#1E22A8] focus:ring-4 focus:ring-[#1E22A8]/10 transition-all",
     label: "block text-xs font-black text-slate-400 uppercase tracking-wider mb-2",
