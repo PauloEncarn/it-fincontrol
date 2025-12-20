@@ -48,12 +48,19 @@ export async function POST(request) {
 
     if (!senhaCorreta) {
         console.log("🚫 Senha inválida (bcrypt não bateu)");
-        return NextResponse.json({ error: "Senha incorreta." }, { status: 401 });
+        return NextResponse.json({
+          
+      error: "Senha incorreta. Verifique suas credenciais." // <--- AQUI
+    }, { status: 401 });
     }
 
     // 3. Verificação de Ativo
     if (user.ativo === false) {
-        return NextResponse.json({ error: "Seu cadastro aguarda aprovação do Administrador." }, { status: 403 });
+      
+        return NextResponse.json({ 
+          
+          error: "Acesso bloqueado. Entre em contato com o Administrador." // <--- AQUI
+    }, { status: 403 });
     }
 
     // 4. Gera Token

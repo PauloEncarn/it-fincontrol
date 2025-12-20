@@ -155,6 +155,15 @@ function DashboardContent() {
   },
   onError: () => addToast('error', 'Erro ao atualizar acesso.')
 });
+const mutationDeleteUsuario = useMutation({
+      mutationFn: (id) => axios.delete(`${API_URL}/usuarios/${id}`, authConfig),
+      onSuccess: () => { 
+          queryClient.invalidateQueries(['usuarios']); 
+          addToast('success', 'Usuário excluído!'); 
+      },
+      onError: () => addToast('error', 'Erro ao excluir usuário.')
+  });
+
 
 
   // --- LÓGICA DE NEGÓCIO ---
@@ -347,15 +356,21 @@ function DashboardContent() {
                         />
                     )}
 
-                    {currentView === 'usuarios' && (
-                        <UsuariosView 
-        usuarios={usuarios}
-        onCriarUsuario={(u) => mutationUsuario.mutate(u)}
-        onToggleStatus={(id, novoStatus) => mutationUsuarioStatus.mutate({ id, ativo: novoStatus })} // <--- ESSA LINHA
-    />
-                    )}
+                   {currentView === 'usuarios' && (
+        <UsuariosView 
+            usuarios={usuarios}
+            onCriarUsuario={(u) => mutationUsuario.mutate(u)}
+            onToggleStatus={(id, novoStatus) => mutationUsuarioStatus.mutate({ id, ativo: novoStatus })}
+            onExcluirUsuario={(u) => openConfirm("Excluir Usuário", `Tem certeza que deseja excluir ${u.nome_completo}?`, () => mutationDeleteUsuario.mutate(u.id))}
+        />
+    )}
                 </>
             )}
+
+
+
+
+
         </main>
 
         <footer className="fixed bottom-0 left-0 right-0 py-4 bg-white border-t border-gray-200 z-10 flex items-center justify-center">
