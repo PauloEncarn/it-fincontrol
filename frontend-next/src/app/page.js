@@ -138,14 +138,14 @@ function DashboardContent() {
   if (loadingInit) return <div className="flex items-center justify-center h-screen"><Loader2 className="animate-spin text-[#1E22A8]" size={48}/></div>;
   if (!token) return <LoginScreen onLogin={handleLogin} addToast={addToast} />;
 
-  return (
+ return (
     <div className="flex min-h-screen bg-[#F0F2F5] font-sans relative">
         <ToastContainer toasts={toasts} removeToast={(id) => setToasts(p => p.filter(t => t.id !== id))} />
         <ConfirmDialog isOpen={confirmConfig.isOpen} title={confirmConfig.title} message={confirmConfig.message} onConfirm={confirmConfig.onConfirm} onCancel={() => setConfirmConfig(p => ({...p, isOpen: false}))} />
         
         {loadingDash && <div className="fixed inset-0 bg-white/80 z-[60] flex items-center justify-center"><Loader2 className="animate-spin text-[#1E22A8]" size={48}/></div>}
 
-        {/* 1. SIDEBAR (GAVETA) - Fica fora do fluxo principal */}
+        {/* SIDEBAR (GAVETA) */}
         <Sidebar 
             isOpen={isMenuOpen} 
             onClose={() => setIsMenuOpen(false)} 
@@ -155,28 +155,15 @@ function DashboardContent() {
             onLogout={handleLogout}
         />
 
-        {/* 2. ÁREA PRINCIPAL - Ocupa 100% da tela (w-full) */}
+        {/* ÁREA PRINCIPAL */}
         <main className="flex-1 max-h-screen overflow-y-auto w-full transition-all flex flex-col">
             
-            {/* 3. BOTÃO DE MENU (NOVO) */}
-            {/* Coloquei uma barra de topo branca simples para segurar o botão e o logo */}
-            <div className="bg-white px-6 py-4 flex items-center gap-4 shadow-sm border-b border-slate-100 sticky top-0 z-30">
-                <button 
-                    onClick={() => setIsMenuOpen(true)} 
-                    className="p-2 text-[#1E22A8] hover:bg-slate-50 rounded-lg transition-colors"
-                    title="Abrir Menu"
-                >
-                    <Menu size={28} />
-                </button>
-                <h1 className="text-xl font-black text-[#1E22A8] tracking-tighter">
-                    GESTÃO <span className="text-slate-400 font-light">TI</span>
-                </h1>
-            </div>
+            {/* AQUI ESTAVA O HEADER DUPLICADO - REMOVI! AGORA SÓ TEM O HEADER ABAIXO */}
 
-            {/* HEADER DE FILTROS */}
+            {/* HEADER UNIFICADO (FILTROS + MENU) */}
             <Header 
                 currentView={currentView}
-                onOpenMenu={() => setIsMenuOpen(true)}
+                onOpenMenu={() => setIsMenuOpen(true)} // <--- Passamos a função aqui
                 termoBusca={termoBusca}
                 setTermoBusca={setTermoBusca}
                 filiais={filiais}
@@ -188,7 +175,7 @@ function DashboardContent() {
 
             <div className="p-8 max-w-[1600px] mx-auto pb-24 w-full">
                 
-                {/* CONTEÚDO (Suas Views normais) */}
+                {/* VIEWS (Conteúdo) */}
                 {termoBusca.length > 2 && currentView === 'dashboard' ? (
                     <SearchResultsView 
                         termoBusca={termoBusca}
@@ -216,11 +203,13 @@ function DashboardContent() {
                                 isGopaFunc={isGopaFunc}
                             />
                         )}
-                        {/* Outras views (Solicitacoes, Filiais, etc) mantidas igual... */}
+
+                        {/* ... Mantenha os outros views (Solicitacoes, Filiais, etc) aqui ... */}
                         {currentView === 'solicitacoes' && <SolicitacoesView solicitacoes={solicitacoes} onNovaSolicitacao={() => { setFormSolicitacao(initialFormSolicitacao); setShowModalSolicitacao(true); }} onEditarSolicitacao={(s) => { setFormSolicitacao(s); setShowModalSolicitacao(true); }} />}
                         {currentView === 'filiais' && <FiliaisView filiais={filiais} onSalvar={(f) => mutationFilial.mutate(f)} onExcluir={(f) => openConfirm("Excluir Filial", `Deseja excluir ${f.nome_fantasia}?`, () => axios.delete(`${API_URL}/filiais/${f.id}`, authConfig).then(() => { queryClient.invalidateQueries(['filiais']); addToast('success', 'Filial excluída!'); }))} />}
                         {currentView === 'fornecedores' && <FornecedoresView fornecedores={fornecedores} onSalvar={(f) => mutationFornecedor.mutate(f)} onExcluir={(f) => openConfirm("Excluir Fornecedor", `Deseja excluir ${f.nome_empresa}?`, () => axios.delete(`${API_URL}/fornecedores/${f.id}`, authConfig).then(() => { queryClient.invalidateQueries(['fornecedores']); addToast('success', 'Fornecedor excluído!'); }))} />}
                         {currentView === 'usuarios' && <UsuariosView usuarios={usuarios} onCriarUsuario={(u) => mutationUsuario.mutate(u)} onToggleStatus={(id, novoStatus) => mutationUsuarioStatus.mutate({ id, ativo: novoStatus })} onExcluirUsuario={(u) => openConfirm("Excluir Usuário", `Tem certeza que deseja excluir ${u.nome_completo}?`, () => mutationDeleteUsuario.mutate(u.id))} />}
+
                     </>
                 )}
             </div>
@@ -230,7 +219,8 @@ function DashboardContent() {
             </footer>
 
         </main>
-
+        
+        {/* MODAIS (Mantenha igual) */}
         <ModalLancamento isOpen={showModal} onClose={() => setShowModal(false)} form={form} setForm={setForm} filiais={filiais} fornecedores={fornecedores} opcoesFornecedor={opcoesFornecedor} onFornecedorChange={handleFornecedorChange} onSalvar={salvarLancamento} onSalvarEEnviar={salvarEEnviar} sendingEmail={sendingEmail} addToast={addToast} isGopa={isGopaFunc({filial_id: form.filial_id})} />
         <ModalSolicitacao isOpen={showModalSolicitacao} onClose={() => setShowModalSolicitacao(false)} form={formSolicitacao} setForm={setFormSolicitacao} filiais={filiais} fornecedores={fornecedores} onSalvar={() => mutationSolicitacao.mutate(formSolicitacao)} onFornecedorChange={handleFornecedorSolicitacaoChange} />
     </div>
