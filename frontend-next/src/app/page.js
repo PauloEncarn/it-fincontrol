@@ -3,21 +3,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react'; 
 
 // --- IMPORT DE CONSTANTES E CONFIGURAÇÃO ---
 import { API_URL } from '@/utils/constants';
 
-// --- IMPORTS DE UI (Componentes Visuais) ---
+// --- IMPORTS DE UI ---
 import LoginScreen from '@/components/ui/LoginScreen';
 import ToastContainer from '@/components/ui/ToastContainer';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
-// --- IMPORTS DE LAYOUT (Estrutura) ---
+// --- IMPORTS DE LAYOUT ---
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
 
-// --- IMPORTS DE VIEWS (Conteúdo das Telas) ---
+// --- IMPORTS DE VIEWS ---
 import DashboardView from '@/components/views/DashboardView';
 import SearchResultsView from '@/components/views/SearchResultsView';
 import SolicitacoesView from '@/components/views/SolicitacoesView';
@@ -25,11 +25,11 @@ import FiliaisView from '@/components/views/FiliaisView';
 import FornecedoresView from '@/components/views/FornecedoresView';
 import UsuariosView from '@/components/views/UsuariosView';
 
-// --- IMPORTS DE MODAIS (Formulários) ---
+// --- IMPORTS DE MODAIS ---
 import ModalLancamento from '@/components/modals/ModalLancamento';
 import ModalSolicitacao from '@/components/modals/ModalSolicitacao';
 
-// --- DADOS INICIAIS (Formulários vazios) ---
+// --- DADOS INICIAIS ---
 const initialFormLancamento = { 
     id: null, filial_id: '', fornecedor_id: '', cnpj_usado: '', contrato_usado: '', 
     centro_custo_usado: '', numero_nota: '', serie: 'U', valor: '', data_envio: '', 
@@ -52,7 +52,7 @@ function DashboardContent() {
   const [token, setToken] = useState(null);
   const [loadingInit, setLoadingInit] = useState(true);
   const [currentView, setCurrentView] = useState('dashboard');
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  
   const [toasts, setToasts] = useState([]);
   const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
 
@@ -63,8 +63,8 @@ function DashboardContent() {
   const [termoBusca, setTermoBusca] = useState('');
 
   // --- CONTROLE DE MODAIS E EDIÇÃO ---
-  const [showModal, setShowModal] = useState(false); // Lancamento
-  const [showModalSolicitacao, setShowModalSolicitacao] = useState(false); // Solicitacao
+  const [showModal, setShowModal] = useState(false); 
+  const [showModalSolicitacao, setShowModalSolicitacao] = useState(false);
   const [form, setForm] = useState(initialFormLancamento);
   const [formSolicitacao, setFormSolicitacao] = useState(initialFormSolicitacao);
   const [opcoesFornecedor, setOpcoesFornecedor] = useState({ cnpjs: [], contratos: [], ccs: [] });
@@ -102,7 +102,6 @@ function DashboardContent() {
   const { data: fornecedores = [] } = useQuery({ queryKey: ['fornecedores'], queryFn: () => axios.get(`${API_URL}/fornecedores/`, authConfig).then(res => res.data), enabled: !!token });
   const { data: usuarios = [] } = useQuery({ queryKey: ['usuarios'], queryFn: () => axios.get(`${API_URL}/usuarios/`, authConfig).then(res => res.data), enabled: !!token && currentView === 'usuarios' });
   
-  // Dashboard Data
   const { data: dadosDashboard = [], isLoading: loadingDash } = useQuery({ 
       queryKey: ['dashboard', filialFiltro, competencia.getMonth(), competencia.getFullYear()], 
       queryFn: async () => { 
@@ -115,7 +114,6 @@ function DashboardContent() {
       enabled: !!token && !termoBusca 
   });
 
-  // Busca Inteligente
   const { data: dadosBusca = [], isFetching: carregandoBusca } = useQuery({ 
       queryKey: ['busca', termoBusca], 
       queryFn: async () => { 
@@ -125,57 +123,46 @@ function DashboardContent() {
       }, 
       enabled: !!token && termoBusca.length > 2 
   });
-  // Solicitações
+
   const { data: solicitacoes = [] } = useQuery({
     queryKey: ['solicitacoes', termoBusca],
     queryFn: async () => {
-      // CORREÇÃO: Usamos 'params' do axios em vez de montar string na mão
-      // Isso evita a barra "/" indesejada no final da URL
       const res = await axios.get(`${API_URL}/solicitacoes`, {
          params: { busca: termoBusca || undefined },
          ...authConfig
       });
-      console.log("📦 Dados Solicitações:", res.data); // Debug no Console (F12)
       return res.data;
     },
     enabled: !!token && currentView === 'solicitacoes'
   });
-  // --- MUTATIONS (Lógica de API) ---
+
+  // --- MUTATIONS ---
   const mutationLancamento = useMutation({ mutationFn: (nota) => nota.id ? axios.put(`${API_URL}/lancamentos/${nota.id}`, nota, authConfig) : axios.post(`${API_URL}/lancamentos/`, nota, authConfig), onSuccess: () => { queryClient.invalidateQueries(['dashboard']); queryClient.invalidateQueries(['busca']); }});
   const mutationStatus = useMutation({ mutationFn: ({id, status}) => axios.patch(`${API_URL}/lancamentos/${id}/status`, { status }, authConfig), onSuccess: () => { queryClient.invalidateQueries(['dashboard']); queryClient.invalidateQueries(['busca']); addToast('success', 'Status atualizado!'); } });
   const mutationFilial = useMutation({ mutationFn: (data) => data.id ? axios.put(`${API_URL}/filiais/${data.id}`, data, authConfig) : axios.post(`${API_URL}/filiais/`, data, authConfig), onSuccess: () => { queryClient.invalidateQueries(['filiais']); addToast('success', 'Filial salva!'); } });
   const mutationFornecedor = useMutation({ mutationFn: (data) => data.id ? axios.put(`${API_URL}/fornecedores/${data.id}`, data, authConfig) : axios.post(`${API_URL}/fornecedores/`, data, authConfig), onSuccess: () => { queryClient.invalidateQueries(['fornecedores']); addToast('success', 'Fornecedor salvo!'); } });
   const mutationSolicitacao = useMutation({ mutationFn: (dados) => dados.id ? axios.put(`${API_URL}/solicitacoes/${dados.id}`, dados, authConfig) : axios.post(`${API_URL}/solicitacoes/`, dados, authConfig), onSuccess: () => { queryClient.invalidateQueries(['solicitacoes']); addToast('success', 'Solicitação salva!'); setShowModalSolicitacao(false); }, onError: (err) => addToast('error', 'Erro ao salvar: ' + err.message) });
   const mutationUsuario = useMutation({ mutationFn: (dados) => axios.post(`${API_URL}/usuarios/`, dados, authConfig), onSuccess: () => { queryClient.invalidateQueries(['usuarios']); addToast('success', 'Usuário criado!'); }, onError: () => addToast('error', 'Erro ao criar usuário.') });
+  
   const mutationUsuarioStatus = useMutation({
-  mutationFn: ({ id, ativo }) => axios.put(`${API_URL}/usuarios/${id}`, { ativo }, authConfig),
-  onSuccess: () => { 
-      queryClient.invalidateQueries(['usuarios']); 
-      addToast('success', 'Acesso do usuário atualizado!'); 
-  },
-  onError: () => addToast('error', 'Erro ao atualizar acesso.')
-});
-const mutationDeleteUsuario = useMutation({
+    mutationFn: ({ id, ativo }) => axios.put(`${API_URL}/usuarios/${id}`, { ativo }, authConfig),
+    onSuccess: () => { queryClient.invalidateQueries(['usuarios']); addToast('success', 'Acesso do usuário atualizado!'); },
+    onError: () => addToast('error', 'Erro ao atualizar acesso.')
+  });
+
+  const mutationDeleteUsuario = useMutation({
       mutationFn: (id) => axios.delete(`${API_URL}/usuarios/${id}`, authConfig),
-      onSuccess: () => { 
-          queryClient.invalidateQueries(['usuarios']); 
-          addToast('success', 'Usuário excluído!'); 
-      },
+      onSuccess: () => { queryClient.invalidateQueries(['usuarios']); addToast('success', 'Usuário excluído!'); },
       onError: () => addToast('error', 'Erro ao excluir usuário.')
   });
 
-
-
   // --- LÓGICA DE NEGÓCIO ---
-  
-  // GOPA Check
   const isGopaFunc = (nota) => {
     const fId = nota.filial_id || (form && form.filial_id);
     const filial = filiais.find(f => f.id == fId);
     return filial?.nome_fantasia?.toUpperCase().includes('GOPA') || filial?.nome_fantasia?.toUpperCase().includes('REFRESA');
   };
 
-  // Preencher dados do Fornecedor ao selecionar
   const handleFornecedorChange = (id) => { 
       const forn = fornecedores.find(f => f.id == id); 
       if (forn) { 
@@ -186,7 +173,6 @@ const mutationDeleteUsuario = useMutation({
       }
   };
 
-  // Preencher fornecedor na Solicitação
   const handleFornecedorSolicitacaoChange = (id) => {
     const forn = fornecedores.find(f => f.id == id);
     if (forn) {
@@ -203,14 +189,12 @@ const mutationDeleteUsuario = useMutation({
     }
   };
 
-  // Abrir Modal de Edição (Lancamento)
   const abrirEdicaoLancamento = (nota) => {
       handleFornecedorChange(nota.fornecedor_id);
       setTimeout(() => setForm({...nota, data_envio: nota.data_envio ? nota.data_envio.split('T')[0] : '', data_vencimento: nota.data_vencimento.split('T')[0]}), 50);
       setShowModal(true);
   };
 
-  // Duplicar Nota
   const duplicarNota = (nota) => {
       openConfirm("Duplicar Lançamento", "Deseja criar uma cópia?", () => {
           handleFornecedorChange(nota.fornecedor_id);
@@ -219,7 +203,6 @@ const mutationDeleteUsuario = useMutation({
       });
   };
 
-  // Salvar Lancamento
   const salvarLancamento = async () => {
       if (!form.filial_id || !form.fornecedor_id || !form.valor || !form.numero_nota) return addToast('error', 'Preencha os campos obrigatórios!'); 
       const payload = { ...form, data_envio: form.data_envio === '' ? null : form.data_envio }; 
@@ -232,7 +215,6 @@ const mutationDeleteUsuario = useMutation({
       }
   };
 
-  // Salvar e Enviar Email (GOPA)
   const salvarEEnviar = async () => {
       if (!form.arquivo_nota) return addToast('error', 'Anexe a nota fiscal para enviar.');
       const payload = { ...form, data_envio: form.data_envio === '' ? null : form.data_envio };
@@ -263,7 +245,6 @@ const mutationDeleteUsuario = useMutation({
       } catch { addToast('error', 'Falha ao enviar.'); } finally { setSendingEmail(false); }
   };
 
-  // Agrupamento de Dados (Dashboard)
   const getGroupedData = () => {
       const notas = statusFiltro.length ? dadosDashboard.filter(n => statusFiltro.includes(n.status_pagamento)) : dadosDashboard;
       const grupos = {};
@@ -276,108 +257,107 @@ const mutationDeleteUsuario = useMutation({
   if (!token) return <LoginScreen onLogin={handleLogin} addToast={addToast} />;
 
   return (
-    <div className="min-h-screen bg-[#F0F2F5] pb-40">
+    <div className="flex min-h-screen bg-[#F0F2F5] font-sans">
         <ToastContainer toasts={toasts} removeToast={(id) => setToasts(p => p.filter(t => t.id !== id))} />
         <ConfirmDialog isOpen={confirmConfig.isOpen} title={confirmConfig.title} message={confirmConfig.message} onConfirm={confirmConfig.onConfirm} onCancel={() => setConfirmConfig(p => ({...p, isOpen: false}))} />
         
         {loadingDash && <div className="fixed inset-0 bg-white/80 z-[60] flex items-center justify-center"><Loader2 className="animate-spin text-[#1E22A8]" size={48}/></div>}
 
-        <Header 
-            currentView={currentView}
-            onOpenMenu={() => setIsMenuOpen(true)}
-            termoBusca={termoBusca}
-            setTermoBusca={setTermoBusca}
-            filiais={filiais}
-            filialFiltro={filialFiltro}
-            setFilialFiltro={setFilialFiltro}
-            onNovoLancamento={() => { setForm(initialFormLancamento); setShowModal(true); }}
-            dadosExportacao={dadosDashboard}
-        />
-
+        {/* SIDEBAR FIXO (Desktop) */}
         <Sidebar 
-            isOpen={isMenuOpen} 
-            onClose={() => setIsMenuOpen(false)} 
-            currentView={currentView} 
-            onChangeView={setCurrentView} 
+            currentView={currentView}
+            setActiveView={setCurrentView} 
+            activeView={currentView}
             onLogout={handleLogout}
         />
 
-        <main className="max-w-[1600px] mx-auto p-6 space-y-10 mt-4">
+        {/* ÁREA PRINCIPAL */}
+        <main className="flex-1 max-h-screen overflow-y-auto w-full transition-all flex flex-col">
             
-            {/* VIEW DE RESULTADOS DE BUSCA */}
-            {termoBusca.length > 2 && currentView === 'dashboard' ? (
-                <SearchResultsView 
-                    termoBusca={termoBusca}
-                    carregando={carregandoBusca}
-                    resultados={dadosBusca}
-                    onEditar={abrirEdicaoLancamento}
-                />
-            ) : (
-                <>
-                    {currentView === 'dashboard' && (
-                        <DashboardView 
-                            kpis={dadosDashboard}
-                            filtros={statusFiltro}
-                            onFilter={(s) => setStatusFiltro(p => p.includes(s) ? p.filter(i => i !== s) : [...p, s])}
-                            dadosAgrupados={getGroupedData()}
-                            competencia={competencia}
-                            mudarMes={(d) => { const nd = new Date(competencia); nd.setMonth(competencia.getMonth() + d); setCompetencia(nd); }}
-                            onEditar={abrirEdicaoLancamento}
-                            onDuplicar={duplicarNota}
-                            onCopiarProtheus={(n) => navigator.clipboard.writeText(`${n.fornecedor?.nome_empresa} | CPF/CNPJ: ${n.cnpj_usado||'?'} | NF: ${n.numero_nota} | Valor R$: ${n.valor.toLocaleString('pt-BR',{minimumFractionDigits:2})}`).then(()=>addToast('success', "Copiado!"))}
-                            onEnviarEmail={handleEnviarEmail}
-                            onDownload={(path) => window.open(path.startsWith('http') ? path : `${API_URL}/${path}`, '_blank')}
-                            onStatusChange={(id, st) => mutationStatus.mutate({id, status: st})}
-                            isGopaFunc={isGopaFunc}
-                        />
-                    )}
+            {/* HEADER (FILTROS) */}
+            <Header 
+                currentView={currentView}
+                termoBusca={termoBusca}
+                setTermoBusca={setTermoBusca}
+                filiais={filiais}
+                filialFiltro={filialFiltro}
+                setFilialFiltro={setFilialFiltro}
+                onNovoLancamento={() => { setForm(initialFormLancamento); setShowModal(true); }}
+                dadosExportacao={dadosDashboard}
+            />
 
-                    {currentView === 'solicitacoes' && (
-                        <SolicitacoesView 
-                            solicitacoes={solicitacoes}
-                            onNovaSolicitacao={() => { setFormSolicitacao(initialFormSolicitacao); setShowModalSolicitacao(true); }}
-                            onEditarSolicitacao={(s) => { setFormSolicitacao(s); setShowModalSolicitacao(true); }}
-                        />
-                    )}
+            <div className="p-8 max-w-[1600px] mx-auto pb-24 w-full">
+                
+                {/* VIEWS */}
+                {termoBusca.length > 2 && currentView === 'dashboard' ? (
+                    <SearchResultsView 
+                        termoBusca={termoBusca}
+                        carregando={carregandoBusca}
+                        resultados={dadosBusca}
+                        onEditar={abrirEdicaoLancamento}
+                    />
+                ) : (
+                    <>
+                        {currentView === 'dashboard' && (
+                            <DashboardView 
+                                kpis={dadosDashboard}
+                                filtros={statusFiltro}
+                                onFilter={(s) => setStatusFiltro(p => p.includes(s) ? p.filter(i => i !== s) : [...p, s])}
+                                dadosAgrupados={getGroupedData()}
+                                competencia={competencia}
+                                setCompetencia={setCompetencia}
+                                mudarMes={(d) => { const nd = new Date(competencia); nd.setMonth(competencia.getMonth() + d); setCompetencia(nd); }}
+                                onEditar={abrirEdicaoLancamento}
+                                onDuplicar={duplicarNota}
+                                onCopiarProtheus={(n) => navigator.clipboard.writeText(`${n.fornecedor?.nome_empresa} | CPF/CNPJ: ${n.cnpj_usado||'?'} | NF: ${n.numero_nota} | Valor R$: ${n.valor.toLocaleString('pt-BR',{minimumFractionDigits:2})}`).then(()=>addToast('success', "Copiado!"))}
+                                onEnviarEmail={handleEnviarEmail}
+                                onDownload={(path) => window.open(path.startsWith('http') ? path : `${API_URL}/${path}`, '_blank')}
+                                onStatusChange={(id, st) => mutationStatus.mutate({id, status: st})}
+                                isGopaFunc={isGopaFunc}
+                            />
+                        )}
 
-                    {currentView === 'filiais' && (
-                        <FiliaisView 
-                            filiais={filiais}
-                            onSalvar={(f) => mutationFilial.mutate(f)}
-                            onExcluir={(f) => openConfirm("Excluir Filial", `Deseja excluir ${f.nome_fantasia}?`, () => axios.delete(`${API_URL}/filiais/${f.id}`, authConfig).then(() => { queryClient.invalidateQueries(['filiais']); addToast('success', 'Filial excluída!'); }))}
-                        />
-                    )}
+                        {currentView === 'solicitacoes' && (
+                            <SolicitacoesView 
+                                solicitacoes={solicitacoes}
+                                onNovaSolicitacao={() => { setFormSolicitacao(initialFormSolicitacao); setShowModalSolicitacao(true); }}
+                                onEditarSolicitacao={(s) => { setFormSolicitacao(s); setShowModalSolicitacao(true); }}
+                            />
+                        )}
 
-                    {currentView === 'fornecedores' && (
-                        <FornecedoresView 
-                            fornecedores={fornecedores}
-                            onSalvar={(f) => mutationFornecedor.mutate(f)}
-                            onExcluir={(f) => openConfirm("Excluir Fornecedor", `Deseja excluir ${f.nome_empresa}?`, () => axios.delete(`${API_URL}/fornecedores/${f.id}`, authConfig).then(() => { queryClient.invalidateQueries(['fornecedores']); addToast('success', 'Fornecedor excluído!'); }))}
-                        />
-                    )}
+                        {currentView === 'filiais' && (
+                            <FiliaisView 
+                                filiais={filiais}
+                                onSalvar={(f) => mutationFilial.mutate(f)}
+                                onExcluir={(f) => openConfirm("Excluir Filial", `Deseja excluir ${f.nome_fantasia}?`, () => axios.delete(`${API_URL}/filiais/${f.id}`, authConfig).then(() => { queryClient.invalidateQueries(['filiais']); addToast('success', 'Filial excluída!'); }))}
+                            />
+                        )}
 
-                   {currentView === 'usuarios' && (
-        <UsuariosView 
-            usuarios={usuarios}
-            onCriarUsuario={(u) => mutationUsuario.mutate(u)}
-            onToggleStatus={(id, novoStatus) => mutationUsuarioStatus.mutate({ id, ativo: novoStatus })}
-            onExcluirUsuario={(u) => openConfirm("Excluir Usuário", `Tem certeza que deseja excluir ${u.nome_completo}?`, () => mutationDeleteUsuario.mutate(u.id))}
-        />
-    )}
-                </>
-            )}
+                        {currentView === 'fornecedores' && (
+                            <FornecedoresView 
+                                fornecedores={fornecedores}
+                                onSalvar={(f) => mutationFornecedor.mutate(f)}
+                                onExcluir={(f) => openConfirm("Excluir Fornecedor", `Deseja excluir ${f.nome_empresa}?`, () => axios.delete(`${API_URL}/fornecedores/${f.id}`, authConfig).then(() => { queryClient.invalidateQueries(['fornecedores']); addToast('success', 'Fornecedor excluído!'); }))}
+                            />
+                        )}
 
+                        {currentView === 'usuarios' && (
+                            <UsuariosView 
+                                usuarios={usuarios}
+                                onCriarUsuario={(u) => mutationUsuario.mutate(u)}
+                                onToggleStatus={(id, novoStatus) => mutationUsuarioStatus.mutate({ id, ativo: novoStatus })}
+                                onExcluirUsuario={(u) => openConfirm("Excluir Usuário", `Tem certeza que deseja excluir ${u.nome_completo}?`, () => mutationDeleteUsuario.mutate(u.id))}
+                            />
+                        )}
+                    </>
+                )}
+            </div>
 
-
-
+            <footer className="mt-auto py-6 text-center text-gray-500 text-sm font-medium border-t border-gray-200 bg-white">
+                © {new Date().getFullYear()} <span className="font-bold text-[#1E22A8]">Cicopal</span> <span className="mx-2 text-gray-300">|</span> GESTÃO DE NOTAS 🤖
+            </footer>
 
         </main>
-
-        <footer className="fixed bottom-0 left-0 right-0 py-4 bg-white border-t border-gray-200 z-10 flex items-center justify-center">
-            <p className="text-gray-500 text-sm font-medium">
-                © {new Date().getFullYear()} <span className="font-bold text-[#1E22A8]">Cicopal</span> <span className="mx-2 text-gray-300">|</span> GESTÃO DE NOTAS 🤖
-            </p>
-        </footer>
 
         {/* MODAIS */}
         <ModalLancamento 
