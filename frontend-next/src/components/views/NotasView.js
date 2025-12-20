@@ -1,24 +1,24 @@
 import React, { useState } from 'react';
-import { Server, ChevronDown, Edit2, Copy, Mail, FileText, Paperclip, ClipboardList, Filter, Calendar, Search } from 'lucide-react';
-import { CORES, STATUS_STYLES, OPCOES_STATUS } from '@/utils/constants';
+import { Server, ChevronDown, Edit2, Copy, Mail, FileText, Paperclip, ClipboardList, Calendar } from 'lucide-react';
+import { STATUS_STYLES, OPCOES_STATUS } from '@/utils/constants';
 
 export default function NotasView({ 
-    notas, // Recebe a lista bruta ou agrupada
-    competencia, setCompetencia, mudarMes,
+    notas, 
+    competencia, setCompetencia,
     filiais, filialFiltro, setFilialFiltro,
     statusFiltro, setStatusFiltro,
     onEditar, onDuplicar, onCopiarProtheus, onEnviarEmail, onDownload, onStatusChange, isGopaFunc 
 }) {
   const [expandedSupplier, setExpandedSupplier] = useState({});
 
-  // Agrupamento Local (Já que mudamos a lógica, podemos agrupar aqui mesmo ou receber pronto)
-  // Vamos assumir que recebemos 'notas' (lista plana) e agrupamos aqui para exibir
+  // 1. FILTRAGEM LOCAL
   const notasFiltradas = notas.filter(n => {
       const matchStatus = statusFiltro.length === 0 || statusFiltro.includes(n.status_pagamento);
       const matchFilial = !filialFiltro || n.filial_id == filialFiltro;
       return matchStatus && matchFilial;
   });
 
+  // 2. AGRUPAMENTO
   const getGroupedData = () => {
       const grupos = {};
       notasFiltradas.forEach(n => { if(!grupos[n.nome_fornecedor]) grupos[n.nome_fornecedor]=[]; grupos[n.nome_fornecedor].push(n); });
@@ -26,7 +26,6 @@ export default function NotasView({
   };
 
   const dadosAgrupados = getGroupedData();
-
   const toggleExpand = (nome) => setExpandedSupplier(prev => ({...prev, [nome]: !prev[nome]}));
 
   const getSemaforoClass = (venc, status) => { 
@@ -48,7 +47,7 @@ export default function NotasView({
   return (
     <div className="space-y-6 animate-in fade-in">
         
-        {/* BARRA DE FERRAMENTAS (Filtros e Mês) */}
+        {/* BARRA DE FERRAMENTAS */}
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-6 items-center justify-between">
             
             {/* SELETOR DE MÊS */}
@@ -62,7 +61,7 @@ export default function NotasView({
                 />
             </div>
 
-            {/* FILTROS DE STATUS E FILIAL */}
+            {/* FILTROS */}
             <div className="flex flex-1 gap-4 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
                 <select 
                     value={filialFiltro}
@@ -91,7 +90,7 @@ export default function NotasView({
             </div>
         </div>
 
-        {/* LISTA DE NOTAS (CARD LAYOUT) */}
+        {/* LISTA DE NOTAS */}
         <div className="space-y-4">
             {dadosAgrupados.length === 0 && (
                 <div className="text-center py-20 text-slate-400 font-medium">Nenhuma nota encontrada neste período/filtro.</div>
@@ -116,8 +115,6 @@ export default function NotasView({
                             <div className="bg-slate-50 p-4 grid gap-3 border-t border-slate-100">
                                 {nts.map(n => (
                                     <div key={n.id} className={`bg-white rounded-xl shadow-sm border-l-[6px] p-5 hover:shadow-md transition-all relative overflow-hidden group ${getSemaforoClass(n.data_vencimento, n.status_pagamento)}`}>
-                                        
-                                        {/* CABEÇALHO DO CARD */}
                                         <div className="flex flex-col xl:flex-row justify-between gap-4 mb-4">
                                             <div>
                                                 <div className="flex items-center gap-2 mb-1">
@@ -137,21 +134,16 @@ export default function NotasView({
                                             </div>
                                         </div>
 
-                                        {/* AÇÕES E DETALHES */}
                                         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                                            
-                                            {/* Status Selector */}
                                             <div className="w-full sm:w-auto">
                                                 <select 
                                                     value={n.status_pagamento || ""} 
                                                     onChange={(e) => onStatusChange(n.id, e.target.value)} 
-                                                    className={`w-full appearance-none text-[10px] font-black uppercase py-1.5 px-3 rounded border cursor-pointer outline-none ${STATUS_STYLES[n.status_pagamento]?.bg} ${STATUS_STYLES[n.status_pagamento]?.border} ${STATUS_STYLES[n.status_pagamento]?.text}`}
+                                                    className={`w-full appearance-none text-[10px] font-black uppercase py-1.5 px-3 rounded border cursor-pointer outline-none ${STATUS_STYLES[n.status_pagamento]?.bg || 'bg-gray-100'} ${STATUS_STYLES[n.status_pagamento]?.border || 'border-gray-200'} ${STATUS_STYLES[n.status_pagamento]?.text || 'text-gray-500'}`}
                                                 >
                                                     {OPCOES_STATUS.map(s => <option key={s} value={s}>{s}</option>)}
                                                 </select>
                                             </div>
-
-                                            {/* Botões de Ação */}
                                             <div className="flex gap-2">
                                                  <button onClick={()=>onCopiarProtheus(n)} className="p-2 hover:bg-white rounded-md text-[#1E22A8] transition-colors" title="Copiar"><ClipboardList size={18}/></button>
                                                  {isGopaFunc(n) && ( <button onClick={() => onEnviarEmail(n)} className="p-2 hover:bg-white rounded-md text-purple-600 transition-colors" title="Email"><Mail size={18}/></button> )}
@@ -161,7 +153,6 @@ export default function NotasView({
                                                  <button onClick={()=>onDuplicar(n)} className="p-2 hover:bg-white rounded-md text-slate-500 hover:text-[#1E22A8] transition-colors" title="Duplicar"><Copy size={18}/></button>
                                             </div>
                                         </div>
-
                                     </div>
                                 ))}
                             </div>
