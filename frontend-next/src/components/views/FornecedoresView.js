@@ -9,8 +9,10 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
       id: null, nome_empresa: '', lista_cnpjs: '', lista_contratos: '', lista_centro_custos: '', padrao_descricao_servico: '', padrao_servico_protheus: '' 
   });
 
+  // Filtro que busca por Nome ou CNPJ
   const dadosFiltrados = fornecedores.filter(f => 
-      f.nome_empresa.toLowerCase().includes(termo.toLowerCase())
+      f.nome_empresa.toLowerCase().includes(termo.toLowerCase()) ||
+      (f.lista_cnpjs && f.lista_cnpjs.includes(termo))
   );
 
   const abrirNovo = () => {
@@ -45,7 +47,7 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
             <div className="relative flex-1 md:w-64">
                 <input 
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-10 pr-4 text-sm font-bold outline-none focus:border-[#1E22A8]"
-                    placeholder="Buscar fornecedor..."
+                    placeholder="Buscar nome ou CNPJ..."
                     value={termo}
                     onChange={e => setTermo(e.target.value)}
                 />
@@ -62,38 +64,54 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
         <table className="w-full text-left border-collapse table-fixed">
             <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
                 <tr>
-                    <th className="p-4 text-xs font-black uppercase tracking-widest w-[30%]">Nome Empresa</th>
-                    <th className="p-4 text-xs font-black uppercase tracking-widest w-[25%]">Contratos</th>
-                    <th className="p-4 text-xs font-black uppercase tracking-widest w-[25%]">Centros de Custo</th>
-                    <th className="p-4 text-xs font-black uppercase tracking-widest text-right w-[20%]">Ações</th>
+                    <th className="p-4 text-xs font-black uppercase tracking-widest w-[25%]">Nome Empresa</th>
+                    <th className="p-4 text-xs font-black uppercase tracking-widest w-[20%]">CNPJs</th>
+                    <th className="p-4 text-xs font-black uppercase tracking-widest w-[20%]">Contratos</th>
+                    <th className="p-4 text-xs font-black uppercase tracking-widest w-[20%]">Centros de Custo</th>
+                    <th className="p-4 text-xs font-black uppercase tracking-widest text-right w-[15%]">Ações</th>
                 </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
                 {dadosFiltrados.map(f => (
                     <tr key={f.id} className="hover:bg-blue-50/50 transition-colors group">
+                        
+                        {/* NOME */}
                         <td className="p-4">
                             <div className="font-bold text-[#1E22A8] truncate" title={f.nome_empresa}>{f.nome_empresa}</div>
-                            <div className="text-xs text-slate-400 truncate" title={f.lista_cnpjs}>{f.lista_cnpjs || 'Sem CNPJ'}</div>
                         </td>
+
+                        {/* CNPJS (NOVA COLUNA) */}
+                        <td className="p-4 text-xs text-slate-600 font-mono truncate" title={f.lista_cnpjs}>
+                             {f.lista_cnpjs || '-'}
+                        </td>
+
+                        {/* CONTRATOS */}
                         <td className="p-4 text-sm text-slate-600 truncate" title={f.lista_contratos}>
                             {f.lista_contratos ? (
                                 <span className="bg-slate-100 px-2 py-1 rounded text-xs font-bold border border-slate-200">{f.lista_contratos}</span>
                             ) : '-'}
                         </td>
+
+                        {/* CENTRO DE CUSTO */}
                         <td className="p-4 text-sm text-slate-600 truncate" title={f.lista_centro_custos}>
                              {f.lista_centro_custos || '-'}
                         </td>
+
+                        {/* AÇÕES */}
                         <td className="p-4 flex justify-end gap-2">
                             <button onClick={() => abrirEdicao(f)} className="p-2 text-slate-400 hover:text-[#1E22A8] hover:bg-white border border-transparent hover:border-slate-200 rounded-lg transition-all"><Edit2 size={18}/></button>
                             <button onClick={() => onExcluir(f)} className="p-2 text-red-300 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 rounded-lg transition-all"><Trash2 size={18}/></button>
                         </td>
                     </tr>
                 ))}
+                {dadosFiltrados.length === 0 && (
+                     <tr><td colSpan="5" className="p-10 text-center text-slate-400 font-bold">Nenhum fornecedor encontrado.</td></tr>
+                )}
             </tbody>
         </table>
     </div>
 
-      {/* MODAL */}
+      {/* MODAL (IGUAL AO ANTERIOR) */}
       {showModal && (
         <div className="fixed inset-0 bg-[#1E22A8]/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
