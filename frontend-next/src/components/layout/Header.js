@@ -1,7 +1,7 @@
 import React from 'react';
-// Removi o 'Download' dos imports pois não é mais usado aqui
-import { Search, Plus, Menu, Filter } from 'lucide-react'; 
-// Removi o import do BotaoExportar
+import Image from 'next/image';
+import { Menu, Search, X, ChevronDown, Plus } from 'lucide-react';
+
 
 export default function Header({ 
     currentView, 
@@ -11,89 +11,44 @@ export default function Header({
     filiais, 
     filialFiltro, 
     setFilialFiltro, 
-    onNovoLancamento
-    // dadosExportacao - não precisamos mais receber essa prop aqui
+    onNovoLancamento,
+    dadosExportacao // Dados para o botão exportar
 }) {
-
-  // Título dinâmico baseado na View
-  const getTitulo = () => {
-      switch(currentView) {
-          case 'dashboard': return 'Dashboard Financeiro';
-          case 'solicitacoes': return 'Minhas Solicitações';
-          case 'lancamentos': return 'Lançamentos';
-          case 'fornecedores': return 'Gestão de Fornecedores';
-          case 'filiais': return 'Gestão de Filiais';
-          case 'usuarios': return 'Controle de Usuários';
-          default: return 'Gestão TI';
-      }
-  };
-
   return (
-    <div className="bg-white px-8 py-5 flex flex-col gap-6 shadow-sm border-b border-slate-100 sticky top-0 z-30">
-        
-        {/* LINHA SUPERIOR: Menu + Título + Busca + Ações */}
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            
-            {/* LADO ESQUERDO: Botão Menu e Título */}
-            <div className="flex items-center gap-4 w-full md:w-auto">
-                {/* BOTÃO DO MENU (Gaveta) - Mantém o tom azul no hover */}
-                <button 
-                    onClick={onOpenMenu}
-                    className="p-2 text-[#1E22A8] hover:bg-slate-50 rounded-lg transition-colors"
-                >
-                    <Menu size={28} />
-                </button>
-
-                <div>
-                    {/* Título no tom azul */}
-                    <h1 className="text-2xl font-black text-[#1E22A8] tracking-tight">{getTitulo()}</h1>
-                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest hidden md:block">
-                        Visão Geral do Sistema
-                    </p>
-                </div>
-            </div>
-
-            {/* CENTRO: Barra de Busca (Foco azul) */}
-            <div className="relative w-full md:w-96 group">
-                <input 
-                    value={termoBusca}
-                    onChange={(e) => setTermoBusca(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-12 pr-4 text-sm font-bold text-slate-700 outline-none focus:border-[#1E22A8] focus:ring-4 focus:ring-[#1E22A8]/10 transition-all"
-                    placeholder="Pesquisar por nota, fornecedor, valor..."
-                />
-                <Search className="absolute left-4 top-3.5 text-slate-400 group-focus-within:text-[#1E22A8] transition-colors" size={20}/>
-            </div>
-
-            {/* LADO DIREITO: Filtros e Botão Novo */}
-            <div className="flex gap-3 w-full md:w-auto justify-end items-center">
-                {currentView === 'dashboard' && (
-                    <>
-                        {/* Filtro de Filiais */}
-                        <div className="relative">
-                            <select 
-                                value={filialFiltro}
-                                onChange={(e) => setFilialFiltro(e.target.value)}
-                                className="appearance-none bg-white border border-slate-200 text-slate-600 font-bold text-sm rounded-xl py-3 pl-10 pr-8 hover:border-[#1E22A8] cursor-pointer outline-none focus:ring-2 focus:ring-[#1E22A8]/20 transition-all h-full"
-                            >
-                                <option value="">Todas as Filiais</option>
-                                {filiais.map(f => <option key={f.id} value={f.id}>{f.nome_fantasia}</option>)}
-                            </select>
-                            <Filter className="absolute left-3 top-3.5 text-slate-400 pointer-events-none" size={16}/>
-                        </div>
-                        
-                        {/* O Botão Exportar foi removido daqui */}
-                        
-                        {/* Botão Novo Lançamento (Azul Cicopal) */}
-                        <button 
-                            onClick={onNovoLancamento} 
-                            className="bg-[#1E22A8] hover:bg-[#E30613] text-white px-6 py-3 rounded-xl font-black text-xs flex gap-2 items-center shadow-lg shadow-blue-900/20 transition-all active:scale-95"
-                        >
-                            <Plus size={18}/> <span className="hidden md:inline">NOVO LANÇAMENTO</span>
-                        </button>
-                    </>
-                )}
+    <header className="bg-[#1E22A8] px-6 py-4 sticky top-0 z-40 flex justify-between items-center shadow-xl shadow-[#1E22A8]/20 gap-4">
+        <div className="flex items-center gap-4">
+            <button onClick={onOpenMenu} className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"><Menu size={24}/></button>
+            <div className="text-white flex items-center gap-3 hidden md:flex">
+                <Image src="/logo-cicopal.png" alt="Cicopal" width={40} height={40} className="h-10 w-auto object-contain bg-white/10 rounded p-1" />
+                <div><h1 className="text-xl font-black tracking-tight leading-none">CICOPAL <span className="font-light opacity-80">GESTÃO DE NOTAS</span></h1></div>
             </div>
         </div>
-    </div>
+
+        {currentView === 'dashboard' && (
+            <div className="flex-1 max-w-2xl mx-4 relative">
+                <input className="w-full bg-black/20 border border-white/10 text-white placeholder:text-white/60 rounded-xl pl-10 pr-4 py-2.5 outline-none focus:bg-black/40 font-bold" placeholder="Buscar..." value={termoBusca} onChange={(e) => setTermoBusca(e.target.value)} />
+                <Search className="absolute left-3 top-3 text-white/60" size={18} />
+                {termoBusca && (<button onClick={() => setTermoBusca('')} className="absolute right-3 top-3 text-white/60 hover:text-white"><X size={18}/></button>)}
+            </div>
+        )}
+        
+        <div className="flex gap-3 items-center">
+            {currentView === 'dashboard' && (
+                <>
+                    <div className="relative group hidden md:block">
+                        <select className="appearance-none bg-black/20 border border-white/10 text-white font-bold text-sm rounded-lg px-4 py-2 pr-10 outline-none focus:bg-black/30 cursor-pointer" value={filialFiltro} onChange={e => setFilialFiltro(e.target.value)}>
+                            <option value="">🏢 Todas as Filiais</option>
+                            {filiais.map(f => <option key={f.id} value={f.id}>{f.codigo} - {f.nome_fantasia}</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-3 text-white/70 pointer-events-none" size={14}/>
+                    </div>
+
+                    <button onClick={onNovoLancamento} className="bg-[#E30613] text-white hover:bg-white hover:text-[#E30613] px-5 py-2 rounded-lg font-black text-sm flex gap-2 items-center shadow-lg active:scale-95 whitespace-nowrap transition-colors">
+                        <Plus size={18}/> <span className="hidden md:inline">LANÇAR NOTA</span>
+                    </button>
+                </>
+            )}
+        </div>
+    </header>
   );
 }
