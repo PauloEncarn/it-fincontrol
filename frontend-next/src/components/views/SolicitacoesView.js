@@ -1,5 +1,7 @@
-import React from 'react';
-import { FileText, Plus, Edit2, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { FileText, Plus, Edit2, Clock, CheckCircle, XCircle, AlertCircle, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+
+const ITENS_POR_PAGINA = 9;
 
 const STATUS_COLORS = {
     'Pendente': 'bg-yellow-100 text-yellow-700 border-yellow-200',
@@ -17,49 +19,80 @@ const STATUS_ICONS = {
     'Concluido': CheckCircle
 };
 
+const ABAS_FILTRO = ['Todos', 'Pendente', 'Em Andamento', 'Aprovado', 'Concluido'];
+
 export default function SolicitacoesView({ 
     solicitacoes, 
     onNovaSolicitacao, 
     onEditarSolicitacao,
-    busca // Recebe do Pai
+    busca 
 }) {
+    const [paginaAtual, setPaginaAtual] = useState(1);
+    const [statusAtivo, setStatusAtivo] = useState('Todos');
+    
+    // --- CORREÇÃO DO ERRO DO USEEFFECT ---
+    // Em vez de useEffect, usamos estado local para rastrear a mudança da prop 'busca'.
+    // Se a busca que veio do pai for diferente da última que vimos, resetamos a página IMEDIATAMENTE.
+    const [ultimaBusca, setUltimaBusca] = useState(busca);
 
-    // --- FILTRAGEM UNIFICADA (Estratégia "Textão") ---
+    if (busca !== ultimaBusca) {
+        setPaginaAtual(1);
+        setUltimaBusca(busca);
+    }
+
+    // Função para trocar de aba e resetar página (Substitui o useEffect do Status)
+    const handleStatusChange = (novoStatus) => {
+        setStatusAtivo(novoStatus);
+        setPaginaAtual(1);
+    };
+    // -------------------------------------
+
+    // --- 1. FILTRAGEM ---
     const dadosFiltrados = solicitacoes.filter(item => {
-        if (!busca) return true; // Se não tem busca, mostra tudo
+        // Filtro de Status
+        if (statusAtivo !== 'Todos' && item.status !== statusAtivo) {
+            return false;
+        }
+
+        // Filtro de Texto
+        if (!busca) return true;
         
         const termo = busca.toLowerCase();
-
-        // 1. Preparar Valores Especiais
+        
         const valorFormatado = item.valor 
             ? parseFloat(item.valor).toLocaleString('pt-BR', {minimumFractionDigits: 2}) 
             : '';
-        const valorLimpo = valorFormatado.replace(/\./g, ''); // Permite achar "1500" digitando "1.500"
+        const valorLimpo = valorFormatado.replace(/\./g, '');
 
-        // 2. Criar uma "Super String" com todos os dados pesquisáveis
-        // O .join(' ') junta tudo num texto só, facilitando a busca
-        const textoCompletoDaLinha = [
+        const textoCompleto = [
             item.id,
             item.fluig_id,
             item.numero_sc,
             item.numero_pedido,
             item.solicitante,
-            item.servico,        // Descrição do serviço
+            item.servico,
             item.status,
-            item.fornecedor?.nome_empresa, // Nome do fornecedor
-            item.filial?.nome_fantasia,    // Nome da filial
+            item.fornecedor?.nome_empresa,
+            item.filial?.nome_fantasia,
             item.filial?.codigo,
-            valorFormatado,      // "1.500,00"
-            valorLimpo           // "150000"
+            valorFormatado,
+            valorLimpo
         ].join(' ').toLowerCase();
 
-        // 3. Verifica se o termo digitado existe em ALGUM lugar desse textão
-        return textoCompletoDaLinha.includes(termo);
+        return textoCompleto.includes(termo);
     });
 
+    // --- 2. PAGINAÇÃO ---
+    const totalItens = dadosFiltrados.length;
+    const totalPaginas = Math.ceil(totalItens / ITENS_POR_PAGINA);
+    const inicio = (paginaAtual - 1) * ITENS_POR_PAGINA;
+    const fim = inicio + ITENS_POR_PAGINA;
+    
+    const dadosPaginados = dadosFiltrados.slice(inicio, fim);
+
     return (
-        <div className="space-y-6 animate-in fade-in">
-            {/* Header da Seção */}
+        <div className="space-y-6 animate-in fade-in pb-10">
+            {/* Header + Botão Novo */}
             <div className="flex flex-col md:flex-row justify-between items-center bg-white p-5 rounded-2xl border border-slate-100 shadow-sm gap-4">
                 <div>
                     <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
@@ -80,14 +113,38 @@ export default function SolicitacoesView({
                 </button>
             </div>
 
+            {/* --- ABAS DE FILTRO DE STATUS --- */}
+            <div className="flex flex-wrap gap-2">
+                {ABAS_FILTRO.map(status => (
+                    <button
+                        key={status}
+                        onClick={() => handleStatusChange(status)} // Usa a nova função
+                        className={`px-4 py-2 rounded-full text-xs font-bold transition-all border ${
+                            statusAtivo === status
+                                ? 'bg-[#1E22A8] text-white border-[#1E22A8] shadow-md'
+                                : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                        }`}
+                    >
+                        {status}
+                    </button>
+                ))}
+            </div>
+
             {/* Lista de Cards */}
             <div className="grid grid-cols-1 gap-4">
-                {dadosFiltrados.length === 0 ? (
+                {dadosPaginados.length === 0 ? (
                      <div className="text-center py-10 text-slate-400 bg-white rounded-2xl border border-slate-100 border-dashed">
-                        <p>Nenhuma solicitação encontrada para &quot;{busca}&quot;.</p>
+                        <Filter className="mx-auto mb-2 opacity-20" size={40} />
+                        {/* Correção das aspas para evitar erro de escape */}
+                        <p>Nenhuma solicitação encontrada.</p> 
+                        {statusAtivo !== 'Todos' && (
+                            <button onClick={() => handleStatusChange('Todos')} className="text-[#1E22A8] text-xs font-bold mt-2 hover:underline">
+                                Limpar filtros
+                            </button>
+                        )}
                     </div>
                 ) : (
-                    dadosFiltrados.map((item) => {
+                    dadosPaginados.map((item) => {
                         const Icon = STATUS_ICONS[item.status] || Clock;
                         const statusClass = STATUS_COLORS[item.status] || STATUS_COLORS['Pendente'];
 
@@ -96,8 +153,6 @@ export default function SolicitacoesView({
                                 <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-slate-200 group-hover:bg-[#1E22A8] transition-colors"></div>
                                 
                                 <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
-                                    
-                                    {/* BLOCO 1: Status e ID */}
                                     <div className="flex flex-col gap-2 min-w-[140px]">
                                         <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase border w-fit ${statusClass}`}>
                                             <Icon size={12} />
@@ -107,7 +162,6 @@ export default function SolicitacoesView({
                                         {item.fluig_id && <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded w-fit">Fluig: {item.fluig_id}</span>}
                                     </div>
 
-                                    {/* BLOCO 2: Detalhes Principais */}
                                     <div className="flex-1 space-y-1">
                                         <div className="flex items-center gap-2">
                                             <h3 className="font-bold text-slate-700 text-base">
@@ -118,7 +172,7 @@ export default function SolicitacoesView({
                                             </span>
                                         </div>
                                         
-                                        <p className="text-sm text-slate-500 font-medium">{item.servico || 'Sem descrição'}</p>
+                                        <p className="text-sm text-slate-500 font-medium line-clamp-1">{item.servico || 'Sem descrição'}</p>
                                         
                                         <div className="flex flex-wrap gap-4 text-xs text-slate-400 mt-2">
                                             <span className="flex items-center gap-1">
@@ -130,12 +184,11 @@ export default function SolicitacoesView({
                                         </div>
                                     </div>
 
-                                    {/* BLOCO 3: Valor e Ação */}
                                     <div className="flex flex-col items-end gap-3 min-w-[150px]">
                                         <div className="text-right">
                                             <p className="text-[10px] text-slate-400 font-bold uppercase">Valor Estimado</p>
                                             <p className="text-xl font-black text-slate-700">
-                                                R$ {parseFloat(item.valor).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                                                R$ {parseFloat(item.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
                                             </p>
                                         </div>
                                         
@@ -147,13 +200,43 @@ export default function SolicitacoesView({
                                             EDITAR
                                         </button>
                                     </div>
-
                                 </div>
                             </div>
                         );
                     })
                 )}
             </div>
+
+            {/* --- PAGINAÇÃO --- */}
+            {totalItens > 0 && (
+                <div className="flex items-center justify-between pt-4 border-t border-slate-200">
+                    <p className="text-xs text-slate-400 font-medium">
+                        Mostrando <span className="text-slate-700 font-bold">{inicio + 1}</span> a <span className="text-slate-700 font-bold">{Math.min(fim, totalItens)}</span> de <span className="text-slate-700 font-bold">{totalItens}</span> resultados
+                    </p>
+
+                    <div className="flex items-center gap-2">
+                        <button 
+                            onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
+                            disabled={paginaAtual === 1}
+                            className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            <ChevronLeft size={16} />
+                        </button>
+                        
+                        <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-2 rounded-lg">
+                            Página {paginaAtual} de {totalPaginas}
+                        </span>
+
+                        <button 
+                            onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
+                            disabled={paginaAtual === totalPaginas}
+                            className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            <ChevronRight size={16} />
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
