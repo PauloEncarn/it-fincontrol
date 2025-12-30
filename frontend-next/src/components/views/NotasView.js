@@ -203,3 +203,37 @@ export default function NotasView({
     </div>
   );
 }
+
+const handleExportarExcel = () => {
+        if (!notas || notas.length === 0) return alert("Sem dados para exportar.");
+
+        // 1. Cabeçalho do Excel
+        const headers = ["ID", "Filial", "Fornecedor", "Nota Fiscal", "Vencimento", "Valor", "Status"];
+
+        // 2. Transforma os dados em linhas de texto (CSV)
+        const rows = notas.map(n => [
+            n.id,
+            n.filial_id, // Ou buscar o nome da filial se tiver disponível
+            `"${n.nome_fornecedor || 'Desconhecido'}"`, // Aspas evitam erro se tiver vírgula no nome
+            n.numero_nota,
+            new Date(n.data_vencimento).toLocaleDateString('pt-BR'),
+            `"${parseFloat(n.valor).toLocaleString('pt-BR', {minimumFractionDigits: 2})}"`, // Formato Brasileiro
+            n.status_pagamento
+        ]);
+
+        // 3. Junta tudo com vírgulas e quebras de linha
+        const csvContent = [
+            headers.join(";"), // Ponto e vírgula é melhor para Excel no Brasil
+            ...rows.map(e => e.join(";"))
+        ].join("\n");
+
+        // 4. Cria o arquivo "invisível" e clica nele para baixar
+        const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' }); // \ufeff ajuda com acentos
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", `relatorio_notas_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
