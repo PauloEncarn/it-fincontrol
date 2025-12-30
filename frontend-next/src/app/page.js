@@ -3,97 +3,59 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react'; 
 
-// --- IMPORT DE CONSTANTES E CONFIGURAÇÃO ---
 import { API_URL } from '@/utils/constants';
 
-// --- IMPORTS DE UI (Componentes Visuais) ---
 import LoginScreen from '@/components/ui/LoginScreen';
 import ToastContainer from '@/components/ui/ToastContainer';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-
-// --- IMPORTS DE LAYOUT (Estrutura) ---
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
 
-// --- IMPORTS DE VIEWS (Conteúdo das Telas) ---
 import DashboardView from '@/components/views/DashboardView';
+import NotasView from '@/components/views/NotasView'; 
 import SearchResultsView from '@/components/views/SearchResultsView';
 import SolicitacoesView from '@/components/views/SolicitacoesView';
 import FiliaisView from '@/components/views/FiliaisView';
 import FornecedoresView from '@/components/views/FornecedoresView';
 import UsuariosView from '@/components/views/UsuariosView';
 
-// --- IMPORTS DE MODAIS (Formulários) ---
 import ModalLancamento from '@/components/modals/ModalLancamento';
 import ModalSolicitacao from '@/components/modals/ModalSolicitacao';
 
-// --- DADOS INICIAIS (Formulários vazios) ---
-const initialFormLancamento = { 
-    id: null, filial_id: '', fornecedor_id: '', cnpj_usado: '', contrato_usado: '', 
-    centro_custo_usado: '', numero_nota: '', serie: 'U', valor: '', data_envio: '', 
-    data_vencimento: '', descricao_servico: '', servico_protheus: '', numero_medicao: '', 
-    numero_pedido: '', solicitacao_fluig: '', observacao: '', status_pagamento: 'Pendente Lançamento', 
-    arquivo_nota: '', arquivo_boleto: '', repetir_por: '1' 
-};
-
-const initialFormSolicitacao = {
-    id: null, filial_id: '', fornecedor_id: '', solicitante: '', cnpj: '', 
-    condicao_pagamento: '', valor: '', numero_sc: '', numero_pedido: '', 
-    servico: '', servico_protheus: '', centro_custo: '', numero_nota: '', 
-    fluig_id: '', data_vencimento: '', status: 'Pendente', observacao: ''
-};
+const initialFormLancamento = { id: null, filial_id: '', fornecedor_id: '', cnpj_usado: '', contrato_usado: '', centro_custo_usado: '', numero_nota: '', serie: 'U', valor: '', data_envio: '', data_vencimento: '', descricao_servico: '', servico_protheus: '', numero_medicao: '', numero_pedido: '', solicitacao_fluig: '', observacao: '', status_pagamento: 'Pendente Lançamento', arquivo_nota: '', arquivo_boleto: '', repetir_por: '1' };
+const initialFormSolicitacao = { id: null, filial_id: '', fornecedor_id: '', solicitante: '', cnpj: '', condicao_pagamento: '', valor: '', numero_sc: '', numero_pedido: '', servico: '', servico_protheus: '', centro_custo: '', numero_nota: '', fluig_id: '', data_vencimento: '', status: 'Em Andamento', observacao: '' };
 
 function DashboardContent() {
   const queryClient = useQueryClient();
-  
-  // --- ESTADOS GLOBAIS ---
   const [token, setToken] = useState(null);
   const [loadingInit, setLoadingInit] = useState(true);
   const [currentView, setCurrentView] = useState('dashboard');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [toasts, setToasts] = useState([]);
   const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
-
-  // --- FILTROS E BUSCA ---
-  const [competencia, setCompetencia] = useState(new Date());
+  
+  // FILTROS NOTAS (Estado compartilhado para a view de Notas)
+  const [competenciaNotas, setCompetenciaNotas] = useState(new Date()); 
   const [filialFiltro, setFilialFiltro] = useState('');
   const [statusFiltro, setStatusFiltro] = useState([]);
   const [termoBusca, setTermoBusca] = useState('');
 
-  // --- CONTROLE DE MODAIS E EDIÇÃO ---
-  const [showModal, setShowModal] = useState(false); // Lancamento
-  const [showModalSolicitacao, setShowModalSolicitacao] = useState(false); // Solicitacao
+  // MODAIS
+  const [showModal, setShowModal] = useState(false); 
+  const [showModalSolicitacao, setShowModalSolicitacao] = useState(false);
   const [form, setForm] = useState(initialFormLancamento);
   const [formSolicitacao, setFormSolicitacao] = useState(initialFormSolicitacao);
   const [opcoesFornecedor, setOpcoesFornecedor] = useState({ cnpjs: [], contratos: [], ccs: [] });
   const [sendingEmail, setSendingEmail] = useState(false);
-
-  // --- CONFIG AXIOS ---
+  
   const authConfig = { headers: { Authorization: `Bearer ${token}` } };
 
-  // --- EFEITOS (INIT) ---
-  useEffect(() => {
-    const timer = setTimeout(() => { 
-        const storedToken = localStorage.getItem('token'); 
-        if (storedToken) setToken(storedToken); 
-        setLoadingInit(false); 
-    }, 0);
-    return () => clearTimeout(timer);
-  }, []);
+  useEffect(() => { const timer = setTimeout(() => { const storedToken = localStorage.getItem('token'); if (storedToken) setToken(storedToken); setLoadingInit(false); }, 0); return () => clearTimeout(timer); }, []);
 
-  // --- HELPERS GLOBAIS ---
-  const addToast = useCallback((type, message) => {
-    const id = Date.now();
-    setToasts(prev => [...prev, { id, type, message }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
-  }, []);
-
-  const openConfirm = (title, message, action) => {
-    setConfirmConfig({ isOpen: true, title, message, onConfirm: () => { action(); setConfirmConfig(p => ({...p, isOpen: false})); } });
-  };
-
+  const addToast = useCallback((type, message) => { const id = Date.now(); setToasts(prev => [...prev, { id, type, message }]); setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000); }, []);
+  const openConfirm = (title, message, action) => { setConfirmConfig({ isOpen: true, title, message, onConfirm: () => { action(); setConfirmConfig(p => ({...p, isOpen: false})); } }); };
   const handleLogin = (t) => { localStorage.setItem('token', t); setToken(t); };
   const handleLogout = () => { localStorage.removeItem('token'); setToken(null); queryClient.clear(); };
 
@@ -102,319 +64,126 @@ function DashboardContent() {
   const { data: fornecedores = [] } = useQuery({ queryKey: ['fornecedores'], queryFn: () => axios.get(`${API_URL}/fornecedores/`, authConfig).then(res => res.data), enabled: !!token });
   const { data: usuarios = [] } = useQuery({ queryKey: ['usuarios'], queryFn: () => axios.get(`${API_URL}/usuarios/`, authConfig).then(res => res.data), enabled: !!token && currentView === 'usuarios' });
   
-  // Dashboard Data
-  const { data: dadosDashboard = [], isLoading: loadingDash } = useQuery({ 
-      queryKey: ['dashboard', filialFiltro, competencia.getMonth(), competencia.getFullYear()], 
+  // DADOS PARA NOTAS (View Operacional - Carrega mês específico)
+  const { data: dadosNotas = [], isLoading: loadingNotas } = useQuery({ 
+      queryKey: ['notas_operacional', filialFiltro, competenciaNotas.getMonth(), competenciaNotas.getFullYear()], 
       queryFn: async () => { 
-          const params = { filial_id: filialFiltro || undefined, mes: competencia.getMonth() + 1, ano: competencia.getFullYear() }; 
+          // Usa o endpoint agrupado que funciona bem para mês específico
+          const params = { filial_id: filialFiltro || undefined, mes: competenciaNotas.getMonth() + 1, ano: competenciaNotas.getFullYear() }; 
           const res = await axios.get(`${API_URL}/dados-agrupados/`, { ...authConfig, params }); 
           let lista = []; 
           res.data.forEach(forn => { if(forn.lancamentos) forn.lancamentos.forEach(nota => lista.push({ ...nota, nome_fornecedor: forn.nome_empresa })); }); 
           return lista; 
       }, 
-      enabled: !!token && !termoBusca 
+      enabled: !!token && currentView === 'notas' && !termoBusca 
   });
 
-  // Busca Inteligente
-  const { data: dadosBusca = [], isFetching: carregandoBusca } = useQuery({ 
-      queryKey: ['busca', termoBusca], 
+  // DADOS PARA DASHBOARD (Estratégia: Carregar TUDO do ano via endpoint /lancamentos/ para permitir filtragem local total)
+  const { data: dadosDashboard = [] } = useQuery({ 
+      queryKey: ['dashboard_full'], 
       queryFn: async () => { 
-          if (!termoBusca) return []; 
-          const res = await axios.get(`${API_URL}/lancamentos/?busca=${termoBusca}`, authConfig); 
-          return res.data; 
+        // Aqui usamos /lancamentos/ sem filtro de data para pegar o máximo (ou com filtro de ano se API suportar, mas vamos pegar tudo e filtrar no front por segurança)
+        // Se sua base for gigante, adicione paginação. Para 500-1000 registros, isso é instantâneo.
+        const res = await axios.get(`${API_URL}/lancamentos/`, authConfig); 
+        return res.data; 
       }, 
-      enabled: !!token && termoBusca.length > 2 
+      enabled: !!token && currentView === 'dashboard'
   });
-  // Solicitações
-  const { data: solicitacoes = [] } = useQuery({
-    queryKey: ['solicitacoes', termoBusca],
-    queryFn: async () => {
-      // CORREÇÃO: Usamos 'params' do axios em vez de montar string na mão
-      // Isso evita a barra "/" indesejada no final da URL
-      const res = await axios.get(`${API_URL}/solicitacoes`, {
-         params: { busca: termoBusca || undefined },
-         ...authConfig
-      });
-      console.log("📦 Dados Solicitações:", res.data); // Debug no Console (F12)
-      return res.data;
-    },
-    enabled: !!token && currentView === 'solicitacoes'
-  });
-  // --- MUTATIONS (Lógica de API) ---
-  const mutationLancamento = useMutation({ mutationFn: (nota) => nota.id ? axios.put(`${API_URL}/lancamentos/${nota.id}`, nota, authConfig) : axios.post(`${API_URL}/lancamentos/`, nota, authConfig), onSuccess: () => { queryClient.invalidateQueries(['dashboard']); queryClient.invalidateQueries(['busca']); }});
-  const mutationStatus = useMutation({ mutationFn: ({id, status}) => axios.patch(`${API_URL}/lancamentos/${id}/status`, { status }, authConfig), onSuccess: () => { queryClient.invalidateQueries(['dashboard']); queryClient.invalidateQueries(['busca']); addToast('success', 'Status atualizado!'); } });
+
+  const { data: dadosBusca = [], isFetching: carregandoBusca } = useQuery({ queryKey: ['busca', termoBusca], queryFn: async () => { if (!termoBusca) return []; const res = await axios.get(`${API_URL}/lancamentos/?busca=${termoBusca}`, authConfig); return res.data; }, enabled: !!token && termoBusca.length > 2 });
+  const { data: solicitacoes = [] } = useQuery({ queryKey: ['solicitacoes', termoBusca], queryFn: async () => { const res = await axios.get(`${API_URL}/solicitacoes`, { params: { busca: termoBusca || undefined }, ...authConfig }); return res.data; }, enabled: !!token });
+
+  // --- MUTATIONS ---
+  const mutationLancamento = useMutation({ mutationFn: (nota) => nota.id ? axios.put(`${API_URL}/lancamentos/${nota.id}`, nota, authConfig) : axios.post(`${API_URL}/lancamentos/`, nota, authConfig), onSuccess: () => { queryClient.invalidateQueries(['notas_operacional']); queryClient.invalidateQueries(['dashboard_full']); queryClient.invalidateQueries(['busca']); }});
+  const mutationStatus = useMutation({ mutationFn: ({id, status}) => axios.patch(`${API_URL}/lancamentos/${id}/status`, { status }, authConfig), onSuccess: () => { queryClient.invalidateQueries(['notas_operacional']); queryClient.invalidateQueries(['dashboard_full']); addToast('success', 'Status atualizado!'); } });
   const mutationFilial = useMutation({ mutationFn: (data) => data.id ? axios.put(`${API_URL}/filiais/${data.id}`, data, authConfig) : axios.post(`${API_URL}/filiais/`, data, authConfig), onSuccess: () => { queryClient.invalidateQueries(['filiais']); addToast('success', 'Filial salva!'); } });
   const mutationFornecedor = useMutation({ mutationFn: (data) => data.id ? axios.put(`${API_URL}/fornecedores/${data.id}`, data, authConfig) : axios.post(`${API_URL}/fornecedores/`, data, authConfig), onSuccess: () => { queryClient.invalidateQueries(['fornecedores']); addToast('success', 'Fornecedor salvo!'); } });
   const mutationSolicitacao = useMutation({ mutationFn: (dados) => dados.id ? axios.put(`${API_URL}/solicitacoes/${dados.id}`, dados, authConfig) : axios.post(`${API_URL}/solicitacoes/`, dados, authConfig), onSuccess: () => { queryClient.invalidateQueries(['solicitacoes']); addToast('success', 'Solicitação salva!'); setShowModalSolicitacao(false); }, onError: (err) => addToast('error', 'Erro ao salvar: ' + err.message) });
   const mutationUsuario = useMutation({ mutationFn: (dados) => axios.post(`${API_URL}/usuarios/`, dados, authConfig), onSuccess: () => { queryClient.invalidateQueries(['usuarios']); addToast('success', 'Usuário criado!'); }, onError: () => addToast('error', 'Erro ao criar usuário.') });
-  const mutationUsuarioStatus = useMutation({
-  mutationFn: ({ id, ativo }) => axios.put(`${API_URL}/usuarios/${id}`, { ativo }, authConfig),
-  onSuccess: () => { 
-      queryClient.invalidateQueries(['usuarios']); 
-      addToast('success', 'Acesso do usuário atualizado!'); 
-  },
-  onError: () => addToast('error', 'Erro ao atualizar acesso.')
-});
-const mutationDeleteUsuario = useMutation({
-      mutationFn: (id) => axios.delete(`${API_URL}/usuarios/${id}`, authConfig),
-      onSuccess: () => { 
-          queryClient.invalidateQueries(['usuarios']); 
-          addToast('success', 'Usuário excluído!'); 
-      },
-      onError: () => addToast('error', 'Erro ao excluir usuário.')
-  });
+  const mutationUsuarioStatus = useMutation({ mutationFn: ({ id, ativo }) => axios.put(`${API_URL}/usuarios/${id}`, { ativo }, authConfig), onSuccess: () => { queryClient.invalidateQueries(['usuarios']); addToast('success', 'Acesso atualizado!'); }, onError: () => addToast('error', 'Erro ao atualizar acesso.') });
+  const mutationDeleteUsuario = useMutation({ mutationFn: (id) => axios.delete(`${API_URL}/usuarios/${id}`, authConfig), onSuccess: () => { queryClient.invalidateQueries(['usuarios']); addToast('success', 'Usuário excluído!'); }, onError: () => addToast('error', 'Erro ao excluir usuário.') });
 
-
-
-  // --- LÓGICA DE NEGÓCIO ---
+  // HELPERS
+  const isGopaFunc = (nota) => { const fId = nota.filial_id || (form && form.filial_id); const filial = filiais.find(f => f.id == fId); return filial?.nome_fantasia?.toUpperCase().includes('GOPA') || filial?.nome_fantasia?.toUpperCase().includes('REFRESA'); };
+  const handleFornecedorChange = (id) => { const forn = fornecedores.find(f => f.id == id); if (forn) { setOpcoesFornecedor({ cnpjs: (forn.lista_cnpjs || '').split(';'), contratos: (forn.lista_contratos || '').split(';'), ccs: (forn.lista_centro_custos || '').split(';') }); setForm(p => ({ ...p, fornecedor_id: id, cnpj_usado: '', contrato_usado: '', centro_custo_usado: '', descricao_servico: forn.padrao_descricao_servico || '', servico_protheus: forn.padrao_servico_protheus || '' })); } else { setForm(p => ({...p, fornecedor_id: id})); } };
+  const handleFornecedorSolicitacaoChange = (id) => { const forn = fornecedores.find(f => f.id == id); if (forn) { setFormSolicitacao(prev => ({ ...prev, fornecedor_id: id, cnpj: (forn.lista_cnpjs || '').split(';')[0] || '', centro_custo: (forn.lista_centro_custos || '').split(';')[0] || '', servico: forn.padrao_descricao_servico || '', servico_protheus: forn.padrao_servico_protheus || '' })); } else { setFormSolicitacao(prev => ({ ...prev, fornecedor_id: id })); } };
   
-  // GOPA Check
-  const isGopaFunc = (nota) => {
-    const fId = nota.filial_id || (form && form.filial_id);
-    const filial = filiais.find(f => f.id == fId);
-    return filial?.nome_fantasia?.toUpperCase().includes('GOPA') || filial?.nome_fantasia?.toUpperCase().includes('REFRESA');
-  };
+  const abrirEdicaoLancamento = (nota) => { handleFornecedorChange(nota.fornecedor_id); setTimeout(() => setForm({...nota, data_envio: nota.data_envio ? nota.data_envio.split('T')[0] : '', data_vencimento: nota.data_vencimento.split('T')[0]}), 50); setShowModal(true); };
+  const duplicarNota = (nota) => { openConfirm("Duplicar Lançamento", "Deseja criar uma cópia?", () => { handleFornecedorChange(nota.fornecedor_id); setTimeout(() => setForm({ ...nota, id: null, numero_nota: '', arquivo_nota: '', arquivo_boleto: '', data_envio: '', status_pagamento: 'Pendente Lançamento', repetir_por: '1' }), 50); setShowModal(true); }); };
+  const salvarLancamento = async () => { if (!form.filial_id || !form.fornecedor_id || !form.valor || !form.numero_nota) return addToast('error', 'Preencha os campos obrigatórios!'); const payload = { ...form, data_envio: form.data_envio === '' ? null : form.data_envio }; try { await mutationLancamento.mutateAsync(payload); addToast('success', 'Lançamento salvo!'); setShowModal(false); } catch { addToast('error', 'Erro ao salvar.'); } };
+  const salvarEEnviar = async () => { if (!form.arquivo_nota) return addToast('error', 'Anexe a nota fiscal para enviar.'); const payload = { ...form, data_envio: form.data_envio === '' ? null : form.data_envio }; try { setSendingEmail(true); const response = await mutationLancamento.mutateAsync(payload); const notaSalva = response.data; await handleEnviarEmail({...payload, id: notaSalva.id || form.id}); setShowModal(false); } catch (e) { addToast('error', 'Erro no processo Salvar/Enviar.'); } finally { setSendingEmail(false); } };
 
-  // Preencher dados do Fornecedor ao selecionar
-  const handleFornecedorChange = (id) => { 
-      const forn = fornecedores.find(f => f.id == id); 
-      if (forn) { 
-          setOpcoesFornecedor({ cnpjs: (forn.lista_cnpjs || '').split(';'), contratos: (forn.lista_contratos || '').split(';'), ccs: (forn.lista_centro_custos || '').split(';') }); 
-          setForm(p => ({ ...p, fornecedor_id: id, cnpj_usado: '', contrato_usado: '', centro_custo_usado: '', descricao_servico: forn.padrao_descricao_servico || '', servico_protheus: forn.padrao_servico_protheus || '' })); 
-      } else {
-          setForm(p => ({...p, fornecedor_id: id}));
-      }
-  };
+  const handleEnviarEmail = async (dadosNota) => { const nota = dadosNota || form; if (!nota.id || !nota.arquivo_nota) return addToast('error', 'Salve a nota e anexe arquivos.'); setSendingEmail(true); try { await axios.post(`${API_URL}/enviar-email`, { id: nota.id, numero_nota: nota.numero_nota, fornecedor: nota.nome_fornecedor, valor: nota.valor, vencimento: nota.data_vencimento, arquivos: [nota.arquivo_nota, nota.arquivo_boleto] }, authConfig); if(form.id === nota.id) setForm(p => ({...p, status_pagamento: 'Email Enviado p/ Balança'})); mutationStatus.mutate({id: nota.id, status: 'Email Enviado p/ Balança'}); addToast('success', 'E-mail enviado!'); } catch { addToast('error', 'Falha ao enviar.'); } finally { setSendingEmail(false); } };
 
-  // Preencher fornecedor na Solicitação
-  const handleFornecedorSolicitacaoChange = (id) => {
-    const forn = fornecedores.find(f => f.id == id);
-    if (forn) {
-      setFormSolicitacao(prev => ({
-        ...prev,
-        fornecedor_id: id,
-        cnpj: (forn.lista_cnpjs || '').split(';')[0] || '',
-        centro_custo: (forn.lista_centro_custos || '').split(';')[0] || '',
-        servico: forn.padrao_descricao_servico || '',
-        servico_protheus: forn.padrao_servico_protheus || ''
-      }));
-    } else {
-      setFormSolicitacao(prev => ({ ...prev, fornecedor_id: id }));
-    }
-  };
-
-  // Abrir Modal de Edição (Lancamento)
-  const abrirEdicaoLancamento = (nota) => {
-      handleFornecedorChange(nota.fornecedor_id);
-      setTimeout(() => setForm({...nota, data_envio: nota.data_envio ? nota.data_envio.split('T')[0] : '', data_vencimento: nota.data_vencimento.split('T')[0]}), 50);
-      setShowModal(true);
-  };
-
-  // Duplicar Nota
-  const duplicarNota = (nota) => {
-      openConfirm("Duplicar Lançamento", "Deseja criar uma cópia?", () => {
-          handleFornecedorChange(nota.fornecedor_id);
-          setTimeout(() => setForm({ ...nota, id: null, numero_nota: '', arquivo_nota: '', arquivo_boleto: '', data_envio: '', status_pagamento: 'Pendente Lançamento', repetir_por: '1' }), 50);
-          setShowModal(true);
-      });
-  };
-
-  // Salvar Lancamento
-  const salvarLancamento = async () => {
-      if (!form.filial_id || !form.fornecedor_id || !form.valor || !form.numero_nota) return addToast('error', 'Preencha os campos obrigatórios!'); 
-      const payload = { ...form, data_envio: form.data_envio === '' ? null : form.data_envio }; 
-      try {
-          await mutationLancamento.mutateAsync(payload);
-          addToast('success', 'Lançamento salvo!');
-          setShowModal(false);
-      } catch {
-          addToast('error', 'Erro ao salvar.');
-      }
-  };
-
-  // Salvar e Enviar Email (GOPA)
-  const salvarEEnviar = async () => {
-      if (!form.arquivo_nota) return addToast('error', 'Anexe a nota fiscal para enviar.');
-      const payload = { ...form, data_envio: form.data_envio === '' ? null : form.data_envio };
-      try {
-          setSendingEmail(true);
-          const response = await mutationLancamento.mutateAsync(payload);
-          const notaSalva = response.data;
-          await handleEnviarEmail({...payload, id: notaSalva.id || form.id});
-          setShowModal(false);
-      } catch (e) {
-          addToast('error', 'Erro no processo Salvar/Enviar.');
-      } finally {
-          setSendingEmail(false);
-      }
-  };
-
-  const handleEnviarEmail = async (dadosNota) => {
-      const nota = dadosNota || form;
-      if (!nota.id || !nota.arquivo_nota) return addToast('error', 'Salve a nota e anexe arquivos.');
-      setSendingEmail(true);
-      try {
-          await axios.post(`${API_URL}/enviar-email`, {
-              numero_nota: nota.numero_nota, fornecedor: nota.nome_fornecedor, valor: nota.valor, vencimento: nota.data_vencimento, arquivos: [nota.arquivo_nota, nota.arquivo_boleto]
-          }, authConfig);
-          if(form.id === nota.id) setForm(p => ({...p, status_pagamento: 'Email Enviado p/ Balança'}));
-          mutationStatus.mutate({id: nota.id, status: 'Email Enviado p/ Balança'});
-          addToast('success', 'E-mail enviado!');
-      } catch { addToast('error', 'Falha ao enviar.'); } finally { setSendingEmail(false); }
-  };
-
-  // Agrupamento de Dados (Dashboard)
-  const getGroupedData = () => {
-      const notas = statusFiltro.length ? dadosDashboard.filter(n => statusFiltro.includes(n.status_pagamento)) : dadosDashboard;
-      const grupos = {};
-      notas.forEach(n => { if(!grupos[n.nome_fornecedor]) grupos[n.nome_fornecedor]=[]; grupos[n.nome_fornecedor].push(n); });
-      return Object.entries(grupos).sort((a,b) => a[0].localeCompare(b[0]));
-  };
-
-  // --- RENDER ---
   if (loadingInit) return <div className="flex items-center justify-center h-screen"><Loader2 className="animate-spin text-[#1E22A8]" size={48}/></div>;
   if (!token) return <LoginScreen onLogin={handleLogin} addToast={addToast} />;
 
   return (
-    <div className="min-h-screen bg-[#F0F2F5] pb-40">
+    <div className="flex min-h-screen bg-[#F0F2F5] font-sans">
         <ToastContainer toasts={toasts} removeToast={(id) => setToasts(p => p.filter(t => t.id !== id))} />
         <ConfirmDialog isOpen={confirmConfig.isOpen} title={confirmConfig.title} message={confirmConfig.message} onConfirm={confirmConfig.onConfirm} onCancel={() => setConfirmConfig(p => ({...p, isOpen: false}))} />
+        {loadingNotas && currentView === 'notas' && <div className="fixed inset-0 bg-white/80 z-[60] flex items-center justify-center"><Loader2 className="animate-spin text-[#1E22A8]" size={48}/></div>}
         
-        {loadingDash && <div className="fixed inset-0 bg-white/80 z-[60] flex items-center justify-center"><Loader2 className="animate-spin text-[#1E22A8]" size={48}/></div>}
+        <Sidebar isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} currentView={currentView} setActiveView={setCurrentView} onLogout={handleLogout} />
+        
+        <main className="flex-1 max-h-screen overflow-y-auto w-full transition-all flex flex-col">
+            <Header 
+                currentView={currentView} 
+                onOpenMenu={() => setIsMenuOpen(true)}
+                termoBusca={termoBusca} 
+                setTermoBusca={setTermoBusca} 
+                onNovoLancamento={() => { setForm(initialFormLancamento); setShowModal(true); }}
+                onNovaSolicitacao={() => { setFormSolicitacao(initialFormSolicitacao); setShowModalSolicitacao(true); }}
+            />
 
-        <Header 
-            currentView={currentView}
-            onOpenMenu={() => setIsMenuOpen(true)}
-            termoBusca={termoBusca}
-            setTermoBusca={setTermoBusca}
-            filiais={filiais}
-            filialFiltro={filialFiltro}
-            setFilialFiltro={setFilialFiltro}
-            onNovoLancamento={() => { setForm(initialFormLancamento); setShowModal(true); }}
-            dadosExportacao={dadosDashboard}
-        />
+            <div className="p-8 max-w-[1600px] mx-auto pb-24 w-full">
+                {termoBusca.length > 2 && currentView !== 'dashboard' ? (
+                    <SearchResultsView termoBusca={termoBusca} carregando={carregandoBusca} resultados={dadosBusca} onEditar={abrirEdicaoLancamento} />
+                ) : (
+                    <>
+                        {currentView === 'dashboard' && (
+                            <DashboardView 
+                                notas={dadosDashboard} 
+                                solicitacoes={solicitacoes} 
+                                filiais={filiais}
+                                fornecedores={fornecedores}
+                            />
+                        )}
 
-        <Sidebar 
-            isOpen={isMenuOpen} 
-            onClose={() => setIsMenuOpen(false)} 
-            currentView={currentView} 
-            onChangeView={setCurrentView} 
-            onLogout={handleLogout}
-        />
+                        {currentView === 'notas' && (
+                            <NotasView 
+                                notas={dadosNotas} 
+                                competencia={competenciaNotas}
+                                setCompetencia={setCompetenciaNotas}
+                                filiais={filiais}
+                                filialFiltro={filialFiltro}
+                                setFilialFiltro={setFilialFiltro}
+                                statusFiltro={statusFiltro}
+                                setStatusFiltro={setStatusFiltro}
+                                onEditar={abrirEdicaoLancamento}
+                                onDuplicar={duplicarNota}
+                                onCopiarProtheus={(n) => navigator.clipboard.writeText(`${n.fornecedor?.nome_empresa} | CPF/CNPJ: ${n.cnpj_usado||'?'} | NF: ${n.numero_nota} | Valor R$: ${n.valor.toLocaleString('pt-BR',{minimumFractionDigits:2})}`).then(()=>addToast('success', "Copiado!"))}
+                                onEnviarEmail={handleEnviarEmail}
+                                onDownload={(path) => window.open(path.startsWith('http') ? path : `${API_URL}/${path}`, '_blank')}
+                                onStatusChange={(id, st) => mutationStatus.mutate({id, status: st})}
+                                isGopaFunc={isGopaFunc}
+                            />
+                        )}
 
-        <main className="max-w-[1600px] mx-auto p-6 space-y-10 mt-4">
-            
-            {/* VIEW DE RESULTADOS DE BUSCA */}
-            {termoBusca.length > 2 && currentView === 'dashboard' ? (
-                <SearchResultsView 
-                    termoBusca={termoBusca}
-                    carregando={carregandoBusca}
-                    resultados={dadosBusca}
-                    onEditar={abrirEdicaoLancamento}
-                />
-            ) : (
-                <>
-                    {currentView === 'dashboard' && (
-                        <DashboardView 
-                            kpis={dadosDashboard}
-                            filtros={statusFiltro}
-                            onFilter={(s) => setStatusFiltro(p => p.includes(s) ? p.filter(i => i !== s) : [...p, s])}
-                            dadosAgrupados={getGroupedData()}
-                            competencia={competencia}
-                            mudarMes={(d) => { const nd = new Date(competencia); nd.setMonth(competencia.getMonth() + d); setCompetencia(nd); }}
-                            onEditar={abrirEdicaoLancamento}
-                            onDuplicar={duplicarNota}
-                            onCopiarProtheus={(n) => navigator.clipboard.writeText(`${n.fornecedor?.nome_empresa} | CPF/CNPJ: ${n.cnpj_usado||'?'} | NF: ${n.numero_nota} | Valor R$: ${n.valor.toLocaleString('pt-BR',{minimumFractionDigits:2})}`).then(()=>addToast('success', "Copiado!"))}
-                            onEnviarEmail={handleEnviarEmail}
-                            onDownload={(path) => window.open(path.startsWith('http') ? path : `${API_URL}/${path}`, '_blank')}
-                            onStatusChange={(id, st) => mutationStatus.mutate({id, status: st})}
-                            isGopaFunc={isGopaFunc}
-                        />
-                    )}
-
-                    {currentView === 'solicitacoes' && (
-                        <SolicitacoesView 
-                            solicitacoes={solicitacoes}
-                            onNovaSolicitacao={() => { setFormSolicitacao(initialFormSolicitacao); setShowModalSolicitacao(true); }}
-                            onEditarSolicitacao={(s) => { setFormSolicitacao(s); setShowModalSolicitacao(true); }}
-                        />
-                    )}
-
-                    {currentView === 'filiais' && (
-                        <FiliaisView 
-                            filiais={filiais}
-                            onSalvar={(f) => mutationFilial.mutate(f)}
-                            onExcluir={(f) => openConfirm("Excluir Filial", `Deseja excluir ${f.nome_fantasia}?`, () => axios.delete(`${API_URL}/filiais/${f.id}`, authConfig).then(() => { queryClient.invalidateQueries(['filiais']); addToast('success', 'Filial excluída!'); }))}
-                        />
-                    )}
-
-                    {currentView === 'fornecedores' && (
-                        <FornecedoresView 
-                            fornecedores={fornecedores}
-                            onSalvar={(f) => mutationFornecedor.mutate(f)}
-                            onExcluir={(f) => openConfirm("Excluir Fornecedor", `Deseja excluir ${f.nome_empresa}?`, () => axios.delete(`${API_URL}/fornecedores/${f.id}`, authConfig).then(() => { queryClient.invalidateQueries(['fornecedores']); addToast('success', 'Fornecedor excluído!'); }))}
-                        />
-                    )}
-
-                   {currentView === 'usuarios' && (
-        <UsuariosView 
-            usuarios={usuarios}
-            onCriarUsuario={(u) => mutationUsuario.mutate(u)}
-            onToggleStatus={(id, novoStatus) => mutationUsuarioStatus.mutate({ id, ativo: novoStatus })}
-            onExcluirUsuario={(u) => openConfirm("Excluir Usuário", `Tem certeza que deseja excluir ${u.nome_completo}?`, () => mutationDeleteUsuario.mutate(u.id))}
-        />
-    )}
-                </>
-            )}
-
-
-
-
-
+                        {currentView === 'solicitacoes' && <SolicitacoesView solicitacoes={solicitacoes} onNovaSolicitacao={() => { setFormSolicitacao(initialFormSolicitacao); setShowModalSolicitacao(true); }} onEditarSolicitacao={(s) => { setFormSolicitacao(s); setShowModalSolicitacao(true); }} />}
+                        {currentView === 'filiais' && <FiliaisView filiais={filiais} onSalvar={(f) => mutationFilial.mutate(f)} onExcluir={(f) => openConfirm("Excluir Filial", `Deseja excluir ${f.nome_fantasia}?`, () => axios.delete(`${API_URL}/filiais/${f.id}`, authConfig).then(() => { queryClient.invalidateQueries(['filiais']); addToast('success', 'Filial excluída!'); }))} />}
+                        {currentView === 'fornecedores' && <FornecedoresView fornecedores={fornecedores} onSalvar={(f) => mutationFornecedor.mutate(f)} onExcluir={(f) => openConfirm("Excluir Fornecedor", `Deseja excluir ${f.nome_empresa}?`, () => axios.delete(`${API_URL}/fornecedores/${f.id}`, authConfig).then(() => { queryClient.invalidateQueries(['fornecedores']); addToast('success', 'Fornecedor excluído!'); }))} />}
+                        {currentView === 'usuarios' && <UsuariosView usuarios={usuarios} onCriarUsuario={(u) => mutationUsuario.mutate(u)} onToggleStatus={(id, novoStatus) => mutationUsuarioStatus.mutate({ id, ativo: novoStatus })} onExcluirUsuario={(u) => openConfirm("Excluir Usuário", `Tem certeza que deseja excluir ${u.nome_completo}?`, () => mutationDeleteUsuario.mutate(u.id))} />}
+                    </>
+                )}
+            </div>
+            <footer className="mt-auto py-6 text-center text-gray-500 text-sm font-medium border-t border-gray-200 bg-white">© {new Date().getFullYear()} <span className="font-bold text-[#1E22A8]">Cicopal</span> <span className="mx-2 text-gray-300">|</span> GESTÃO DE NOTAS 🤖</footer>
         </main>
-
-        <footer className="fixed bottom-0 left-0 right-0 py-4 bg-white border-t border-gray-200 z-10 flex items-center justify-center">
-            <p className="text-gray-500 text-sm font-medium">
-                © {new Date().getFullYear()} <span className="font-bold text-[#1E22A8]">Cicopal</span> <span className="mx-2 text-gray-300">|</span> GESTÃO DE NOTAS 🤖
-            </p>
-        </footer>
-
-        {/* MODAIS */}
-        <ModalLancamento 
-            isOpen={showModal}
-            onClose={() => setShowModal(false)}
-            form={form}
-            setForm={setForm}
-            filiais={filiais}
-            fornecedores={fornecedores}
-            opcoesFornecedor={opcoesFornecedor}
-            onFornecedorChange={handleFornecedorChange}
-            onSalvar={salvarLancamento}
-            onSalvarEEnviar={salvarEEnviar}
-            sendingEmail={sendingEmail}
-            addToast={addToast}
-            isGopa={isGopaFunc({filial_id: form.filial_id})}
-        />
-
-        <ModalSolicitacao 
-            isOpen={showModalSolicitacao}
-            onClose={() => setShowModalSolicitacao(false)}
-            form={formSolicitacao}
-            setForm={setFormSolicitacao}
-            filiais={filiais}
-            fornecedores={fornecedores}
-            onSalvar={() => mutationSolicitacao.mutate(formSolicitacao)}
-            onFornecedorChange={handleFornecedorSolicitacaoChange}
-        />
+        
+        <ModalLancamento isOpen={showModal} onClose={() => setShowModal(false)} form={form} setForm={setForm} filiais={filiais} fornecedores={fornecedores} opcoesFornecedor={opcoesFornecedor} onFornecedorChange={handleFornecedorChange} onSalvar={salvarLancamento} onSalvarEEnviar={salvarEEnviar} sendingEmail={sendingEmail} addToast={addToast} isGopa={isGopaFunc({filial_id: form.filial_id})} />
+        <ModalSolicitacao isOpen={showModalSolicitacao} onClose={() => setShowModalSolicitacao(false)} form={formSolicitacao} setForm={setFormSolicitacao} filiais={filiais} fornecedores={fornecedores} onSalvar={() => mutationSolicitacao.mutate(formSolicitacao)} onFornecedorChange={handleFornecedorSolicitacaoChange} />
     </div>
   );
 }
 
-export default function Home() {
-  const [queryClient] = useState(() => new QueryClient());
-  return (
-    <QueryClientProvider client={queryClient}>
-        <DashboardContent />
-    </QueryClientProvider>
-  );
-}
+export default function Home() { const [queryClient] = useState(() => new QueryClient()); return ( <QueryClientProvider client={queryClient}> <DashboardContent /> </QueryClientProvider> ); }

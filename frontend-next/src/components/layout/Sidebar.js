@@ -1,26 +1,79 @@
 import React from 'react';
-import { X, Server, ShoppingCart, Building, Users, UserPlus, LogOut } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Receipt, Users, Building, FileText, User, LogOut, X } from 'lucide-react';
 
-export default function Sidebar({ isOpen, onClose, currentView, onChangeView, onLogout }) {
-  const menuClass = (view) => `w-full flex items-center gap-4 font-bold p-4 rounded-xl hover:bg-slate-50 ${currentView === view ? 'text-[#1E22A8] bg-blue-50' : 'text-slate-600'}`;
+export default function Sidebar({ activeView, setActiveView, onLogout, isOpen, onClose }) {
+  
+  const menuItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={24} /> }, // Aumentei ícones para 24 também
+    { id: 'notas', label: 'Notas Fiscais', icon: <Receipt size={24} /> },
+    { id: 'solicitacoes', label: 'Solicitações', icon: <ShoppingCart size={24} /> },
+    { id: 'lancamentos', label: 'Lançamentos (Antigo)', icon: <FileText size={24} /> },
+    { id: 'fornecedores', label: 'Fornecedores', icon: <Users size={24} /> },
+    { id: 'filiais', label: 'Filiais', icon: <Building size={24} /> },
+    { id: 'usuarios', label: 'Usuários', icon: <User size={24} /> },
+  ];
 
   return (
-    <div className={`fixed inset-0 z-50 transition-all duration-300 ${isOpen ? 'visible' : 'invisible'}`}>
-        <div className={`absolute inset-0 bg-[#1E22A8]/80 backdrop-blur-sm transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0'}`} onClick={onClose}></div>
-        <div className={`absolute left-0 top-0 bottom-0 w-80 bg-white shadow-2xl p-6 transform transition-transform duration-300 flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-            <div className="flex justify-between items-center mb-10 text-[#1E22A8]">
-                <h2 className="text-2xl font-black tracking-tighter">MENU</h2>
-                <button onClick={onClose} className="hover:bg-slate-100 p-2 rounded-full"><X size={24}/></button>
-            </div>
-            <nav className="space-y-2 flex-1">
-                <button onClick={() => { onChangeView('dashboard'); onClose(); }} className={menuClass('dashboard')}><Server size={20}/> DASHBOARD</button>
-                <button onClick={() => { onChangeView('solicitacoes'); onClose(); }} className={menuClass('solicitacoes')}><ShoppingCart size={20}/> SOLICITAÇÕES</button>
-                <button onClick={() => { onChangeView('filiais'); onClose(); }} className={menuClass('filiais')}><Building size={20}/> FILIAIS</button>
-                <button onClick={() => { onChangeView('fornecedores'); onClose(); }} className={menuClass('fornecedores')}><Users size={20}/> FORNECEDORES</button>
-                <button onClick={() => { onChangeView('usuarios'); onClose(); }} className={menuClass('usuarios')}><UserPlus size={20}/> USUÁRIOS</button>
-            </nav>
-            <button onClick={onLogout} className="w-full flex items-center gap-4 text-[#E30613] font-bold p-4 rounded-xl hover:bg-red-50 mt-auto"><LogOut size={20}/> SAIR</button>
+    <>
+      {/* OVERLAY (Fundo Escuro) */}
+      <div 
+        className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        onClick={onClose}
+      />
+
+      {/* GAVETA LATERAL */}
+      <aside className={`
+          fixed top-0 left-0 z-50 h-screen w-72 bg-white shadow-2xl flex flex-col justify-between
+          transform transition-transform duration-300 ease-out
+          ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        
+        {/* TOPO: Texto MENU e Botão Fechar */}
+        <div className="p-6 flex justify-between items-center border-b border-slate-100">
+            {/* Título MENU substituindo a Logo */}
+            <h2 className="text-2xl font-black text-[#1E22A8] tracking-tighter">
+                MENU
+            </h2>
+
+            <button 
+                onClick={onClose} 
+                className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"
+            >
+                <X size={28} />
+            </button>
         </div>
-    </div>
+
+        {/* LISTA DE NAVEGAÇÃO */}
+        <nav className="flex-1 px-4 py-6 space-y-3 overflow-y-auto custom-scrollbar">
+          
+          {menuItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => { 
+                  setActiveView(item.id); 
+                  onClose(); 
+              }}
+              className={`w-full flex items-center gap-4 px-4 py-4 rounded-xl transition-all duration-200 group font-bold text-base
+                ${activeView === item.id 
+                  ? 'bg-[#1E22A8] text-white shadow-lg shadow-blue-900/20 translate-x-1' 
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E22A8]'
+                }`}
+            >
+              <div className={`${activeView === item.id ? 'text-white' : 'text-slate-400 group-hover:text-[#1E22A8]'}`}>
+                {item.icon}
+              </div>
+              {item.label}
+            </button>
+          ))}
+        </nav>
+
+        {/* RODAPÉ */}
+        <div className="p-4 border-t border-slate-100">
+          <button onClick={onLogout} className="w-full flex items-center justify-center gap-2 px-4 py-4 text-red-500 hover:bg-red-50 rounded-xl font-bold transition-colors text-base">
+            <LogOut size={20} /> SAIR
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }

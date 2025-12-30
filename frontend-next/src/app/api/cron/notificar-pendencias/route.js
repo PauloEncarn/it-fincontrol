@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import { createClient } from '@supabase/supabase-js';
 
-// 1. INICIAR O CLIENTE SUPABASE COM PODERES DE ADMIN
-// Ele vai ler as chaves que colocamos no .env.local
+// 1. INICIAR O CLIENTE SUPABASE (Admin)
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -16,23 +15,31 @@ const STATUS_ALERTA = [
   'Aguardando Pagamento'
 ];
 
-export async function GET(request) {
-  // --- VERIFICAÇÃO DE SEGURANÇA (CRON SECRET) ---
-  // Impede que qualquer pessoa na internet dispare o e-mail acessando o link
-  const authHeader = request.headers.get('authorization');
-  
-  // Se tiver configurado o CRON_SECRET no ambiente, ele checa.
-  // Para testar no navegador localmente, você pode comentar essas 3 linhas abaixo temporariamente.
-  /*
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Acesso Negado: Chave Cron Inválida' }, { status: 401 });
-  }
-*/
-  try {
-    console.log("🤖 Robô iniciado: Buscando pendências no Supabase...");
+// Configuração para não fazer cache desta rota (importante para Cron Jobs)
+export const dynamic = 'force-dynamic';
 
-    // 2. BUSCAR DADOS NO BANCO
-    // Estamos acessando a tabela 'lancamentos' e pegando os dados das tabelas relacionadas
+export async function GET(request) {
+  try {
+    console.log("🤖 Robô iniciado: Buscando pendências do mês no Supabase...");
+
+    // =====================================================================
+    // 📅 1. CALCULAR O INTERVALO DO MÊS CORRENTE
+    // =====================================================================
+    const hoje = new Date();
+    const ano = hoje.getFullYear();
+    const mes = hoje.getMonth(); // 0 = Jan, 11 = Dez
+
+    // Primeiro dia do mês (Ex: 2025-05-01)
+    const primeiroDia = new Date(ano, mes, 1).toISOString();
+    
+    // Último dia do mês (Ex: 2025-05-31) - O dia 0 do próximo mês volta um dia
+    const ultimoDia = new Date(ano, mes + 1, 0, 23, 59, 59).toISOString();
+
+    console.log(`🔎 Filtrando de ${primeiroDia} até ${ultimoDia}`);
+
+    // =====================================================================
+    // 2. BUSCAR DADOS NO BANCO (COM FILTRO DE DATA)
+    // =====================================================================
     const { data: pendencias, error } = await supabase
       .from('lancamentos') 
       .select(`
@@ -41,6 +48,10 @@ export async function GET(request) {
         filiais ( nome_fantasia )
       `)
       .in('status_pagamento', STATUS_ALERTA)
+      // --- FILTROS DE DATA ADICIONADOS AQUI ---
+      .gte('data_vencimento', primeiroDia) // Maior ou igual ao dia 1
+      .lte('data_vencimento', ultimoDia)   // Menor ou igual ao último dia
+      // ----------------------------------------
       .order('data_vencimento', { ascending: true });
 
     if (error) {
@@ -49,21 +60,24 @@ export async function GET(request) {
     }
 
     if (!pendencias || pendencias.length === 0) {
-      console.log("✅ Nenhuma pendência encontrada hoje.");
-      return NextResponse.json({ message: "Nenhuma pendência hoje." });
+      console.log("✅ Nenhuma pendência encontrada para este mês.");
+      return NextResponse.json({ message: "Nenhuma pendência neste mês." });
     }
 
-    // 3. MONTAR O HTML DO EMAIL
+    // 3. MONTAR O HTML DO EMAIL (Mantido igual, só ajustei o título)
     const linhasTabela = pendencias.map(n => {
-        const venc = new Date(n.data_vencimento).toLocaleDateString('pt-BR', {timeZone: 'UTC'});
+        // Tenta converter a data, se falhar usa traço
+        const dataVenc = n.data_vencimento ? new Date(n.data_vencimento) : null;
+        // Ajuste de fuso horário simples para exibição correta (evita dia anterior)
+        if (dataVenc) dataVenc.setMinutes(dataVenc.getMinutes() + dataVenc.getTimezoneOffset());
+        
+        const venc = dataVenc ? dataVenc.toLocaleDateString('pt-BR') : '-';
         const valor = parseFloat(n.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
         
-        // Cores das etiquetas
         let corStatus = '#F9C531'; // Amarelo
         if (n.status_pagamento.includes('Pendente')) corStatus = '#E30613'; // Vermelho
         if (n.status_pagamento.includes('Pagamento')) corStatus = '#1E22A8'; // Azul
 
-        // Tratamento para pegar o nome caso venha como array ou objeto
         const nomeFornecedor = Array.isArray(n.fornecedores) ? n.fornecedores[0]?.nome_empresa : n.fornecedores?.nome_empresa;
         const nomeFilial = Array.isArray(n.filiais) ? n.filiais[0]?.nome_fantasia : n.filiais?.nome_fantasia;
 
@@ -86,13 +100,13 @@ export async function GET(request) {
     const htmlEmail = `
       <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; color: #333; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
         <div style="background-color: #1E22A8; padding: 24px;">
-            <h2 style="color: white; margin: 0; font-size: 20px;">Resumo Diário de Pendências</h2>
+            <h2 style="color: white; margin: 0; font-size: 20px;">Pendências do Mês (${hoje.toLocaleDateString('pt-BR', {month: 'long', year: 'numeric'})})</h2>
             <p style="color: #a5b4fc; margin: 5px 0 0 0; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Cicopal Financeiro TI</p>
         </div>
         
         <div style="padding: 24px; background-color: #fff;">
             <p style="margin-top: 0;">Olá,</p>
-            <p>Identificamos <strong>${pendencias.length} lançamentos</strong> que requerem atenção hoje:</p>
+            <p>Identificamos <strong>${pendencias.length} lançamentos</strong> com vencimento neste mês que requerem atenção:</p>
             
             <table style="width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px;">
                 <thead>
@@ -122,15 +136,14 @@ export async function GET(request) {
       </div>
     `;
 
-    // 4. CONFIGURAÇÃO DE ENVIO (SMTP GMAIL)
-    // ⚠️ Certifique-se de que seu EMAIL e SENHA DE APP estão corretos aqui ou no .env
+    // 4. ENVIO (SMTP GMAIL)
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
       port: 587,
       secure: false,
       auth: {
-       user: process.env.GMAIL_USER ,
-        pass: process.env.GMAIL_PASS //
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_PASS
       },
       tls: { rejectUnauthorized: false }
     });
@@ -138,9 +151,9 @@ export async function GET(request) {
     console.log("📨 Enviando e-mail...");
     
     await transporter.sendMail({
-      from: '"Robô Gestão de notas " <automacaocicopal@gmail.com.br>',
-      to: "suporte.ba@cicopal.com.br, felipe.moreira@cicopal.com.br, contratos.ti@cicopal.com.br", // ⚠️ QUEM VAI RECEBER O RELATÓRIO
-      subject: `🚨 [Pendências] ${pendencias.length} notas aguardam atenção`,
+      from: '"Robô Gestão de Notas" <automacaocicopal@gmail.com>',
+      to: "suporte.ba@cicopal.com.br, felipe.moreira@cicopal.com.br, contratos.ti@cicopal.com.br",
+      subject: `🚨 [Mês Atual] ${pendencias.length} notas pendentes`,
       html: htmlEmail
     });
 
