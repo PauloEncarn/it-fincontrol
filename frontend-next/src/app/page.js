@@ -36,11 +36,11 @@ function DashboardContent() {
   const [toasts, setToasts] = useState([]);
   const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
   
-  // FILTROS NOTAS (Estado compartilhado para a view de Notas)
+  // FILTROS NOTAS
   const [competenciaNotas, setCompetenciaNotas] = useState(new Date()); 
   const [filialFiltro, setFilialFiltro] = useState('');
   const [statusFiltro, setStatusFiltro] = useState([]);
-  const [termoBusca, setTermoBusca] = useState('');
+  const [termoBusca, setTermoBusca] = useState(''); // <--- ESTADO DA BUSCA
 
   // MODAIS
   const [showModal, setShowModal] = useState(false); 
@@ -64,26 +64,23 @@ function DashboardContent() {
   const { data: fornecedores = [] } = useQuery({ queryKey: ['fornecedores'], queryFn: () => axios.get(`${API_URL}/fornecedores/`, authConfig).then(res => res.data), enabled: !!token });
   const { data: usuarios = [] } = useQuery({ queryKey: ['usuarios'], queryFn: () => axios.get(`${API_URL}/usuarios/`, authConfig).then(res => res.data), enabled: !!token && currentView === 'usuarios' });
   
-  // DADOS PARA NOTAS (View Operacional - Carrega mês específico)
+  // DADOS PARA NOTAS (View Operacional)
   const { data: dadosNotas = [], isLoading: loadingNotas } = useQuery({ 
       queryKey: ['notas_operacional', filialFiltro, competenciaNotas.getMonth(), competenciaNotas.getFullYear()], 
       queryFn: async () => { 
-          // Usa o endpoint agrupado que funciona bem para mês específico
           const params = { filial_id: filialFiltro || undefined, mes: competenciaNotas.getMonth() + 1, ano: competenciaNotas.getFullYear() }; 
           const res = await axios.get(`${API_URL}/dados-agrupados/`, { ...authConfig, params }); 
           let lista = []; 
           res.data.forEach(forn => { if(forn.lancamentos) forn.lancamentos.forEach(nota => lista.push({ ...nota, nome_fornecedor: forn.nome_empresa })); }); 
           return lista; 
       }, 
-      enabled: !!token && currentView === 'notas' && !termoBusca 
+      // CORREÇÃO 1: Removi o "&& !termoBusca". Agora ele mantêm os dados carregados mesmo pesquisando.
+      enabled: !!token && currentView === 'notas'
   });
 
-  // DADOS PARA DASHBOARD (Estratégia: Carregar TUDO do ano via endpoint /lancamentos/ para permitir filtragem local total)
   const { data: dadosDashboard = [] } = useQuery({ 
       queryKey: ['dashboard_full'], 
       queryFn: async () => { 
-        // Aqui usamos /lancamentos/ sem filtro de data para pegar o máximo (ou com filtro de ano se API suportar, mas vamos pegar tudo e filtrar no front por segurança)
-        // Se sua base for gigante, adicione paginação. Para 500-1000 registros, isso é instantâneo.
         const res = await axios.get(`${API_URL}/lancamentos/`, authConfig); 
         return res.data; 
       }, 
@@ -137,7 +134,10 @@ function DashboardContent() {
             />
 
             <div className="p-8 max-w-[1600px] mx-auto pb-24 w-full">
-                {termoBusca.length > 2 && currentView !== 'dashboard' ? (
+                {/* CORREÇÃO 2: Só ativa a busca GLOBAL se NÃO estiver na tela de notas.
+                   Assim, a tela de notas usa o filtro local do NotasView.
+                */}
+                {termoBusca.length > 2 && currentView !== 'dashboard' && currentView !== 'notas' ? (
                     <SearchResultsView termoBusca={termoBusca} carregando={carregandoBusca} resultados={dadosBusca} onEditar={abrirEdicaoLancamento} />
                 ) : (
                     <>
@@ -167,6 +167,9 @@ function DashboardContent() {
                                 onDownload={(path) => window.open(path.startsWith('http') ? path : `${API_URL}/${path}`, '_blank')}
                                 onStatusChange={(id, st) => mutationStatus.mutate({id, status: st})}
                                 isGopaFunc={isGopaFunc}
+                                
+                                // CORREÇÃO 3: Adicionei a prop da busca AQUI 👇
+                                busca={termoBusca}
                             />
                         )}
 
