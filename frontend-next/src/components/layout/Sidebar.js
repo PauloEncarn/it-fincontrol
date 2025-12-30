@@ -7,7 +7,6 @@ export default function Sidebar({ activeView, setActiveView, onLogout, isOpen, o
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={24} /> }, // Aumentei ícones para 24 também
     { id: 'notas', label: 'Notas Fiscais', icon: <Receipt size={24} /> },
     { id: 'solicitacoes', label: 'Solicitações', icon: <ShoppingCart size={24} /> },
-    { id: 'lancamentos', label: 'Lançamentos (Antigo)', icon: <FileText size={24} /> },
     { id: 'fornecedores', label: 'Fornecedores', icon: <Users size={24} /> },
     { id: 'filiais', label: 'Filiais', icon: <Building size={24} /> },
     { id: 'usuarios', label: 'Usuários', icon: <User size={24} /> },
