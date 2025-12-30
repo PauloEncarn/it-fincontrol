@@ -91,14 +91,33 @@ function DashboardContent() {
   const { data: solicitacoes = [] } = useQuery({ queryKey: ['solicitacoes', termoBusca], queryFn: async () => { const res = await axios.get(`${API_URL}/solicitacoes`, { params: { busca: termoBusca || undefined }, ...authConfig }); return res.data; }, enabled: !!token });
 
   // --- MUTATIONS ---
-  const mutationLancamento = useMutation({ mutationFn: (nota) => nota.id ? axios.put(`${API_URL}/lancamentos/${nota.id}`, nota, authConfig) : axios.post(`${API_URL}/lancamentos/`, nota, authConfig), onSuccess: () => { queryClient.invalidateQueries(['notas_operacional']); queryClient.invalidateQueries(['dashboard_full']); queryClient.invalidateQueries(['busca']); }});
-  const mutationStatus = useMutation({ mutationFn: ({id, status}) => axios.patch(`${API_URL}/lancamentos/${id}/status`, { status }, authConfig), onSuccess: () => { queryClient.invalidateQueries(['notas_operacional']); queryClient.invalidateQueries(['dashboard_full']); addToast('success', 'Status atualizado!'); } });
+  const mutationLancamento = useMutation({ 
+      mutationFn: (nota) => nota.id ? axios.put(`${API_URL}/lancamentos/${nota.id}`, nota, authConfig) : axios.post(`${API_URL}/lancamentos/`, nota, authConfig), 
+      onSuccess: () => { atualizarListas(); }
+  });
+
+  const mutationStatus = useMutation({ 
+      mutationFn: ({id, status}) => axios.patch(`${API_URL}/lancamentos/${id}/status`, { status }, authConfig), 
+      onSuccess: () => { 
+          atualizarListas(); 
+          addToast('success', 'Status atualizado com sucesso!'); 
+      } 
+  });
   const mutationFilial = useMutation({ mutationFn: (data) => data.id ? axios.put(`${API_URL}/filiais/${data.id}`, data, authConfig) : axios.post(`${API_URL}/filiais/`, data, authConfig), onSuccess: () => { queryClient.invalidateQueries(['filiais']); addToast('success', 'Filial salva!'); } });
   const mutationFornecedor = useMutation({ mutationFn: (data) => data.id ? axios.put(`${API_URL}/fornecedores/${data.id}`, data, authConfig) : axios.post(`${API_URL}/fornecedores/`, data, authConfig), onSuccess: () => { queryClient.invalidateQueries(['fornecedores']); addToast('success', 'Fornecedor salvo!'); } });
   const mutationSolicitacao = useMutation({ mutationFn: (dados) => dados.id ? axios.put(`${API_URL}/solicitacoes/${dados.id}`, dados, authConfig) : axios.post(`${API_URL}/solicitacoes/`, dados, authConfig), onSuccess: () => { queryClient.invalidateQueries(['solicitacoes']); addToast('success', 'Solicitação salva!'); setShowModalSolicitacao(false); }, onError: (err) => addToast('error', 'Erro ao salvar: ' + err.message) });
   const mutationUsuario = useMutation({ mutationFn: (dados) => axios.post(`${API_URL}/usuarios/`, dados, authConfig), onSuccess: () => { queryClient.invalidateQueries(['usuarios']); addToast('success', 'Usuário criado!'); }, onError: () => addToast('error', 'Erro ao criar usuário.') });
   const mutationUsuarioStatus = useMutation({ mutationFn: ({ id, ativo }) => axios.put(`${API_URL}/usuarios/${id}`, { ativo }, authConfig), onSuccess: () => { queryClient.invalidateQueries(['usuarios']); addToast('success', 'Acesso atualizado!'); }, onError: () => addToast('error', 'Erro ao atualizar acesso.') });
   const mutationDeleteUsuario = useMutation({ mutationFn: (id) => axios.delete(`${API_URL}/usuarios/${id}`, authConfig), onSuccess: () => { queryClient.invalidateQueries(['usuarios']); addToast('success', 'Usuário excluído!'); }, onError: () => addToast('error', 'Erro ao excluir usuário.') });
+  const atualizarListas = async () => {
+      // Força a atualização de TODAS as listas de notas e dashboard
+      await queryClient.invalidateQueries({ queryKey: ['notas_operacional'], exact: false });
+      await queryClient.invalidateQueries({ queryKey: ['dashboard_full'], exact: false });
+      await queryClient.invalidateQueries({ queryKey: ['busca'], exact: false });
+  };
+
+ 
+  
 
   // HELPERS
   const isGopaFunc = (nota) => { const fId = nota.filial_id || (form && form.filial_id); const filial = filiais.find(f => f.id == fId); return filial?.nome_fantasia?.toUpperCase().includes('GOPA') || filial?.nome_fantasia?.toUpperCase().includes('REFRESA'); };
@@ -110,7 +129,7 @@ function DashboardContent() {
   const salvarLancamento = async () => { if (!form.filial_id || !form.fornecedor_id || !form.valor || !form.numero_nota) return addToast('error', 'Preencha os campos obrigatórios!'); const payload = { ...form, data_envio: form.data_envio === '' ? null : form.data_envio }; try { await mutationLancamento.mutateAsync(payload); addToast('success', 'Lançamento salvo!'); setShowModal(false); } catch { addToast('error', 'Erro ao salvar.'); } };
   const salvarEEnviar = async () => { if (!form.arquivo_nota) return addToast('error', 'Anexe a nota fiscal para enviar.'); const payload = { ...form, data_envio: form.data_envio === '' ? null : form.data_envio }; try { setSendingEmail(true); const response = await mutationLancamento.mutateAsync(payload); const notaSalva = response.data; await handleEnviarEmail({...payload, id: notaSalva.id || form.id}); setShowModal(false); } catch (e) { addToast('error', 'Erro no processo Salvar/Enviar.'); } finally { setSendingEmail(false); } };
 
-  const handleEnviarEmail = async (dadosNota) => {
+ const handleEnviarEmail = async (dadosNota) => {
     const nota = dadosNota || form;
     
     if (!nota.id || !nota.arquivo_nota) return addToast('error', 'Salve a nota e anexe arquivos.');
@@ -118,33 +137,33 @@ function DashboardContent() {
     setSendingEmail(true);
     
     try {
-      // --- CORREÇÃO: BUSCAR O NOME DO FORNECEDOR ---
-      // 1. Tenta pegar o nome se já vier pronto
-      // 2. Se não vier, busca na lista de fornecedores usando o ID
+      // Lógica para pegar nome do fornecedor (apenas para o corpo do email, se necessário)
       let nomeFornecedorFinal = nota.nome_fornecedor;
-      
       if (!nomeFornecedorFinal && nota.fornecedor_id) {
-          const fornecedorEncontrado = fornecedores.find(f => f.id == nota.fornecedor_id);
-          if (fornecedorEncontrado) {
-              nomeFornecedorFinal = fornecedorEncontrado.nome_empresa;
-          }
+          const f = fornecedores.find(x => x.id == nota.fornecedor_id);
+          if (f) nomeFornecedorFinal = f.nome_empresa;
       }
-      // ---------------------------------------------
 
       await axios.post(`${API_URL}/enviar-email`, { 
         id: nota.id, 
         numero_nota: nota.numero_nota, 
-        fornecedor: nomeFornecedorFinal || 'Fornecedor Desconhecido', // Usa o nome corrigido
+        fornecedor: nomeFornecedorFinal || 'Fornecedor',
         valor: nota.valor, 
         vencimento: nota.data_vencimento, 
         arquivos: [nota.arquivo_nota, nota.arquivo_boleto] 
       }, authConfig);
 
-      // Atualiza status visualmente
-      if(form.id === nota.id) setForm(p => ({...p, status_pagamento: 'Email Enviado p/ Balança'}));
-      mutationStatus.mutate({id: nota.id, status: 'Email Enviado p/ Balança'});
+      // Atualiza status no banco e na tela
+      const novoStatus = 'Email Enviado p/ Balança';
       
-      addToast('success', `E-mail enviado para ${nomeFornecedorFinal}!`); // Feedback bonito
+      // 1. Atualiza o Form se estiver aberto
+      if(form.id === nota.id) setForm(p => ({...p, status_pagamento: novoStatus}));
+      
+      // 2. Dispara a atualização no Banco (que vai chamar o atualizarListas automaticamente)
+      mutationStatus.mutate({id: nota.id, status: novoStatus});
+      
+      // --- CORREÇÃO DA MENSAGEM AQUI 👇 ---
+      addToast('success', 'E-mail enviado para GOPA com sucesso!'); 
       
     } catch (error) {
       console.error(error);
