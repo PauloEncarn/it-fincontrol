@@ -21,41 +21,40 @@ export default function SolicitacoesView({
     solicitacoes, 
     onNovaSolicitacao, 
     onEditarSolicitacao,
-    busca // <--- Recebendo a busca do Pai
+    busca // Recebe do Pai
 }) {
 
-    // --- LÓGICA DE FILTRO SEGURA ---
+    // --- FILTRAGEM UNIFICADA (Estratégia "Textão") ---
     const dadosFiltrados = solicitacoes.filter(item => {
-        if (!busca) return true; // Se não tiver busca, mostra tudo
-
+        if (!busca) return true; // Se não tem busca, mostra tudo
+        
         const termo = busca.toLowerCase();
 
-        // Tratamento seguro para strings (evita erro em nulos)
-        const id = item.id ? item.id.toString() : '';
-        const numeroFluig = item.fluig_id ? item.fluig_id.toString() : '';
-        const numeroSC = item.numero_sc ? item.numero_sc.toString() : '';
-        const solicitante = item.solicitante ? item.solicitante.toLowerCase() : '';
-        const fornecedor = item.fornecedor?.nome_empresa ? item.fornecedor.nome_empresa.toLowerCase() : '';
-        const servico = item.servico ? item.servico.toLowerCase() : '';
-        const status = item.status ? item.status.toLowerCase() : '';
-
-        // Tratamento para Valor (busca por "1500" ou "1.500,00")
+        // 1. Preparar Valores Especiais
         const valorFormatado = item.valor 
             ? parseFloat(item.valor).toLocaleString('pt-BR', {minimumFractionDigits: 2}) 
             : '';
-        const valorLimpo = valorFormatado.replace(/\./g, '');
+        const valorLimpo = valorFormatado.replace(/\./g, ''); // Permite achar "1500" digitando "1.500"
 
-        return (
-            id.includes(termo) ||
-            numeroFluig.includes(termo) ||
-            numeroSC.includes(termo) ||
-            solicitante.includes(termo) ||
-            fornecedor.includes(termo) ||
-            servico.includes(termo) ||
-            status.includes(termo) ||
-            valorFormatado.includes(termo) ||
-            valorLimpo.includes(termo)
-        );
+        // 2. Criar uma "Super String" com todos os dados pesquisáveis
+        // O .join(' ') junta tudo num texto só, facilitando a busca
+        const textoCompletoDaLinha = [
+            item.id,
+            item.fluig_id,
+            item.numero_sc,
+            item.numero_pedido,
+            item.solicitante,
+            item.servico,        // Descrição do serviço
+            item.status,
+            item.fornecedor?.nome_empresa, // Nome do fornecedor
+            item.filial?.nome_fantasia,    // Nome da filial
+            item.filial?.codigo,
+            valorFormatado,      // "1.500,00"
+            valorLimpo           // "150000"
+        ].join(' ').toLowerCase();
+
+        // 3. Verifica se o termo digitado existe em ALGUM lugar desse textão
+        return textoCompletoDaLinha.includes(termo);
     });
 
     return (
@@ -85,7 +84,7 @@ export default function SolicitacoesView({
             <div className="grid grid-cols-1 gap-4">
                 {dadosFiltrados.length === 0 ? (
                      <div className="text-center py-10 text-slate-400 bg-white rounded-2xl border border-slate-100 border-dashed">
-                        <p>Nenhuma solicitação encontrada.</p>
+                        <p>Nenhuma solicitação encontrada para &quot;{busca}&quot;.</p>
                     </div>
                 ) : (
                     dadosFiltrados.map((item) => {
@@ -119,14 +118,14 @@ export default function SolicitacoesView({
                                             </span>
                                         </div>
                                         
-                                        <p className="text-sm text-slate-500 line-clamp-1">{item.servico}</p>
+                                        <p className="text-sm text-slate-500 font-medium">{item.servico || 'Sem descrição'}</p>
                                         
                                         <div className="flex flex-wrap gap-4 text-xs text-slate-400 mt-2">
                                             <span className="flex items-center gap-1">
                                                 <strong className="text-slate-600">SC:</strong> {item.numero_sc || '-'}
                                             </span>
                                             <span className="flex items-center gap-1">
-                                                <strong className="text-slate-600">Solicitante:</strong> {item.solicitante}
+                                                <strong className="text-slate-600">Solicitante:</strong> {item.solicitante || '-'}
                                             </span>
                                         </div>
                                     </div>
