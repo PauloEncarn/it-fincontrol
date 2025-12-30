@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Server, ChevronDown, Edit2, Copy, Mail, FileText, ClipboardList, Filter, Calendar } from 'lucide-react';
 import { STATUS_STYLES, OPCOES_STATUS } from '@/utils/constants';
+import { RefreshCw } from 'lucide-react'
 
 export default function NotasView({ 
     notas, 
@@ -8,7 +9,7 @@ export default function NotasView({
     filiais, filialFiltro, setFilialFiltro,
     statusFiltro, setStatusFiltro,
     onEditar, onDuplicar, onCopiarProtheus, onEnviarEmail, onDownload, onStatusChange, isGopaFunc,
-    busca // <--- ADICIONADO AQUI: Precisa receber o termo de busca do pai
+    busca, onRefresh// <--- ADICIONADO AQUI: Precisa receber o termo de busca do pai
 }) {
   const [expandedSupplier, setExpandedSupplier] = useState({});
 
@@ -79,6 +80,14 @@ export default function NotasView({
                 <div className="bg-blue-50 p-2 rounded-lg text-[#1E22A8]">
                     <Filter size={20}/>
                 </div>
+
+                <button 
+                    onClick={onRefresh}
+                    className="bg-slate-50 hover:bg-blue-50 text-slate-500 hover:text-blue-600 p-2 rounded-xl border border-slate-200 transition-all"
+                    title="Atualizar Lista"
+                >
+                    <RefreshCw size={18} />
+                </button>
                 
                 {/* Seletor de Mês */}
                 <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
