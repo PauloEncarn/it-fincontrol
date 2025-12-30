@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Server, ChevronDown, Edit2, Copy, Mail, FileText, ClipboardList, Filter, Calendar } from 'lucide-react';
+import { Server, ChevronDown, Edit2, Copy, Mail, FileText, ClipboardList, Filter, Calendar, Download } from 'lucide-react';
 import { STATUS_STYLES, OPCOES_STATUS } from '@/utils/constants';
 import { RefreshCw } from 'lucide-react'
 
