@@ -13,31 +13,41 @@ export default function NotasView({
   const [expandedSupplier, setExpandedSupplier] = useState({});
 
   // --- FILTRAGEM UNIFICADA E SEGURA ---
+  // --- FILTRAGEM UNIFICADA (Agora com Valor) ---
   const notasFiltradas = notas.filter(n => {
       // 1. Filtros de Seleção (Status e Filial)
       const matchStatus = statusFiltro.length === 0 || statusFiltro.includes(n.status_pagamento);
       const matchFilial = !filialFiltro || n.filial_id == filialFiltro;
 
-      // 2. Filtro de Texto (Busca) - COM PROTEÇÃO DE NULOS
+      // 2. Filtro de Texto (Busca)
       let matchBusca = true;
       if (busca) { 
           const termo = busca.toLowerCase();
           
-          // Verifica se existem antes de tentar cortar (split)
+          // Prepara os textos para busca (blindado contra nulos)
           const nomeArquivo = n.arquivo_nota ? n.arquivo_nota.split('/').pop().toLowerCase() : '';
           const nomeBoleto = n.arquivo_boleto ? n.arquivo_boleto.split('/').pop().toLowerCase() : '';
           const nomeFornecedor = n.fornecedor?.nome_empresa ? n.fornecedor.nome_empresa.toLowerCase() : '';
           const numeroNota = n.numero_nota ? n.numero_nota.toLowerCase() : '';
 
+          // --- NOVIDADE: Busca por Valor ---
+          // Converte o valor numérico para texto brasileiro (ex: "1.250,00")
+          const valorFormatado = n.valor 
+            ? parseFloat(n.valor).toLocaleString('pt-BR', {minimumFractionDigits: 2}) 
+            : '';
+          // Remove pontos para permitir buscar "1250" mesmo que esteja escrito "1.250"
+          const valorLimpo = valorFormatado.replace(/\./g, ''); 
+
           matchBusca = (
               numeroNota.includes(termo) ||
               nomeFornecedor.includes(termo) ||
               nomeArquivo.includes(termo) || 
-              nomeBoleto.includes(termo)
+              nomeBoleto.includes(termo) ||
+              valorFormatado.includes(termo) || // Busca exata (com vírgula)
+              valorLimpo.includes(termo)        // Busca simplificada (sem ponto)
           );
       }
 
-      // Retorna apenas se passar em TODOS os testes
       return matchStatus && matchFilial && matchBusca;
   });
 
