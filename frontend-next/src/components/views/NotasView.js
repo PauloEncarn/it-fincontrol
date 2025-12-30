@@ -12,11 +12,33 @@ export default function NotasView({
   const [expandedSupplier, setExpandedSupplier] = useState({});
 
   // Filtragem (NOTA: Este filtro é independente do Dashboard)
+// Filtragem Unificada (Status + Filial + Busca Segura)
   const notasFiltradas = notas.filter(n => {
+      // 1. Filtros de Seleção (O que já existia)
       const matchStatus = statusFiltro.length === 0 || statusFiltro.includes(n.status_pagamento);
       const matchFilial = !filialFiltro || n.filial_id == filialFiltro;
-      // Adicionar filtro de competência aqui se os dados brutos vierem de todos os meses
-      return matchStatus && matchFilial;
+
+      // 2. Filtro de Texto (Busca) - AQUI ESTAVA O ERRO
+      let matchBusca = true;
+      if (busca) { // Só executa se tiver algo digitado no input 'busca'
+          const termo = busca.toLowerCase();
+          
+          // --- PROTEÇÃO CONTRA NULL (O segredo da correção) ---
+          // Se não tiver arquivo, usa texto vazio '' para não quebrar o split
+          const nomeArquivo = n.arquivo_nota ? n.arquivo_nota.split('/').pop().toLowerCase() : '';
+          const nomeBoleto = n.arquivo_boleto ? n.arquivo_boleto.split('/').pop().toLowerCase() : '';
+          const nomeFornecedor = n.fornecedor?.nome_empresa ? n.fornecedor.nome_empresa.toLowerCase() : '';
+
+          matchBusca = (
+              n.numero_nota.toLowerCase().includes(termo) ||
+              nomeFornecedor.includes(termo) ||
+              nomeArquivo.includes(termo) || 
+              nomeBoleto.includes(termo)
+          );
+      }
+
+      // Retorna apenas se passar em TODOS os testes
+      return matchStatus && matchFilial && matchBusca;
   });
 
   const getGroupedData = () => {
