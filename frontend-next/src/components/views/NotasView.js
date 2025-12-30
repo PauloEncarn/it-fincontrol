@@ -1,5 +1,5 @@
 import React from 'react';
-import { Download, FileText, Calendar, DollarSign, User, MapPin, Hash, CheckCircle, Clock, AlertCircle, XCircle, Send, MoreVertical, Copy, FileIcon, Truck } from 'lucide-react';
+import {Download, FileText, Calendar, DollarSign, User, MapPin, Hash, CheckCircle, Clock, AlertCircle, XCircle, Send, MoreVertical, Copy, FileIcon, Truck } from 'lucide-react';
 // Mantenha seus outros imports de componentes (se houver) aqui
 
 // Mapeamento de Cores e Ícones (Mantenha o que você já tem)
@@ -35,16 +35,21 @@ export default function NotasView({
     // --- 1. LÓGICA DE CÁLCULO (Disponível mas oculta na tela) ---
     const totalValor = notas.reduce((acc, curr) => acc + Number(curr.valor || 0), 0);
 
-    // --- 2. LÓGICA DE EXPORTAÇÃO ---
+   // --- LÓGICA DE EXPORTAÇÃO EXCEL ---
     const handleExportarExcel = () => {
         if (!notas || notas.length === 0) return alert("Sem dados para exportar.");
 
+        // 1. Calcula o Total (apenas para o arquivo, não mostra na tela)
+        const totalValor = notas.reduce((acc, curr) => acc + Number(curr.valor || 0), 0);
+
+        // 2. Cabeçalho
         const headers = ["ID", "Filial", "Fornecedor", "CNPJ", "Nota Fiscal", "Vencimento", "Valor", "Status", "Descrição"];
 
+        // 3. Linhas
         const rows = notas.map(n => [
             n.id,
-            n.filial_id, // Idealmente trocar pelo nome da filial se tiver o objeto
-            `"${n.nome_fornecedor || 'Desconhecido'}"`,
+            n.filial_id,
+            `"${n.nome_fornecedor || 'Desconhecido'}"`, // Aspas evitam quebra se tiver vírgula no nome
             n.cnpj_usado || '',
             n.numero_nota,
             n.data_vencimento ? new Date(n.data_vencimento).toLocaleDateString('pt-BR') : '',
@@ -53,18 +58,11 @@ export default function NotasView({
             `"${n.descricao_servico || ''}"`
         ]);
 
-        // Adiciona uma linha final com o TOTAL no Excel
-        rows.push([
-            "", "", "", "", "TOTAL:", "", 
-            `"${totalValor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}"`, 
-            "", ""
-        ]);
+        // 4. Adiciona linha de TOTAL no final
+        rows.push(["", "", "", "", "TOTAL:", "", `"${totalValor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}"`, "", ""]);
 
-        const csvContent = [
-            headers.join(";"),
-            ...rows.map(e => e.join(";"))
-        ].join("\n");
-
+        // 5. Gera o arquivo
+        const csvContent = [headers.join(";"), ...rows.map(e => e.join(";"))].join("\n");
         const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -74,7 +72,6 @@ export default function NotasView({
         link.click();
         document.body.removeChild(link);
     };
-
     // --- FILTROS VISUAIS ---
     // (Apenas um exemplo de layout para o botão ficar alinhado com os filtros)
     return (
@@ -111,10 +108,11 @@ export default function NotasView({
                 </div>
 
                 {/* Lado Direito: Botão Exportar */}
-                <button 
-                    onClick={handleExportarExcel}
-                    className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-lg font-bold text-sm transition-all active:scale-95 whitespace-nowrap"
-                >
+               <button 
+        onClick={handleExportarExcel}
+        className="p-2 bg-white border border-slate-200 text-slate-500 hover:text-emerald-600 hover:border-emerald-500 hover:bg-emerald-50 rounded-lg transition-all shadow-sm flex items-center gap-2"
+        title="Baixar Excel"
+    >
                     <Download size={18} />
                     Exportar Excel
                 </button>
