@@ -110,7 +110,49 @@ function DashboardContent() {
   const salvarLancamento = async () => { if (!form.filial_id || !form.fornecedor_id || !form.valor || !form.numero_nota) return addToast('error', 'Preencha os campos obrigatórios!'); const payload = { ...form, data_envio: form.data_envio === '' ? null : form.data_envio }; try { await mutationLancamento.mutateAsync(payload); addToast('success', 'Lançamento salvo!'); setShowModal(false); } catch { addToast('error', 'Erro ao salvar.'); } };
   const salvarEEnviar = async () => { if (!form.arquivo_nota) return addToast('error', 'Anexe a nota fiscal para enviar.'); const payload = { ...form, data_envio: form.data_envio === '' ? null : form.data_envio }; try { setSendingEmail(true); const response = await mutationLancamento.mutateAsync(payload); const notaSalva = response.data; await handleEnviarEmail({...payload, id: notaSalva.id || form.id}); setShowModal(false); } catch (e) { addToast('error', 'Erro no processo Salvar/Enviar.'); } finally { setSendingEmail(false); } };
 
-  const handleEnviarEmail = async (dadosNota) => { const nota = dadosNota || form; if (!nota.id || !nota.arquivo_nota) return addToast('error', 'Salve a nota e anexe arquivos.'); setSendingEmail(true); try { await axios.post(`${API_URL}/enviar-email`, { id: nota.id, numero_nota: nota.numero_nota, fornecedor: nota.nome_fornecedor, valor: nota.valor, vencimento: nota.data_vencimento, arquivos: [nota.arquivo_nota, nota.arquivo_boleto] }, authConfig); if(form.id === nota.id) setForm(p => ({...p, status_pagamento: 'Email Enviado p/ Balança'})); mutationStatus.mutate({id: nota.id, status: 'Email Enviado p/ Balança'}); addToast('success', 'E-mail enviado!'); } catch { addToast('error', 'Falha ao enviar.'); } finally { setSendingEmail(false); } };
+  const handleEnviarEmail = async (dadosNota) => {
+    const nota = dadosNota || form;
+    
+    if (!nota.id || !nota.arquivo_nota) return addToast('error', 'Salve a nota e anexe arquivos.');
+    
+    setSendingEmail(true);
+    
+    try {
+      // --- CORREÇÃO: BUSCAR O NOME DO FORNECEDOR ---
+      // 1. Tenta pegar o nome se já vier pronto
+      // 2. Se não vier, busca na lista de fornecedores usando o ID
+      let nomeFornecedorFinal = nota.nome_fornecedor;
+      
+      if (!nomeFornecedorFinal && nota.fornecedor_id) {
+          const fornecedorEncontrado = fornecedores.find(f => f.id == nota.fornecedor_id);
+          if (fornecedorEncontrado) {
+              nomeFornecedorFinal = fornecedorEncontrado.nome_empresa;
+          }
+      }
+      // ---------------------------------------------
+
+      await axios.post(`${API_URL}/enviar-email`, { 
+        id: nota.id, 
+        numero_nota: nota.numero_nota, 
+        fornecedor: nomeFornecedorFinal || 'Fornecedor Desconhecido', // Usa o nome corrigido
+        valor: nota.valor, 
+        vencimento: nota.data_vencimento, 
+        arquivos: [nota.arquivo_nota, nota.arquivo_boleto] 
+      }, authConfig);
+
+      // Atualiza status visualmente
+      if(form.id === nota.id) setForm(p => ({...p, status_pagamento: 'Email Enviado p/ Balança'}));
+      mutationStatus.mutate({id: nota.id, status: 'Email Enviado p/ Balança'});
+      
+      addToast('success', `E-mail enviado para ${nomeFornecedorFinal}!`); // Feedback bonito
+      
+    } catch (error) {
+      console.error(error);
+      addToast('error', 'Falha ao enviar e-mail.');
+    } finally {
+      setSendingEmail(false);
+    }
+  };
 
   if (loadingInit) return <div className="flex items-center justify-center h-screen"><Loader2 className="animate-spin text-[#1E22A8]" size={48}/></div>;
   if (!token) return <LoginScreen onLogin={handleLogin} addToast={addToast} />;
