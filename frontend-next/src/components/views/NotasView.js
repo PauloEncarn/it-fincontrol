@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { Server, ChevronDown, Edit2, Copy, Mail, FileText, ClipboardList, Filter, Calendar, Download } from 'lucide-react';
+import { Server, ChevronDown, Edit2, Copy, Mail, FileText, ClipboardList, Filter, Calendar, Download, RefreshCw } from 'lucide-react';
 import { STATUS_STYLES, OPCOES_STATUS } from '@/utils/constants';
-import { RefreshCw } from 'lucide-react'
 
 export default function NotasView({ 
     notas, 
@@ -9,12 +8,53 @@ export default function NotasView({
     filiais, filialFiltro, setFilialFiltro,
     statusFiltro, setStatusFiltro,
     onEditar, onDuplicar, onCopiarProtheus, onEnviarEmail, onDownload, onStatusChange, isGopaFunc,
-    busca, onRefresh// <--- ADICIONADO AQUI: Precisa receber o termo de busca do pai
+    busca, onRefresh
 }) {
   const [expandedSupplier, setExpandedSupplier] = useState({});
 
+  // --- LÓGICA DE EXPORTAÇÃO EXCEL (Inserida Aqui) ---
+  const handleExportarExcel = () => {
+        if (!notas || notas.length === 0) return alert("Sem dados para exportar.");
+
+        // 1. Calcula Total para o Relatório
+        const totalValor = notas.reduce((acc, curr) => acc + Number(curr.valor || 0), 0);
+
+        // 2. Cabeçalho do Excel
+        const headers = ["ID", "Filial", "Fornecedor", "CNPJ", "Nota Fiscal", "Vencimento", "Valor", "Status", "Descrição"];
+
+        // 3. Transforma os dados em linhas de texto (CSV)
+        const rows = notas.map(n => [
+            n.id,
+            n.filial_id, 
+            `"${n.nome_fornecedor || 'Desconhecido'}"`, 
+            n.cnpj_usado || '',
+            n.numero_nota,
+            n.data_vencimento ? new Date(n.data_vencimento).toLocaleDateString('pt-BR') : '',
+            `"${parseFloat(n.valor).toLocaleString('pt-BR', {minimumFractionDigits: 2})}"`, 
+            n.status_pagamento,
+            `"${n.descricao_servico || ''}"`
+        ]);
+
+        // 4. Adiciona linha de TOTAL
+        rows.push(["", "", "", "", "TOTAL:", "", `"${totalValor.toLocaleString('pt-BR', {minimumFractionDigits: 2})}"`, "", ""]);
+
+        // 5. Gera o arquivo
+        const csvContent = [
+            headers.join(";"), 
+            ...rows.map(e => e.join(";"))
+        ].join("\n");
+
+        const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' }); 
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", `relatorio_notas_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
   // --- FILTRAGEM UNIFICADA E SEGURA ---
-  // --- FILTRAGEM UNIFICADA (Agora com Valor) ---
   const notasFiltradas = notas.filter(n => {
       // 1. Filtros de Seleção (Status e Filial)
       const matchStatus = statusFiltro.length === 0 || statusFiltro.includes(n.status_pagamento);
@@ -25,18 +65,14 @@ export default function NotasView({
       if (busca) { 
           const termo = busca.toLowerCase();
           
-          // Prepara os textos para busca (blindado contra nulos)
           const nomeArquivo = n.arquivo_nota ? n.arquivo_nota.split('/').pop().toLowerCase() : '';
           const nomeBoleto = n.arquivo_boleto ? n.arquivo_boleto.split('/').pop().toLowerCase() : '';
           const nomeFornecedor = n.fornecedor?.nome_empresa ? n.fornecedor.nome_empresa.toLowerCase() : '';
           const numeroNota = n.numero_nota ? n.numero_nota.toLowerCase() : '';
 
-          // --- NOVIDADE: Busca por Valor ---
-          // Converte o valor numérico para texto brasileiro (ex: "1.250,00")
           const valorFormatado = n.valor 
             ? parseFloat(n.valor).toLocaleString('pt-BR', {minimumFractionDigits: 2}) 
             : '';
-          // Remove pontos para permitir buscar "1250" mesmo que esteja escrito "1.250"
           const valorLimpo = valorFormatado.replace(/\./g, ''); 
 
           matchBusca = (
@@ -44,8 +80,8 @@ export default function NotasView({
               nomeFornecedor.includes(termo) ||
               nomeArquivo.includes(termo) || 
               nomeBoleto.includes(termo) ||
-              valorFormatado.includes(termo) || // Busca exata (com vírgula)
-              valorLimpo.includes(termo)        // Busca simplificada (sem ponto)
+              valorFormatado.includes(termo) || 
+              valorLimpo.includes(termo)
           );
       }
 
@@ -74,13 +110,14 @@ export default function NotasView({
   return (
     <div className="space-y-6 animate-in fade-in pb-20">
         
-        {/* --- BARRA DE FILTROS ESPECÍFICA DE NOTAS --- */}
+        {/* --- BARRA DE FILTROS --- */}
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4 items-center justify-between sticky top-20 z-30">
             <div className="flex items-center gap-3 w-full md:w-auto">
                 <div className="bg-blue-50 p-2 rounded-lg text-[#1E22A8]">
                     <Filter size={20}/>
                 </div>
 
+                {/* Botão Atualizar */}
                 <button 
                     onClick={onRefresh}
                     className="bg-slate-50 hover:bg-blue-50 text-slate-500 hover:text-blue-600 p-2 rounded-xl border border-slate-200 transition-all"
@@ -88,6 +125,17 @@ export default function NotasView({
                 >
                     <RefreshCw size={18} />
                 </button>
+
+                {/* --- BOTÃO EXPORTAR (NOVO) --- */}
+                {/* Mantive o mesmo estilo do botão de Refresh para não quebrar o layout */}
+                <button 
+                    onClick={handleExportarExcel}
+                    className="bg-slate-50 hover:bg-emerald-50 text-slate-500 hover:text-emerald-600 p-2 rounded-xl border border-slate-200 transition-all"
+                    title="Baixar Relatório Excel"
+                >
+                    <Download size={18} />
+                </button>
+                {/* ----------------------------- */}
                 
                 {/* Seletor de Mês */}
                 <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
@@ -203,40 +251,3 @@ export default function NotasView({
     </div>
   );
 }
-
-const handleExportarExcel = () => {
-        if (!notas || notas.length === 0) return alert("Sem dados para exportar.");
-
-        // 1. Cabeçalho do Excel
-        const headers = ["ID", "Filial", "Fornecedor", "Nota Fiscal", "Vencimento", "Valor", "Status"];
-
-        // 2. Transforma os dados em linhas de texto (CSV)
-        const rows = notas.map(n => [
-            n.id,
-            n.filial_id, // Ou buscar o nome da filial se tiver disponível
-            `"${n.nome_fornecedor || 'Desconhecido'}"`, // Aspas evitam erro se tiver vírgula no nome
-            n.numero_nota,
-            new Date(n.data_vencimento).toLocaleDateString('pt-BR'),
-            `"${parseFloat(n.valor).toLocaleString('pt-BR', {minimumFractionDigits: 2})}"`, // Formato Brasileiro
-            n.status_pagamento
-        ]);
-
-        // 3. Junta tudo com vírgulas e quebras de linha
-        const csvContent = [
-            headers.join(";"), // Ponto e vírgula é melhor para Excel no Brasil
-            ...rows.map(e => e.join(";"))
-        ].join("\n");
-
-        // 4. Cria o arquivo "invisível" e clica nele para baixar
-        const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' }); // \ufeff ajuda com acentos
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", `relatorio_notas_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-
-
-    };
