@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react'; 
@@ -66,8 +66,23 @@ function DashboardContent() {
   const handleLogout = () => { localStorage.removeItem('token'); setToken(null); queryClient.clear(); };
 
   // --- QUERIES ---
-  const { data: filiais = [] } = useQuery({ queryKey: ['filiais'], queryFn: () => axios.get(`${API_URL}/filiais/`, authConfig).then(res => res.data), enabled: !!token });
-  const { data: fornecedores = [] } = useQuery({ queryKey: ['fornecedores'], queryFn: () => axios.get(`${API_URL}/fornecedores/`, authConfig).then(res => res.data), enabled: !!token });
+// 1. Filiais: Só busca de novo após 10 minutos
+  const { data: filiais = [] } = useQuery({ 
+      queryKey: ['filiais'], 
+      queryFn: () => axios.get(`${API_URL}/filiais/`, authConfig).then(res => res.data), 
+      staleTime: 1000 * 60 * 10, // <--- ADICIONE ISSO (10 min)
+      enabled: !!token 
+  });
+
+  // 2. Fornecedores: Só busca de novo após 5 minutos
+  const { data: fornecedores = [] } = useQuery({ 
+      queryKey: ['fornecedores'], 
+      queryFn: () => axios.get(`${API_URL}/fornecedores/`, authConfig).then(res => res.data), 
+      staleTime: 1000 * 60 * 5, // <--- ADICIONE ISSO (5 min)
+      enabled: !!token 
+  });
+  
+  
   const { data: usuarios = [] } = useQuery({ queryKey: ['usuarios'], queryFn: () => axios.get(`${API_URL}/usuarios/`, authConfig).then(res => res.data), enabled: !!token && currentView === 'usuarios' });
   
   // DADOS PARA NOTAS
@@ -197,16 +212,17 @@ function DashboardContent() {
   };
 
   // 4. CORREÇÃO: ENRIQUECIMENTO DE DADOS PARA SOLICITAÇÕES
-  // Isso cruza os IDs das solicitações com as listas completas para o filtro funcionar
-  const solicitacoesCompletas = solicitacoes.map(sol => {
-      const fornecedorEncontrado = fornecedores.find(f => f.id === sol.fornecedor_id);
-      const filialEncontrada = filiais.find(f => f.id === sol.filial_id);
-      return {
-          ...sol,
-          fornecedor: sol.fornecedor || fornecedorEncontrado, 
-          filial: sol.filial || filialEncontrada
-      };
-  });
+  const solicitacoesCompletas = useMemo(() => {
+    return solicitacoes.map(sol => {
+        const fornecedorEncontrado = fornecedores.find(f => f.id === sol.fornecedor_id);
+        const filialEncontrada = filiais.find(f => f.id === sol.filial_id);
+        return {
+            ...sol,
+            fornecedor: sol.fornecedor || fornecedorEncontrado, 
+            filial: sol.filial || filialEncontrada
+        };
+    });
+}, [solicitacoes, fornecedores, filiais]); // Só recalcula se um desses mudar
 
   if (loadingInit) return <div className="flex items-center justify-center h-screen"><Loader2 className="animate-spin text-[#1E22A8]" size={48}/></div>;
   if (!token) return <LoginScreen onLogin={handleLogin} addToast={addToast} />;
