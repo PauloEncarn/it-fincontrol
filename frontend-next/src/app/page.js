@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
+import dynamic from 'next/dynamic'; // Import para Lazy Loading
 import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react'; 
 
@@ -21,8 +22,17 @@ import FiliaisView from '@/components/views/FiliaisView';
 import FornecedoresView from '@/components/views/FornecedoresView';
 import UsuariosView from '@/components/views/UsuariosView';
 
-import ModalLancamento from '@/components/modals/ModalLancamento';
-import ModalSolicitacao from '@/components/modals/ModalSolicitacao';
+// --- PERFORMANCE: DYNAMIC IMPORTS (Lazy Loading) ---
+// O código destes modais só será baixado se o usuário precisar deles
+const ModalLancamento = dynamic(() => import('@/components/modals/ModalLancamento'), {
+  loading: () => <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20"><Loader2 className="animate-spin text-white"/></div>,
+  ssr: false
+});
+
+const ModalSolicitacao = dynamic(() => import('@/components/modals/ModalSolicitacao'), {
+  ssr: false
+});
+// ---------------------------------------------------
 
 const initialFormLancamento = { id: null, filial_id: '', fornecedor_id: '', cnpj_usado: '', contrato_usado: '', centro_custo_usado: '', numero_nota: '', serie: 'U', valor: '', data_envio: '', data_vencimento: '', descricao_servico: '', servico_protheus: '', numero_medicao: '', numero_pedido: '', solicitacao_fluig: '', observacao: '', status_pagamento: 'Pendente Lançamento', arquivo_nota: '', arquivo_boleto: '', repetir_por: '1' };
 const initialFormSolicitacao = { id: null, filial_id: '', fornecedor_id: '', solicitante: '', cnpj: '', condicao_pagamento: '', valor: '', numero_sc: '', numero_pedido: '', servico: '', servico_protheus: '', centro_custo: '', numero_nota: '', fluig_id: '', data_vencimento: '', status: 'Em Andamento', observacao: '' };
@@ -40,7 +50,7 @@ function DashboardContent() {
   const [competenciaNotas, setCompetenciaNotas] = useState(new Date()); 
   const [filialFiltro, setFilialFiltro] = useState('');
   const [statusFiltro, setStatusFiltro] = useState([]);
-  const [termoBusca, setTermoBusca] = useState(''); // Estado global da busca
+  const [termoBusca, setTermoBusca] = useState('');
 
   // MODAIS
   const [showModal, setShowModal] = useState(false); 
@@ -50,12 +60,12 @@ function DashboardContent() {
   const [opcoesFornecedor, setOpcoesFornecedor] = useState({ cnpjs: [], contratos: [], ccs: [] });
   const [sendingEmail, setSendingEmail] = useState(false);
   
-  const authConfig = { headers: { Authorization: `Bearer ${token}` } };
+  const authConfig = useMemo(() => ({ headers: { Authorization: `Bearer ${token}` } }), [token]);
 
   // --- EFEITOS ---
   useEffect(() => { const timer = setTimeout(() => { const storedToken = localStorage.getItem('token'); if (storedToken) setToken(storedToken); setLoadingInit(false); }, 0); return () => clearTimeout(timer); }, []);
 
-  // 1. CORREÇÃO: Limpa a busca automaticamente ao trocar de aba (Evita "Cache" de busca)
+  // Limpa a busca ao trocar de aba (Usabilidade)
   useEffect(() => {
     setTermoBusca('');
   }, [currentView]);
@@ -65,27 +75,25 @@ function DashboardContent() {
   const handleLogin = (t) => { localStorage.setItem('token', t); setToken(t); };
   const handleLogout = () => { localStorage.removeItem('token'); setToken(null); queryClient.clear(); };
 
-  // --- QUERIES ---
-// 1. Filiais: Só busca de novo após 10 minutos
+  // --- QUERIES OTIMIZADAS ---
+  
+  // PERFORMANCE: staleTime evita requisições repetidas para dados estáticos
   const { data: filiais = [] } = useQuery({ 
       queryKey: ['filiais'], 
       queryFn: () => axios.get(`${API_URL}/filiais/`, authConfig).then(res => res.data), 
-      staleTime: 1000 * 60 * 10, // <--- ADICIONE ISSO (10 min)
+      staleTime: 1000 * 60 * 10, // 10 minutos
       enabled: !!token 
   });
-
-  // 2. Fornecedores: Só busca de novo após 5 minutos
+  
   const { data: fornecedores = [] } = useQuery({ 
       queryKey: ['fornecedores'], 
       queryFn: () => axios.get(`${API_URL}/fornecedores/`, authConfig).then(res => res.data), 
-      staleTime: 1000 * 60 * 5, // <--- ADICIONE ISSO (5 min)
+      staleTime: 1000 * 60 * 5, // 5 minutos
       enabled: !!token 
   });
   
-  
   const { data: usuarios = [] } = useQuery({ queryKey: ['usuarios'], queryFn: () => axios.get(`${API_URL}/usuarios/`, authConfig).then(res => res.data), enabled: !!token && currentView === 'usuarios' });
   
-  // DADOS PARA NOTAS
   const { data: dadosNotas = [], isLoading: loadingNotas } = useQuery({ 
       queryKey: ['notas_operacional', filialFiltro, competenciaNotas.getMonth(), competenciaNotas.getFullYear()], 
       queryFn: async () => { 
@@ -95,7 +103,7 @@ function DashboardContent() {
           res.data.forEach(forn => { if(forn.lancamentos) forn.lancamentos.forEach(nota => lista.push({ ...nota, nome_fornecedor: forn.nome_empresa })); }); 
           return lista; 
       }, 
-      enabled: !!token && currentView === 'notas' // Mantém carregado mesmo buscando
+      enabled: !!token && currentView === 'notas'
   });
 
   const { data: dadosDashboard = [] } = useQuery({ 
@@ -107,23 +115,21 @@ function DashboardContent() {
       enabled: !!token && currentView === 'dashboard'
   });
 
-  // BUSCA GLOBAL
   const { data: dadosBusca = [], isFetching: carregandoBusca } = useQuery({ queryKey: ['busca', termoBusca], queryFn: async () => { if (!termoBusca) return []; const res = await axios.get(`${API_URL}/lancamentos/?busca=${termoBusca}`, authConfig); return res.data; }, enabled: !!token && termoBusca.length > 2 });
 
-  // 2. CORREÇÃO: SOLICITAÇÕES (Baixa TUDO para filtrar no Front e permitir Enriquecimento)
+  // SOLICITAÇÕES: Baixa tudo para filtrar e enriquecer no front
   const { data: solicitacoes = [] } = useQuery({ 
       queryKey: ['solicitacoes'], 
       queryFn: async () => { 
-          // Removido params de busca daqui para filtrar localmente
           const res = await axios.get(`${API_URL}/solicitacoes`, authConfig); 
           return res.data; 
       }, 
       enabled: !!token 
   });
 
-  // --- HELPER: REFRESH MANUAL E AUTOMÁTICO ---
+  // --- REFRESH LOGIC ---
   const atualizarListas = async () => {
-      // O 'exact: false' força a atualização de qualquer lista derivada dessas chaves
+      // exact: false força atualização de chaves parciais (ex: notas_operacional independente do mes)
       await queryClient.invalidateQueries({ queryKey: ['notas_operacional'], exact: false });
       await queryClient.invalidateQueries({ queryKey: ['dashboard_full'], exact: false });
       await queryClient.invalidateQueries({ queryKey: ['solicitacoes'], exact: false });
@@ -164,24 +170,29 @@ function DashboardContent() {
   const mutationUsuarioStatus = useMutation({ mutationFn: ({ id, ativo }) => axios.put(`${API_URL}/usuarios/${id}`, { ativo }, authConfig), onSuccess: () => { queryClient.invalidateQueries(['usuarios']); addToast('success', 'Acesso atualizado!'); }, onError: () => addToast('error', 'Erro ao atualizar acesso.') });
   const mutationDeleteUsuario = useMutation({ mutationFn: (id) => axios.delete(`${API_URL}/usuarios/${id}`, authConfig), onSuccess: () => { queryClient.invalidateQueries(['usuarios']); addToast('success', 'Usuário excluído!'); }, onError: () => addToast('error', 'Erro ao excluir usuário.') });
 
-  // HELPERS
-  const isGopaFunc = (nota) => { const fId = nota.filial_id || (form && form.filial_id); const filial = filiais.find(f => f.id == fId); return filial?.nome_fantasia?.toUpperCase().includes('GOPA') || filial?.nome_fantasia?.toUpperCase().includes('REFRESA'); };
-  const handleFornecedorChange = (id) => { const forn = fornecedores.find(f => f.id == id); if (forn) { setOpcoesFornecedor({ cnpjs: (forn.lista_cnpjs || '').split(';'), contratos: (forn.lista_contratos || '').split(';'), ccs: (forn.lista_centro_custos || '').split(';') }); setForm(p => ({ ...p, fornecedor_id: id, cnpj_usado: '', contrato_usado: '', centro_custo_usado: '', descricao_servico: forn.padrao_descricao_servico || '', servico_protheus: forn.padrao_servico_protheus || '' })); } else { setForm(p => ({...p, fornecedor_id: id})); } };
-  const handleFornecedorSolicitacaoChange = (id) => { const forn = fornecedores.find(f => f.id == id); if (forn) { setFormSolicitacao(prev => ({ ...prev, fornecedor_id: id, cnpj: (forn.lista_cnpjs || '').split(';')[0] || '', centro_custo: (forn.lista_centro_custos || '').split(';')[0] || '', servico: forn.padrao_descricao_servico || '', servico_protheus: forn.padrao_servico_protheus || '' })); } else { setFormSolicitacao(prev => ({ ...prev, fornecedor_id: id })); } };
+  // --- HELPERS E CALLBACKS (Otimizados com useCallback) ---
+  const isGopaFunc = useCallback((nota) => { const fId = nota.filial_id || (form && form.filial_id); const filial = filiais.find(f => f.id == fId); return filial?.nome_fantasia?.toUpperCase().includes('GOPA') || filial?.nome_fantasia?.toUpperCase().includes('REFRESA'); }, [filiais, form]);
   
-  const abrirEdicaoLancamento = (nota) => { handleFornecedorChange(nota.fornecedor_id); setTimeout(() => setForm({...nota, data_envio: nota.data_envio ? nota.data_envio.split('T')[0] : '', data_vencimento: nota.data_vencimento.split('T')[0]}), 50); setShowModal(true); };
-  const duplicarNota = (nota) => { openConfirm("Duplicar Lançamento", "Deseja criar uma cópia?", () => { handleFornecedorChange(nota.fornecedor_id); setTimeout(() => setForm({ ...nota, id: null, numero_nota: '', arquivo_nota: '', arquivo_boleto: '', data_envio: '', status_pagamento: 'Pendente Lançamento', repetir_por: '1' }), 50); setShowModal(true); }); };
+  const handleFornecedorChange = useCallback((id) => { const forn = fornecedores.find(f => f.id == id); if (forn) { setOpcoesFornecedor({ cnpjs: (forn.lista_cnpjs || '').split(';'), contratos: (forn.lista_contratos || '').split(';'), ccs: (forn.lista_centro_custos || '').split(';') }); setForm(p => ({ ...p, fornecedor_id: id, cnpj_usado: '', contrato_usado: '', centro_custo_usado: '', descricao_servico: forn.padrao_descricao_servico || '', servico_protheus: forn.padrao_servico_protheus || '' })); } else { setForm(p => ({...p, fornecedor_id: id})); } }, [fornecedores]);
+  
+  const handleFornecedorSolicitacaoChange = useCallback((id) => { const forn = fornecedores.find(f => f.id == id); if (forn) { setFormSolicitacao(prev => ({ ...prev, fornecedor_id: id, cnpj: (forn.lista_cnpjs || '').split(';')[0] || '', centro_custo: (forn.lista_centro_custos || '').split(';')[0] || '', servico: forn.padrao_descricao_servico || '', servico_protheus: forn.padrao_servico_protheus || '' })); } else { setFormSolicitacao(prev => ({ ...prev, fornecedor_id: id })); } }, [fornecedores]);
+  
+  const abrirEdicaoLancamento = useCallback((nota) => { handleFornecedorChange(nota.fornecedor_id); setTimeout(() => setForm({...nota, data_envio: nota.data_envio ? nota.data_envio.split('T')[0] : '', data_vencimento: nota.data_vencimento.split('T')[0]}), 50); setShowModal(true); }, [handleFornecedorChange]);
+  
+  const duplicarNota = useCallback((nota) => { openConfirm("Duplicar Lançamento", "Deseja criar uma cópia?", () => { handleFornecedorChange(nota.fornecedor_id); setTimeout(() => setForm({ ...nota, id: null, numero_nota: '', arquivo_nota: '', arquivo_boleto: '', data_envio: '', status_pagamento: 'Pendente Lançamento', repetir_por: '1' }), 50); setShowModal(true); }); }, [handleFornecedorChange]);
+  
   const salvarLancamento = async () => { if (!form.filial_id || !form.fornecedor_id || !form.valor || !form.numero_nota) return addToast('error', 'Preencha os campos obrigatórios!'); const payload = { ...form, data_envio: form.data_envio === '' ? null : form.data_envio }; try { await mutationLancamento.mutateAsync(payload); addToast('success', 'Lançamento salvo!'); setShowModal(false); } catch { addToast('error', 'Erro ao salvar.'); } };
+  
   const salvarEEnviar = async () => { if (!form.arquivo_nota) return addToast('error', 'Anexe a nota fiscal para enviar.'); const payload = { ...form, data_envio: form.data_envio === '' ? null : form.data_envio }; try { setSendingEmail(true); const response = await mutationLancamento.mutateAsync(payload); const notaSalva = response.data; await handleEnviarEmail({...payload, id: notaSalva.id || form.id}); setShowModal(false); } catch (e) { addToast('error', 'Erro no processo Salvar/Enviar.'); } finally { setSendingEmail(false); } };
 
-  // 3. CORREÇÃO: ENVIO DE EMAIL (Resolução do nome do fornecedor)
+  // ENVIO DE EMAIL
   const handleEnviarEmail = async (dadosNota) => {
     const nota = dadosNota || form;
     if (!nota.id || !nota.arquivo_nota) return addToast('error', 'Salve a nota e anexe arquivos.');
     setSendingEmail(true);
     
     try {
-      // Garante que temos o nome do fornecedor
+      // Resolve nome do fornecedor
       let nomeFornecedorFinal = nota.nome_fornecedor;
       if (!nomeFornecedorFinal && nota.fornecedor_id) {
           const f = fornecedores.find(x => x.id == nota.fornecedor_id);
@@ -211,7 +222,8 @@ function DashboardContent() {
     }
   };
 
-  // 4. CORREÇÃO: ENRIQUECIMENTO DE DADOS PARA SOLICITAÇÕES
+  // --- PERFORMANCE: DADOS ENRIQUECIDOS (Memoized) ---
+  // Cruza IDs com Nomes apenas quando as listas mudam, evitando travamentos no render
   const solicitacoesCompletas = useMemo(() => {
     return solicitacoes.map(sol => {
         const fornecedorEncontrado = fornecedores.find(f => f.id === sol.fornecedor_id);
@@ -222,7 +234,7 @@ function DashboardContent() {
             filial: sol.filial || filialEncontrada
         };
     });
-}, [solicitacoes, fornecedores, filiais]); // Só recalcula se um desses mudar
+  }, [solicitacoes, fornecedores, filiais]);
 
   if (loadingInit) return <div className="flex items-center justify-center h-screen"><Loader2 className="animate-spin text-[#1E22A8]" size={48}/></div>;
   if (!token) return <LoginScreen onLogin={handleLogin} addToast={addToast} />;
@@ -243,7 +255,7 @@ function DashboardContent() {
                 setTermoBusca={setTermoBusca} 
                 onNovoLancamento={() => { setForm(initialFormLancamento); setShowModal(true); }}
                 onNovaSolicitacao={() => { setFormSolicitacao(initialFormSolicitacao); setShowModalSolicitacao(true); }}
-                onRefresh={handleManualRefresh} // Botão de Refresh no Header
+                onRefresh={handleManualRefresh}
             />
 
             <div className="p-8 max-w-[1600px] mx-auto pb-24 w-full">
@@ -278,14 +290,14 @@ function DashboardContent() {
                                 onDownload={(path) => window.open(path.startsWith('http') ? path : `${API_URL}/${path}`, '_blank')}
                                 onStatusChange={(id, st) => mutationStatus.mutate({id, status: st})}
                                 isGopaFunc={isGopaFunc}
-                                busca={termoBusca} // Envia busca para filtro local
+                                busca={termoBusca}
                                 onRefresh={handleManualRefresh}
                             />
                         )}
 
                         {currentView === 'solicitacoes' && (
                              <SolicitacoesView 
-                                solicitacoes={solicitacoesCompletas} // Usa lista enriquecida (com nomes)
+                                solicitacoes={solicitacoesCompletas} // Usa lista enriquecida (Memoized)
                                 busca={termoBusca}
                                 onNovaSolicitacao={() => { setFormSolicitacao(initialFormSolicitacao); setShowModalSolicitacao(true); }} 
                                 onEditarSolicitacao={(s) => { setFormSolicitacao(s); setShowModalSolicitacao(true); }} 
@@ -301,8 +313,9 @@ function DashboardContent() {
             <footer className="mt-auto py-6 text-center text-gray-500 text-sm font-medium border-t border-gray-200 bg-white">© {new Date().getFullYear()} <span className="font-bold text-[#1E22A8]">Cicopal</span> <span className="mx-2 text-gray-300">|</span> GESTÃO DE NOTAS 🤖</footer>
         </main>
         
-        <ModalLancamento isOpen={showModal} onClose={() => setShowModal(false)} form={form} setForm={setForm} filiais={filiais} fornecedores={fornecedores} opcoesFornecedor={opcoesFornecedor} onFornecedorChange={handleFornecedorChange} onSalvar={salvarLancamento} onSalvarEEnviar={salvarEEnviar} sendingEmail={sendingEmail} addToast={addToast} isGopa={isGopaFunc({filial_id: form.filial_id})} />
-        <ModalSolicitacao isOpen={showModalSolicitacao} onClose={() => setShowModalSolicitacao(false)} form={formSolicitacao} setForm={setFormSolicitacao} filiais={filiais} fornecedores={fornecedores} onSalvar={() => mutationSolicitacao.mutate(formSolicitacao)} onFornecedorChange={handleFornecedorSolicitacaoChange} />
+        {/* Modais são renderizados condicionalmente ou via Portal, mas o Dynamic Import cuida do carregamento do JS */}
+        {showModal && <ModalLancamento isOpen={showModal} onClose={() => setShowModal(false)} form={form} setForm={setForm} filiais={filiais} fornecedores={fornecedores} opcoesFornecedor={opcoesFornecedor} onFornecedorChange={handleFornecedorChange} onSalvar={salvarLancamento} onSalvarEEnviar={salvarEEnviar} sendingEmail={sendingEmail} addToast={addToast} isGopa={isGopaFunc({filial_id: form.filial_id})} />}
+        {showModalSolicitacao && <ModalSolicitacao isOpen={showModalSolicitacao} onClose={() => setShowModalSolicitacao(false)} form={formSolicitacao} setForm={setFormSolicitacao} filiais={filiais} fornecedores={fornecedores} onSalvar={() => mutationSolicitacao.mutate(formSolicitacao)} onFornecedorChange={handleFornecedorSolicitacaoChange} />}
     </div>
   );
 }
