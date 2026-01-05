@@ -12,8 +12,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "GESTÃO DE NOTAS 🤖", // O nome que aparece na aba
-  description: "Sistema de Controle Financeiro Inteligente", // Descrição para o Google
+  title: "Gestão de Notas", // O nome que aparece na aba
+  description: "Sistema de gestão Cicopal", // Descrição para o Google
 };
 
 export default function RootLayout({ children }) {

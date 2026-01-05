@@ -239,6 +239,17 @@ function DashboardContent() {
   if (loadingInit) return <div className="flex items-center justify-center h-screen"><Loader2 className="animate-spin text-[#1E22A8]" size={48}/></div>;
   if (!token) return <LoginScreen onLogin={handleLogin} addToast={addToast} />;
 
+// --- TRADUÇÃO DOS TÍTULOS DO RODAPÉ ---
+  const titulosRodape = {
+      'dashboard': 'Página Inicial',
+      'notas': 'Lançamentos',
+      'solicitacoes': 'Solicitações de Compra',
+      'filiais': 'Gerenciar Filiais',
+      'fornecedores': 'Gerenciar Fornecedores',
+      'usuarios': 'Gerenciar Usuários'
+  };
+
+
   return (
     <div className="flex min-h-screen bg-[#F0F2F5] font-sans">
         <ToastContainer toasts={toasts} removeToast={(id) => setToasts(p => p.filter(t => t.id !== id))} />
@@ -310,7 +321,11 @@ function DashboardContent() {
                     </>
                 )}
             </div>
-            <footer className="mt-auto py-6 text-center text-gray-500 text-sm font-medium border-t border-gray-200 bg-white">© {new Date().getFullYear()} <span className="font-bold text-[#1E22A8]">Cicopal</span> <span className="mx-2 text-gray-300">|</span> GESTÃO DE NOTAS 🤖</footer>
+            <footer className="mt-auto py-6 text-center text-gray-500 text-sm font-medium border-t border-gray-200 bg-white">
+                © {new Date().getFullYear()} <span className="font-bold text-[#1E22A8]">Cicopal</span> 
+                <span className="mx-2 text-gray-300">|</span> 
+                Gestão de Notas - <span className="text-slate-700">{titulosRodape[currentView] || 'Sistema'}</span>
+            </footer>
         </main>
         
         {/* Modais são renderizados condicionalmente ou via Portal, mas o Dynamic Import cuida do carregamento do JS */}
