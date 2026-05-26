@@ -1,78 +1,138 @@
 import React from 'react';
-import { LayoutDashboard, ShoppingCart, Receipt, Users, Building, FileText, User, LogOut, X } from 'lucide-react';
+import {
+  Box,
+  Divider,
+  Drawer,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Toolbar,
+  Typography,
+} from '@mui/material';
+import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
+import ApartmentOutlinedIcon from '@mui/icons-material/ApartmentOutlined';
+import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import GroupOutlinedIcon from '@mui/icons-material/GroupOutlined';
+import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
+import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
 
-export default function Sidebar({ activeView, setActiveView, onLogout, isOpen, onClose }) {
-  
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={24} /> }, // Aumentei ícones para 24 também
-    { id: 'notas', label: 'Notas Fiscais', icon: <Receipt size={24} /> },
-    { id: 'solicitacoes', label: 'Solicitações', icon: <ShoppingCart size={24} /> },
-    { id: 'fornecedores', label: 'Fornecedores', icon: <Users size={24} /> },
-    { id: 'filiais', label: 'Filiais', icon: <Building size={24} /> },
-    { id: 'usuarios', label: 'Usuários', icon: <User size={24} /> },
-  ];
+const drawerWidth = 248;
 
+const menuItems = [
+  { id: 'dashboard', label: 'Página inicial', icon: <DashboardOutlinedIcon /> },
+  { id: 'notas', label: 'Notas fiscais', icon: <DescriptionOutlinedIcon /> },
+  { id: 'solicitacoes', label: 'Solicitações', icon: <ShoppingCartOutlinedIcon /> },
+  { id: 'fornecedores', label: 'Fornecedores', icon: <GroupOutlinedIcon /> },
+  { id: 'filiais', label: 'Filiais', icon: <ApartmentOutlinedIcon /> },
+  { id: 'usuarios', label: 'Usuários', icon: <AccountCircleOutlinedIcon /> },
+];
+
+function DrawerContent({ currentView, setActiveView, onClose, onLogout }) {
+  return (
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Toolbar sx={{ px: 2, minHeight: 56 }}>
+        <Box>
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
+            IT FinControl
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Cicopal
+          </Typography>
+        </Box>
+      </Toolbar>
+
+      <Divider />
+
+      <List sx={{ px: 1, py: 1, flex: 1 }}>
+        {menuItems.map((item) => {
+          const selected = currentView === item.id;
+
+          return (
+            <ListItemButton
+              key={item.id}
+              selected={selected}
+              onClick={() => {
+                setActiveView(item.id);
+                onClose?.();
+              }}
+              sx={{
+                minHeight: 40,
+                mb: 0.25,
+                borderRadius: 0.5,
+                borderLeft: '3px solid',
+                borderLeftColor: selected ? 'primary.main' : 'transparent',
+                '&.Mui-selected': {
+                  bgcolor: 'primary.light',
+                  color: 'primary.dark',
+                },
+                '&.Mui-selected:hover': {
+                  bgcolor: 'primary.light',
+                },
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 36, color: selected ? 'primary.main' : 'text.secondary' }}>
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText
+                primary={item.label}
+                primaryTypographyProps={{ fontSize: 14, fontWeight: selected ? 600 : 400 }}
+              />
+            </ListItemButton>
+          );
+        })}
+      </List>
+
+      <Divider />
+
+      <Box sx={{ p: 1 }}>
+        <ListItemButton onClick={onLogout} sx={{ borderRadius: 0.5, color: 'error.main' }}>
+          <ListItemIcon sx={{ minWidth: 36, color: 'error.main' }}>
+            <LogoutOutlinedIcon />
+          </ListItemIcon>
+          <ListItemText primary="Sair" primaryTypographyProps={{ fontSize: 14, fontWeight: 600 }} />
+        </ListItemButton>
+      </Box>
+    </Box>
+  );
+}
+
+export default function Sidebar({ currentView, setActiveView, onLogout, isOpen, onClose }) {
   return (
     <>
-      {/* OVERLAY (Fundo Escuro) */}
-      <div 
-        className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-        onClick={onClose}
-      />
+      <Drawer
+        variant="permanent"
+        sx={{
+          display: { xs: 'none', md: 'block' },
+          width: drawerWidth,
+          flexShrink: 0,
+          '& .MuiDrawer-paper': {
+            width: drawerWidth,
+            boxSizing: 'border-box',
+            borderRightColor: 'divider',
+          },
+        }}
+        open
+      >
+        <DrawerContent currentView={currentView} setActiveView={setActiveView} onLogout={onLogout} />
+      </Drawer>
 
-      {/* GAVETA LATERAL */}
-      <aside className={`
-          fixed top-0 left-0 z-50 h-screen w-72 bg-white shadow-2xl flex flex-col justify-between
-          transform transition-transform duration-300 ease-out
-          ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}>
-        
-        {/* TOPO: Texto MENU e Botão Fechar */}
-        <div className="p-6 flex justify-between items-center border-b border-slate-100">
-            {/* Título MENU substituindo a Logo */}
-            <h2 className="text-2xl font-black text-[#1E22A8] tracking-tighter">
-                MENU
-            </h2>
-
-            <button 
-                onClick={onClose} 
-                className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"
-            >
-                <X size={28} />
-            </button>
-        </div>
-
-        {/* LISTA DE NAVEGAÇÃO */}
-        <nav className="flex-1 px-4 py-6 space-y-3 overflow-y-auto custom-scrollbar">
-          
-          {menuItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => { 
-                  setActiveView(item.id); 
-                  onClose(); 
-              }}
-              className={`w-full flex items-center gap-4 px-4 py-4 rounded-xl transition-all duration-200 group font-bold text-base
-                ${activeView === item.id 
-                  ? 'bg-[#1E22A8] text-white shadow-lg shadow-blue-900/20 translate-x-1' 
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E22A8]'
-                }`}
-            >
-              <div className={`${activeView === item.id ? 'text-white' : 'text-slate-400 group-hover:text-[#1E22A8]'}`}>
-                {item.icon}
-              </div>
-              {item.label}
-            </button>
-          ))}
-        </nav>
-
-        {/* RODAPÉ */}
-        <div className="p-4 border-t border-slate-100">
-          <button onClick={onLogout} className="w-full flex items-center justify-center gap-2 px-4 py-4 text-red-500 hover:bg-red-50 rounded-xl font-bold transition-colors text-base">
-            <LogOut size={20} /> SAIR
-          </button>
-        </div>
-      </aside>
+      <Drawer
+        variant="temporary"
+        open={isOpen}
+        onClose={onClose}
+        ModalProps={{ keepMounted: true }}
+        sx={{
+          display: { xs: 'block', md: 'none' },
+          '& .MuiDrawer-paper': {
+            width: drawerWidth,
+            boxSizing: 'border-box',
+          },
+        }}
+      >
+        <DrawerContent currentView={currentView} setActiveView={setActiveView} onClose={onClose} onLogout={onLogout} />
+      </Drawer>
     </>
   );
 }

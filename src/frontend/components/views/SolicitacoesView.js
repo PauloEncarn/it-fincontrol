@@ -1,242 +1,215 @@
 import React, { useState } from 'react';
-import { FileText, Plus, Edit2, Clock, CheckCircle, XCircle, AlertCircle, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  IconButton,
+  Pagination,
+  Paper,
+  Stack,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
+import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
 
 const ITENS_POR_PAGINA = 9;
-
-const STATUS_COLORS = {
-    'Pendente': 'bg-yellow-100 text-yellow-700 border-yellow-200',
-    'Em Andamento': 'bg-blue-100 text-blue-700 border-blue-200',
-    'Aprovado': 'bg-emerald-100 text-emerald-700 border-emerald-200',
-    'Rejeitado': 'bg-red-100 text-red-700 border-red-200',
-    'Concluido': 'bg-gray-100 text-gray-700 border-gray-200'
-};
-
-const STATUS_ICONS = {
-    'Pendente': Clock,
-    'Em Andamento': AlertCircle,
-    'Aprovado': CheckCircle,
-    'Rejeitado': XCircle,
-    'Concluido': CheckCircle
-};
-
 const ABAS_FILTRO = ['Todos', 'Pendente', 'Em Andamento', 'Aprovado', 'Concluido'];
 
-export default function SolicitacoesView({ 
-    solicitacoes, 
-    onNovaSolicitacao, 
-    onEditarSolicitacao,
-    busca 
+const STATUS_META = {
+  Pendente: { color: 'warning', label: 'Pendente' },
+  'Em Andamento': { color: 'info', label: 'Em andamento' },
+  Aprovado: { color: 'success', label: 'Aprovado' },
+  Rejeitado: { color: 'error', label: 'Rejeitado' },
+  Concluido: { color: 'default', label: 'Concluido' },
+};
+
+export default function SolicitacoesView({
+  solicitacoes,
+  onNovaSolicitacao,
+  onEditarSolicitacao,
+  busca,
 }) {
-    const [paginaAtual, setPaginaAtual] = useState(1);
-    const [statusAtivo, setStatusAtivo] = useState('Todos');
-    
-    // --- CORREÇÃO DO ERRO DO USEEFFECT ---
-    // Em vez de useEffect, usamos estado local para rastrear a mudança da prop 'busca'.
-    // Se a busca que veio do pai for diferente da última que vimos, resetamos a página IMEDIATAMENTE.
-    const [ultimaBusca, setUltimaBusca] = useState(busca);
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const [statusAtivo, setStatusAtivo] = useState('Todos');
+  const [ultimaBusca, setUltimaBusca] = useState(busca);
 
-    if (busca !== ultimaBusca) {
-        setPaginaAtual(1);
-        setUltimaBusca(busca);
-    }
+  if (busca !== ultimaBusca) {
+    setPaginaAtual(1);
+    setUltimaBusca(busca);
+  }
 
-    // Função para trocar de aba e resetar página (Substitui o useEffect do Status)
-    const handleStatusChange = (novoStatus) => {
-        setStatusAtivo(novoStatus);
-        setPaginaAtual(1);
-    };
-    // -------------------------------------
+  const handleStatusChange = (_, novoStatus) => {
+    if (!novoStatus) return;
+    setStatusAtivo(novoStatus);
+    setPaginaAtual(1);
+  };
 
-    // --- 1. FILTRAGEM ---
-    const dadosFiltrados = solicitacoes.filter(item => {
-        // Filtro de Status
-        if (statusAtivo !== 'Todos' && item.status !== statusAtivo) {
-            return false;
-        }
+  const dadosFiltrados = solicitacoes.filter((item) => {
+    if (statusAtivo !== 'Todos' && item.status !== statusAtivo) return false;
+    if (!busca) return true;
 
-        // Filtro de Texto
-        if (!busca) return true;
-        
-        const termo = busca.toLowerCase();
-        
-        const valorFormatado = item.valor 
-            ? parseFloat(item.valor).toLocaleString('pt-BR', {minimumFractionDigits: 2}) 
-            : '';
-        const valorLimpo = valorFormatado.replace(/\./g, '');
+    const termo = busca.toLowerCase();
+    const valorFormatado = item.valor
+      ? parseFloat(item.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+      : '';
+    const valorLimpo = valorFormatado.replace(/\./g, '');
 
-        const textoCompleto = [
-            item.id,
-            item.fluig_id,
-            item.numero_sc,
-            item.numero_pedido,
-            item.solicitante,
-            item.servico,
-            item.status,
-            item.fornecedor?.nome_empresa,
-            item.filial?.nome_fantasia,
-            item.filial?.codigo,
-            valorFormatado,
-            valorLimpo
-        ].join(' ').toLowerCase();
+    return [
+      item.id,
+      item.fluig_id,
+      item.numero_sc,
+      item.numero_pedido,
+      item.solicitante,
+      item.servico,
+      item.status,
+      item.fornecedor?.nome_empresa,
+      item.filial?.nome_fantasia,
+      item.filial?.codigo,
+      valorFormatado,
+      valorLimpo,
+    ]
+      .join(' ')
+      .toLowerCase()
+      .includes(termo);
+  });
 
-        return textoCompleto.includes(termo);
-    });
+  const totalItens = dadosFiltrados.length;
+  const totalPaginas = Math.max(1, Math.ceil(totalItens / ITENS_POR_PAGINA));
+  const inicio = (paginaAtual - 1) * ITENS_POR_PAGINA;
+  const fim = inicio + ITENS_POR_PAGINA;
+  const dadosPaginados = dadosFiltrados.slice(inicio, fim);
 
-    // --- 2. PAGINAÇÃO ---
-    const totalItens = dadosFiltrados.length;
-    const totalPaginas = Math.ceil(totalItens / ITENS_POR_PAGINA);
-    const inicio = (paginaAtual - 1) * ITENS_POR_PAGINA;
-    const fim = inicio + ITENS_POR_PAGINA;
-    
-    const dadosPaginados = dadosFiltrados.slice(inicio, fim);
+  return (
+    <Stack spacing={2.5} sx={{ pb: 5 }}>
+      <Paper variant="outlined" sx={{ p: 2.5 }}>
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          justifyContent="space-between"
+          alignItems={{ xs: 'stretch', md: 'center' }}
+          spacing={2}
+        >
+          <Box>
+            <Stack direction="row" alignItems="center" spacing={1.25}>
+              <AssignmentOutlinedIcon color="primary" />
+              <Typography variant="h5" fontWeight={700}>
+                Solicitações de compra
+              </Typography>
+            </Stack>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              Pedidos, SCs e aprovações do Fluig
+            </Typography>
+          </Box>
 
-    return (
-        <div className="space-y-6 animate-in fade-in pb-10">
-            {/* Header + Botão Novo */}
-            <div className="flex flex-col md:flex-row justify-between items-center bg-white p-5 rounded-2xl border border-slate-100 shadow-sm gap-4">
-                <div>
-                    <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                        <FileText className="text-[#1E22A8]" />
-                        Solicitações de Compra
-                    </h2>
-                    <p className="text-slate-400 text-xs font-medium mt-1">
-                        Gerencie pedidos, SCs e aprovações do Fluig
-                    </p>
-                </div>
-                
-                <button 
-                    onClick={onNovaSolicitacao}
-                    className="bg-[#1E22A8] hover:bg-[#2529d8] text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-lg shadow-blue-900/10 transition-all hover:scale-105 active:scale-95"
+          <Button variant="contained" startIcon={<AddIcon />} onClick={onNovaSolicitacao}>
+            Nova solicitação
+          </Button>
+        </Stack>
+      </Paper>
+
+      <Paper variant="outlined" sx={{ p: 1.5 }}>
+        <ToggleButtonGroup
+          exclusive
+          value={statusAtivo}
+          onChange={handleStatusChange}
+          size="small"
+          sx={{ flexWrap: 'wrap', gap: 1 }}
+        >
+          {ABAS_FILTRO.map((status) => (
+            <ToggleButton key={status} value={status} sx={{ border: '1px solid', borderColor: 'divider' }}>
+              {status}
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
+      </Paper>
+
+      {dadosPaginados.length === 0 ? (
+        <Alert icon={<FilterAltOutlinedIcon />} severity="info" variant="outlined">
+          Nenhuma solicitação encontrada.
+        </Alert>
+      ) : (
+        <Stack spacing={1.5}>
+          {dadosPaginados.map((item) => {
+            const status = STATUS_META[item.status] || STATUS_META.Pendente;
+
+            return (
+              <Paper
+                key={item.id}
+                variant="outlined"
+                sx={{
+                  p: 2,
+                  borderLeft: '4px solid',
+                  borderLeftColor: 'primary.main',
+                  transition: 'box-shadow 160ms ease, border-color 160ms ease',
+                  '&:hover': { boxShadow: '0 8px 22px rgba(0, 0, 0, 0.08)' },
+                }}
+              >
+                <Stack
+                  direction={{ xs: 'column', md: 'row' }}
+                  alignItems={{ xs: 'stretch', md: 'center' }}
+                  spacing={2}
                 >
-                    <Plus size={18} />
-                    NOVA SOLICITAÇÃO
-                </button>
-            </div>
+                  <Box sx={{ minWidth: { md: 170 } }}>
+                    <Chip size="small" color={status.color} label={status.label} sx={{ fontWeight: 700 }} />
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+                      ID #{item.id}{item.fluig_id ? ` | Fluig ${item.fluig_id}` : ''}
+                    </Typography>
+                  </Box>
 
-            {/* --- ABAS DE FILTRO DE STATUS --- */}
-            <div className="flex flex-wrap gap-2">
-                {ABAS_FILTRO.map(status => (
-                    <button
-                        key={status}
-                        onClick={() => handleStatusChange(status)} // Usa a nova função
-                        className={`px-4 py-2 rounded-full text-xs font-bold transition-all border ${
-                            statusAtivo === status
-                                ? 'bg-[#1E22A8] text-white border-[#1E22A8] shadow-md'
-                                : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
-                        }`}
-                    >
-                        {status}
-                    </button>
-                ))}
-            </div>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                      <Typography variant="subtitle1" fontWeight={700} noWrap>
+                        {item.fornecedor?.nome_empresa || 'Fornecedor não informado'}
+                      </Typography>
+                      <Chip size="small" variant="outlined" label={item.filial?.codigo || '?'} />
+                    </Stack>
+                    <Typography variant="body2" color="text.secondary" noWrap sx={{ mt: 0.5 }}>
+                      {item.servico || 'Sem descrição'}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.75 }}>
+                      SC: {item.numero_sc || '-'} | Solicitante: {item.solicitante || '-'}
+                    </Typography>
+                  </Box>
 
-            {/* Lista de Cards */}
-            <div className="grid grid-cols-1 gap-4">
-                {dadosPaginados.length === 0 ? (
-                     <div className="text-center py-10 text-slate-400 bg-white rounded-2xl border border-slate-100 border-dashed">
-                        <Filter className="mx-auto mb-2 opacity-20" size={40} />
-                        {/* Correção das aspas para evitar erro de escape */}
-                        <p>Nenhuma solicitação encontrada.</p> 
-                        {statusAtivo !== 'Todos' && (
-                            <button onClick={() => handleStatusChange('Todos')} className="text-[#1E22A8] text-xs font-bold mt-2 hover:underline">
-                                Limpar filtros
-                            </button>
-                        )}
-                    </div>
-                ) : (
-                    dadosPaginados.map((item) => {
-                        const Icon = STATUS_ICONS[item.status] || Clock;
-                        const statusClass = STATUS_COLORS[item.status] || STATUS_COLORS['Pendente'];
+                  <Box sx={{ textAlign: { xs: 'left', md: 'right' }, minWidth: { md: 170 } }}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                      Valor estimado
+                    </Typography>
+                    <Typography variant="h6" fontWeight={800}>
+                      R$ {parseFloat(item.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </Typography>
+                  </Box>
 
-                        return (
-                            <div key={item.id} className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
-                                <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-slate-200 group-hover:bg-[#1E22A8] transition-colors"></div>
-                                
-                                <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
-                                    <div className="flex flex-col gap-2 min-w-[140px]">
-                                        <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase border w-fit ${statusClass}`}>
-                                            <Icon size={12} />
-                                            {item.status}
-                                        </div>
-                                        <span className="text-xs text-slate-400 font-bold">ID: #{item.id}</span>
-                                        {item.fluig_id && <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded w-fit">Fluig: {item.fluig_id}</span>}
-                                    </div>
+                  <IconButton color="primary" onClick={() => onEditarSolicitacao(item)} aria-label="Editar solicitação">
+                    <EditOutlinedIcon />
+                  </IconButton>
+                </Stack>
+              </Paper>
+            );
+          })}
+        </Stack>
+      )}
 
-                                    <div className="flex-1 space-y-1">
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="font-bold text-slate-700 text-base">
-                                                {item.fornecedor?.nome_empresa || "Fornecedor não informado"}
-                                            </h3>
-                                            <span className="text-[10px] px-2 py-0.5 bg-slate-50 border border-slate-100 rounded text-slate-400 font-bold uppercase">
-                                                {item.filial?.codigo || '?'}
-                                            </span>
-                                        </div>
-                                        
-                                        <p className="text-sm text-slate-500 font-medium line-clamp-1">{item.servico || 'Sem descrição'}</p>
-                                        
-                                        <div className="flex flex-wrap gap-4 text-xs text-slate-400 mt-2">
-                                            <span className="flex items-center gap-1">
-                                                <strong className="text-slate-600">SC:</strong> {item.numero_sc || '-'}
-                                            </span>
-                                            <span className="flex items-center gap-1">
-                                                <strong className="text-slate-600">Solicitante:</strong> {item.solicitante || '-'}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex flex-col items-end gap-3 min-w-[150px]">
-                                        <div className="text-right">
-                                            <p className="text-[10px] text-slate-400 font-bold uppercase">Valor Estimado</p>
-                                            <p className="text-xl font-black text-slate-700">
-                                                R$ {parseFloat(item.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
-                                            </p>
-                                        </div>
-                                        
-                                        <button 
-                                            onClick={() => onEditarSolicitacao(item)}
-                                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-50 text-slate-500 hover:text-[#1E22A8] hover:bg-blue-50 border border-slate-200 transition-all text-xs font-bold"
-                                        >
-                                            <Edit2 size={14} />
-                                            EDITAR
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })
-                )}
-            </div>
-
-            {/* --- PAGINAÇÃO --- */}
-            {totalItens > 0 && (
-                <div className="flex items-center justify-between pt-4 border-t border-slate-200">
-                    <p className="text-xs text-slate-400 font-medium">
-                        Mostrando <span className="text-slate-700 font-bold">{inicio + 1}</span> a <span className="text-slate-700 font-bold">{Math.min(fim, totalItens)}</span> de <span className="text-slate-700 font-bold">{totalItens}</span> resultados
-                    </p>
-
-                    <div className="flex items-center gap-2">
-                        <button 
-                            onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
-                            disabled={paginaAtual === 1}
-                            className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                            <ChevronLeft size={16} />
-                        </button>
-                        
-                        <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-2 rounded-lg">
-                            Página {paginaAtual} de {totalPaginas}
-                        </span>
-
-                        <button 
-                            onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
-                            disabled={paginaAtual === totalPaginas}
-                            className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                            <ChevronRight size={16} />
-                        </button>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
+      {totalItens > 0 && (
+        <Paper variant="outlined" sx={{ p: 1.5 }}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} alignItems="center" justifyContent="space-between" spacing={1.5}>
+            <Typography variant="body2" color="text.secondary">
+              Mostrando {inicio + 1} a {Math.min(fim, totalItens)} de {totalItens} resultados
+            </Typography>
+            <Pagination
+              color="primary"
+              count={totalPaginas}
+              page={paginaAtual}
+              onChange={(_, page) => setPaginaAtual(page)}
+              shape="rounded"
+            />
+          </Stack>
+        </Paper>
+      )}
+    </Stack>
+  );
 }

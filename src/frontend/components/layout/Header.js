@@ -1,95 +1,144 @@
 import React from 'react';
-import { Search, Plus, Menu, Bell } from 'lucide-react'; 
+import {
+  AppBar,
+  Avatar,
+  Badge,
+  Box,
+  Button,
+  IconButton,
+  InputAdornment,
+  Stack,
+  TextField,
+  Toolbar,
+  Tooltip,
+  Typography,
+} from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import AppsIcon from '@mui/icons-material/Apps';
+import MenuIcon from '@mui/icons-material/Menu';
+import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import SearchIcon from '@mui/icons-material/Search';
 
-export default function Header({ 
-    currentView, 
-    onOpenMenu,
-    termoBusca, 
-    setTermoBusca, 
-    onNovoLancamento,
-    onNovaSolicitacao // <--- Nova prop para diferenciar a ação
+export default function Header({
+  currentView,
+  onOpenMenu,
+  termoBusca,
+  setTermoBusca,
+  onNovoLancamento,
+  onNovaSolicitacao,
+  onRefresh,
 }) {
-
   const getInfos = () => {
-      switch(currentView) {
-          case 'dashboard': return { titulo: 'Dashboard Gerencial', sub: 'Visão Consolidada' };
-          case 'notas': return { titulo: 'Notas Fiscais', sub: 'Gestão Operacional' };
-          case 'solicitacoes': return { titulo: 'Solicitações de Compra', sub: 'Acompanhamento de Pedidos' };
-          case 'lancamentos': return { titulo: 'Lançamentos', sub: 'Histórico' };
-          case 'fornecedores': return { titulo: 'Fornecedores', sub: 'Base de Cadastro' };
-          case 'filiais': return { titulo: 'Filiais', sub: 'Unidades' };
-          case 'usuarios': return { titulo: 'Usuários', sub: 'Controle de Acesso' };
-          default: return { titulo: 'Gestão TI', sub: 'Sistema Interno' };
-      }
+    switch (currentView) {
+      case 'dashboard': return { titulo: 'Página inicial', sub: 'Visão consolidada' };
+      case 'notas': return { titulo: 'Notas fiscais', sub: 'Gestão operacional' };
+      case 'solicitacoes': return { titulo: 'Solicitações de compra', sub: 'Acompanhamento de pedidos' };
+      case 'fornecedores': return { titulo: 'Fornecedores', sub: 'Base de cadastro' };
+      case 'filiais': return { titulo: 'Filiais', sub: 'Unidades' };
+      case 'usuarios': return { titulo: 'Usuários', sub: 'Controle de acesso' };
+      default: return { titulo: 'Gestão TI', sub: 'Sistema interno' };
+    }
+  };
+
+  const getAction = () => {
+    if (currentView === 'notas') return { label: 'Novo lançamento', action: onNovoLancamento };
+    if (currentView === 'solicitacoes') return { label: 'Nova solicitação', action: onNovaSolicitacao };
+    return null;
   };
 
   const info = getInfos();
-
-  // Define quais controles mostrar
-  const showSearch = currentView === 'notas' || currentView === 'solicitacoes';
-  
-  // Define a ação do botão "Novo"
-  const getAction = () => {
-      if (currentView === 'notas') return { label: 'LANÇAMENTO', action: onNovoLancamento };
-      if (currentView === 'solicitacoes') return { label: 'SOLICITAÇÃO', action: onNovaSolicitacao };
-      return null;
-  };
-
   const actionButton = getAction();
+  const showSearch = currentView === 'notas' || currentView === 'solicitacoes';
 
   return (
-    <div className="bg-[#1E22A8] px-8 py-5 flex flex-col gap-6 shadow-md border-b border-[#151875] sticky top-0 z-40 text-white">
-        
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            
-            {/* LADO ESQUERDO: Menu e Título */}
-            <div className="flex items-center gap-4 w-full md:w-auto">
-                <button 
-                    onClick={onOpenMenu}
-                    className="p-2 text-white/80 hover:bg-white/10 hover:text-white rounded-lg transition-colors"
-                >
-                    <Menu size={28} />
-                </button>
+    <AppBar
+      position="sticky"
+      color="inherit"
+      elevation={0}
+      sx={{
+        borderBottom: '1px solid',
+        borderColor: 'divider',
+        bgcolor: 'background.paper',
+        zIndex: (theme) => theme.zIndex.drawer + 1,
+      }}
+    >
+      <Toolbar sx={{ minHeight: 56, gap: 1.5, px: { xs: 1.5, md: 2 } }}>
+        <Tooltip title="Abrir navegação">
+          <IconButton onClick={onOpenMenu} edge="start" sx={{ display: { md: 'none' } }}>
+            <MenuIcon />
+          </IconButton>
+        </Tooltip>
 
-                <div>
-                    <h1 className="text-2xl font-black tracking-tight">{info.titulo}</h1>
-                    <p className="text-xs text-blue-200 font-bold uppercase tracking-widest hidden md:block">
-                        {info.sub}
-                    </p>
-                </div>
-            </div>
+        <Box
+          sx={{
+            width: 32,
+            height: 32,
+            display: { xs: 'none', md: 'grid' },
+            placeItems: 'center',
+            bgcolor: 'primary.main',
+            color: 'primary.contrastText',
+          }}
+        >
+          <AppsIcon fontSize="small" />
+        </Box>
 
-            {/* LADO DIREITO: Controles */}
-            <div className="flex items-center gap-4 w-full md:w-auto justify-end">
-                
-                {showSearch && (
-                    <div className="relative w-full md:w-80 group">
-                        <input 
-                            value={termoBusca}
-                            onChange={(e) => setTermoBusca(e.target.value)}
-                            className="w-full bg-[#151875]/50 border border-blue-400/30 rounded-xl py-2.5 pl-10 pr-4 text-sm font-bold text-white placeholder-blue-300/50 outline-none focus:border-white/50 focus:bg-[#151875] transition-all"
-                            placeholder="Pesquisar..."
-                        />
-                        <Search className="absolute left-3 top-3 text-blue-300 group-focus-within:text-white transition-colors" size={18}/>
-                    </div>
-                )}
+        <Box sx={{ minWidth: 0, flex: { xs: 1, md: '0 0 auto' } }}>
+          <Typography variant="h6" noWrap sx={{ fontSize: 18, color: 'text.primary' }}>
+            {info.titulo}
+          </Typography>
+          <Typography variant="caption" noWrap sx={{ color: 'text.secondary', display: { xs: 'none', sm: 'block' } }}>
+            {info.sub}
+          </Typography>
+        </Box>
 
-                {actionButton && (
-                    <button 
-                        onClick={actionButton.action} 
-                        className="bg-white hover:bg-slate-100 text-[#1E22A8] px-5 py-2.5 rounded-xl font-black text-xs flex gap-2 items-center shadow-lg shadow-black/10 transition-all active:scale-95 whitespace-nowrap"
-                    >
-                        <Plus size={18}/> 
-                        <span className="hidden md:inline">NOVA {actionButton.label}</span>
-                    </button>
-                )}
-                
-                {/* Avatar / Notificação (Decorativo) */}
-                <div className="h-10 w-10 bg-white/10 rounded-full flex items-center justify-center border border-white/10">
-                    <Bell size={20} className="text-white"/>
-                </div>
-            </div>
-        </div>
-    </div>
+        <Box sx={{ flex: 1, display: { xs: 'none', md: 'block' } }} />
+
+        {showSearch && (
+          <TextField
+            value={termoBusca}
+            onChange={(event) => setTermoBusca(event.target.value)}
+            placeholder="Pesquisar nesta lista"
+            sx={{ width: { xs: 1, md: 340 }, display: { xs: 'none', sm: 'block' } }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            }}
+          />
+        )}
+
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Tooltip title="Atualizar dados">
+            <IconButton onClick={onRefresh}>
+              <RefreshIcon />
+            </IconButton>
+          </Tooltip>
+
+          {actionButton && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={actionButton.action}
+              sx={{ whiteSpace: 'nowrap', display: { xs: 'none', sm: 'inline-flex' } }}
+            >
+              {actionButton.label}
+            </Button>
+          )}
+
+          <Tooltip title="Notificações">
+            <IconButton>
+              <Badge color="error" variant="dot">
+                <NotificationsNoneIcon />
+              </Badge>
+            </IconButton>
+          </Tooltip>
+
+          <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.dark', fontSize: 13 }}>TI</Avatar>
+        </Stack>
+      </Toolbar>
+    </AppBar>
   );
 }

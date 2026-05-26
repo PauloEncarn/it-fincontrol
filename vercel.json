@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/cron/keep-alive",
+      "schedule": "0 9 * * *"
+    },
+    {
       "path": "/api/cron/notificar-pendencias",
       "schedule": "0 13 * * *"
     }

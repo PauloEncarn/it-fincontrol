@@ -5,8 +5,10 @@ import axios from 'axios';
 import dynamic from 'next/dynamic'; // Import para Lazy Loading
 import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react'; 
+import { Box, CircularProgress, CssBaseline, ThemeProvider, Typography } from '@mui/material';
 
 import { API_URL } from '@/frontend/utils/constants';
+import { sharepointTheme } from '@/frontend/theme/sharepointTheme';
 
 import LoginScreen from '@/frontend/components/ui/LoginScreen';
 import ToastContainer from '@/frontend/components/ui/ToastContainer';
@@ -236,7 +238,11 @@ function DashboardContent() {
     });
   }, [solicitacoes, fornecedores, filiais]);
 
-  if (loadingInit) return <div className="flex items-center justify-center h-screen"><Loader2 className="animate-spin text-[#1E22A8]" size={48}/></div>;
+  if (loadingInit) return (
+    <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center', bgcolor: 'background.default' }}>
+      <CircularProgress size={44} />
+    </Box>
+  );
   if (!token) return <LoginScreen onLogin={handleLogin} addToast={addToast} />;
 
 // --- TRADUÇÃO DOS TÍTULOS DO RODAPÉ ---
@@ -251,14 +257,18 @@ function DashboardContent() {
 
 
   return (
-    <div className="flex min-h-screen bg-[#F0F2F5] font-sans">
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
         <ToastContainer toasts={toasts} removeToast={(id) => setToasts(p => p.filter(t => t.id !== id))} />
         <ConfirmDialog isOpen={confirmConfig.isOpen} title={confirmConfig.title} message={confirmConfig.message} onConfirm={confirmConfig.onConfirm} onCancel={() => setConfirmConfig(p => ({...p, isOpen: false}))} />
-        {loadingNotas && currentView === 'notas' && <div className="fixed inset-0 bg-white/80 z-[60] flex items-center justify-center"><Loader2 className="animate-spin text-[#1E22A8]" size={48}/></div>}
+        {loadingNotas && currentView === 'notas' && (
+            <Box sx={{ position: 'fixed', inset: 0, zIndex: 1600, display: 'grid', placeItems: 'center', bgcolor: 'rgba(255,255,255,0.72)' }}>
+                <CircularProgress size={44} />
+            </Box>
+        )}
         
         <Sidebar isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} currentView={currentView} setActiveView={setCurrentView} onLogout={handleLogout} />
         
-        <main className="flex-1 max-h-screen overflow-y-auto w-full transition-all flex flex-col">
+        <Box component="main" sx={{ flex: 1, minWidth: 0, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
             <Header 
                 currentView={currentView} 
                 onOpenMenu={() => setIsMenuOpen(true)}
@@ -269,7 +279,7 @@ function DashboardContent() {
                 onRefresh={handleManualRefresh}
             />
 
-            <div className="p-8 max-w-[1600px] mx-auto pb-24 w-full">
+            <Box sx={{ width: '100%', maxWidth: 1680, mx: 'auto', px: { xs: 2, md: 3 }, py: 3, pb: 8 }}>
                 {/* Busca Global só aparece se não estiver nas Views com Filtro Local */}
                 {termoBusca.length > 2 && currentView !== 'dashboard' && currentView !== 'notas' && currentView !== 'solicitacoes' ? (
                     <SearchResultsView termoBusca={termoBusca} carregando={carregandoBusca} resultados={dadosBusca} onEditar={abrirEdicaoLancamento} />
@@ -320,19 +330,30 @@ function DashboardContent() {
                         {currentView === 'usuarios' && <UsuariosView usuarios={usuarios} onCriarUsuario={(u) => mutationUsuario.mutate(u)} onToggleStatus={(id, novoStatus) => mutationUsuarioStatus.mutate({ id, ativo: novoStatus })} onExcluirUsuario={(u) => openConfirm("Excluir Usuário", `Tem certeza que deseja excluir ${u.nome_completo}?`, () => mutationDeleteUsuario.mutate(u.id))} />}
                     </>
                 )}
-            </div>
-            <footer className="mt-auto py-6 text-center text-gray-500 text-sm font-medium border-t border-gray-200 bg-white">
-                © {new Date().getFullYear()} <span className="font-bold text-[#1E22A8]">Cicopal</span> 
-                <span className="mx-2 text-gray-300">|</span> 
-                Gestão de Notas - <span className="text-slate-700">{titulosRodape[currentView] || 'Sistema'}</span>
-            </footer>
-        </main>
+            </Box>
+            <Box component="footer" sx={{ mt: 'auto', borderTop: '1px solid', borderColor: 'divider', bgcolor: 'background.paper', py: 1.5, px: 3, textAlign: 'center' }}>
+                <Typography variant="caption" color="text.secondary">
+                    © {new Date().getFullYear()} Cicopal | Gestão de Notas - {titulosRodape[currentView] || 'Sistema'}
+                </Typography>
+            </Box>
+        </Box>
         
         {/* Modais são renderizados condicionalmente ou via Portal, mas o Dynamic Import cuida do carregamento do JS */}
         {showModal && <ModalLancamento isOpen={showModal} onClose={() => setShowModal(false)} form={form} setForm={setForm} filiais={filiais} fornecedores={fornecedores} opcoesFornecedor={opcoesFornecedor} onFornecedorChange={handleFornecedorChange} onSalvar={salvarLancamento} onSalvarEEnviar={salvarEEnviar} sendingEmail={sendingEmail} addToast={addToast} isGopa={isGopaFunc({filial_id: form.filial_id})} />}
         {showModalSolicitacao && <ModalSolicitacao isOpen={showModalSolicitacao} onClose={() => setShowModalSolicitacao(false)} form={formSolicitacao} setForm={setFormSolicitacao} filiais={filiais} fornecedores={fornecedores} onSalvar={() => mutationSolicitacao.mutate(formSolicitacao)} onFornecedorChange={handleFornecedorSolicitacaoChange} />}
-    </div>
+    </Box>
   );
 }
 
-export default function Home() { const [queryClient] = useState(() => new QueryClient()); return ( <QueryClientProvider client={queryClient}> <DashboardContent /> </QueryClientProvider> ); }
+export default function Home() {
+  const [queryClient] = useState(() => new QueryClient());
+
+  return (
+    <ThemeProvider theme={sharepointTheme}>
+      <CssBaseline />
+      <QueryClientProvider client={queryClient}>
+        <DashboardContent />
+      </QueryClientProvider>
+    </ThemeProvider>
+  );
+}
