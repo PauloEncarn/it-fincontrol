@@ -1,173 +1,184 @@
 import React, { useState } from 'react';
-import { Users, Plus, Edit2, Trash2, Search, X, CheckCircle, FileText } from 'lucide-react';
-import { STYLES } from '@/frontend/utils/constants';
+import {
+  Box,
+  Button,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  Grid,
+  IconButton,
+  InputAdornment,
+  Paper,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+} from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
+import SearchIcon from '@mui/icons-material/Search';
+
+const emptyForm = {
+  id: null,
+  nome_empresa: '',
+  lista_cnpjs: '',
+  lista_contratos: '',
+  lista_centro_custos: '',
+  padrao_descricao_servico: '',
+  padrao_servico_protheus: '',
+};
 
 export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) {
   const [showModal, setShowModal] = useState(false);
   const [termo, setTermo] = useState('');
-  const [form, setForm] = useState({ 
-      id: null, nome_empresa: '', lista_cnpjs: '', lista_contratos: '', lista_centro_custos: '', padrao_descricao_servico: '', padrao_servico_protheus: '' 
-  });
+  const [form, setForm] = useState(emptyForm);
 
-  // Filtro que busca por Nome ou CNPJ
-  const dadosFiltrados = fornecedores.filter(f => 
-      f.nome_empresa.toLowerCase().includes(termo.toLowerCase()) ||
-      (f.lista_cnpjs && f.lista_cnpjs.includes(termo))
+  const dadosFiltrados = fornecedores.filter((fornecedor) =>
+    `${fornecedor.nome_empresa} ${fornecedor.lista_cnpjs || ''}`.toLowerCase().includes(termo.toLowerCase())
   );
 
   const abrirNovo = () => {
-      setForm({ id: null, nome_empresa: '', lista_cnpjs: '', lista_contratos: '', lista_centro_custos: '', padrao_descricao_servico: '', padrao_servico_protheus: '' });
-      setShowModal(true);
+    setForm(emptyForm);
+    setShowModal(true);
   };
 
   const abrirEdicao = (item) => {
-      setForm({ ...item });
-      setShowModal(true);
+    setForm({ ...emptyForm, ...item });
+    setShowModal(true);
   };
 
   const handleSalvar = () => {
-      if (!form.nome_empresa) return alert("O nome da empresa é obrigatório");
-      onSalvar(form);
-      setShowModal(false);
+    if (!form.nome_empresa) return alert('O nome da empresa é obrigatório');
+    onSalvar(form);
+    setShowModal(false);
   };
 
   return (
-    <div className="bg-white rounded-3xl p-8 shadow-xl animate-in zoom-in-95 min-h-[600px]">
-      
-      {/* CABEÇALHO */}
-      <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-        <div>
-            <h2 className="text-3xl font-black text-[#1E22A8] flex gap-3 items-center">
-                <div className="bg-[#1E22A8] p-2 rounded-lg text-white"><Users/></div> FORNECEDORES
-            </h2>
-            <p className="text-slate-400 text-sm font-medium mt-1 ml-1">Gerencie os parceiros e contratos</p>
-        </div>
+    <Stack spacing={2.5}>
+      <Paper variant="outlined" sx={{ p: 2.5 }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ xs: 'stretch', md: 'center' }} justifyContent="space-between" spacing={2}>
+          <Box>
+            <Stack direction="row" alignItems="center" spacing={1.25}>
+              <GroupsOutlinedIcon color="primary" />
+              <Typography variant="h5" fontWeight={700}>Fornecedores</Typography>
+            </Stack>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              Parceiros, contratos e padrões de preenchimento
+            </Typography>
+          </Box>
 
-        <div className="flex gap-3 w-full md:w-auto">
-            <div className="relative flex-1 md:w-64">
-                <input 
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-10 pr-4 text-sm font-bold outline-none focus:border-[#1E22A8]"
-                    placeholder="Buscar nome ou CNPJ..."
-                    value={termo}
-                    onChange={e => setTermo(e.target.value)}
-                />
-                <Search className="absolute left-3 top-2.5 text-slate-400" size={16}/>
-            </div>
-            <button onClick={abrirNovo} className="bg-[#1E22A8] hover:bg-[#E30613] text-white px-4 py-2 rounded-xl font-black text-sm flex gap-2 items-center shadow-lg transition-all">
-                <Plus size={18}/> <span className="hidden md:inline">NOVO</span>
-            </button>
-        </div>
-      </div>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+            <TextField
+              size="small"
+              placeholder="Buscar nome ou CNPJ"
+              value={termo}
+              onChange={(e) => setTermo(e.target.value)}
+              InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
+            />
+            <Button variant="contained" startIcon={<AddIcon />} onClick={abrirNovo}>
+              Novo fornecedor
+            </Button>
+          </Stack>
+        </Stack>
+      </Paper>
 
-      {/* TABELA */}
-      <div className="overflow-hidden rounded-xl border border-slate-200">
-        <table className="w-full text-left border-collapse table-fixed">
-            <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
-                <tr>
-                    <th className="p-4 text-xs font-black uppercase tracking-widest w-[25%]">Nome Empresa</th>
-                    <th className="p-4 text-xs font-black uppercase tracking-widest w-[20%]">CNPJs</th>
-                    <th className="p-4 text-xs font-black uppercase tracking-widest w-[20%]">Contratos</th>
-                    <th className="p-4 text-xs font-black uppercase tracking-widest w-[20%]">Centros de Custo</th>
-                    <th className="p-4 text-xs font-black uppercase tracking-widest text-right w-[15%]">Ações</th>
-                </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-                {dadosFiltrados.map(f => (
-                    <tr key={f.id} className="hover:bg-blue-50/50 transition-colors group">
-                        
-                        {/* NOME */}
-                        <td className="p-4">
-                            <div className="font-bold text-[#1E22A8] truncate" title={f.nome_empresa}>{f.nome_empresa}</div>
-                        </td>
+      <TableContainer component={Paper} variant="outlined">
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Empresa</TableCell>
+              <TableCell>CNPJs</TableCell>
+              <TableCell>Contratos</TableCell>
+              <TableCell>Centros de custo</TableCell>
+              <TableCell align="right">Ações</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {dadosFiltrados.map((fornecedor) => (
+              <TableRow key={fornecedor.id} hover>
+                <TableCell sx={{ fontWeight: 700 }}>{fornecedor.nome_empresa}</TableCell>
+                <TableCell sx={{ maxWidth: 260 }}>
+                  <Typography variant="body2" noWrap title={fornecedor.lista_cnpjs || '-'}>
+                    {fornecedor.lista_cnpjs || '-'}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  {fornecedor.lista_contratos ? <Chip size="small" variant="outlined" label={fornecedor.lista_contratos} /> : '-'}
+                </TableCell>
+                <TableCell sx={{ maxWidth: 220 }}>
+                  <Typography variant="body2" noWrap title={fornecedor.lista_centro_custos || '-'}>
+                    {fornecedor.lista_centro_custos || '-'}
+                  </Typography>
+                </TableCell>
+                <TableCell align="right">
+                  <IconButton color="primary" onClick={() => abrirEdicao(fornecedor)} aria-label="Editar fornecedor">
+                    <EditOutlinedIcon />
+                  </IconButton>
+                  <IconButton color="error" onClick={() => onExcluir(fornecedor)} aria-label="Excluir fornecedor">
+                    <DeleteOutlinedIcon />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            ))}
+            {dadosFiltrados.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} align="center" sx={{ py: 6, color: 'text.secondary' }}>
+                  Nenhum fornecedor encontrado.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
 
-                        {/* CNPJS (NOVA COLUNA) */}
-                        <td className="p-4 text-xs text-slate-600 font-mono truncate" title={f.lista_cnpjs}>
-                             {f.lista_cnpjs || '-'}
-                        </td>
+      <Dialog open={showModal} onClose={() => setShowModal(false)} fullWidth maxWidth="md">
+        <DialogTitle>{form.id ? 'Editar fornecedor' : 'Novo fornecedor'}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2.5} sx={{ pt: 1 }}>
+            <TextField label="Nome da empresa" value={form.nome_empresa} onChange={(e) => setForm({ ...form, nome_empresa: e.target.value })} autoFocus fullWidth />
 
-                        {/* CONTRATOS */}
-                        <td className="p-4 text-sm text-slate-600 truncate" title={f.lista_contratos}>
-                            {f.lista_contratos ? (
-                                <span className="bg-slate-100 px-2 py-1 rounded text-xs font-bold border border-slate-200">{f.lista_contratos}</span>
-                            ) : '-'}
-                        </td>
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <TextField label="Lista de CNPJs" value={form.lista_cnpjs || ''} onChange={(e) => setForm({ ...form, lista_cnpjs: e.target.value })} multiline minRows={3} fullWidth helperText="Separe por ponto e vírgula (;)" />
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <TextField label="Lista de contratos" value={form.lista_contratos || ''} onChange={(e) => setForm({ ...form, lista_contratos: e.target.value })} multiline minRows={3} fullWidth helperText="Separe por ponto e vírgula (;)" />
+              </Grid>
+              <Grid size={12}>
+                <TextField label="Lista de centros de custo" value={form.lista_centro_custos || ''} onChange={(e) => setForm({ ...form, lista_centro_custos: e.target.value })} fullWidth />
+              </Grid>
+            </Grid>
 
-                        {/* CENTRO DE CUSTO */}
-                        <td className="p-4 text-sm text-slate-600 truncate" title={f.lista_centro_custos}>
-                             {f.lista_centro_custos || '-'}
-                        </td>
+            <Divider />
 
-                        {/* AÇÕES */}
-                        <td className="p-4 flex justify-end gap-2">
-                            <button onClick={() => abrirEdicao(f)} className="p-2 text-slate-400 hover:text-[#1E22A8] hover:bg-white border border-transparent hover:border-slate-200 rounded-lg transition-all"><Edit2 size={18}/></button>
-                            <button onClick={() => onExcluir(f)} className="p-2 text-red-300 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 rounded-lg transition-all"><Trash2 size={18}/></button>
-                        </td>
-                    </tr>
-                ))}
-                {dadosFiltrados.length === 0 && (
-                     <tr><td colSpan="5" className="p-10 text-center text-slate-400 font-bold">Nenhum fornecedor encontrado.</td></tr>
-                )}
-            </tbody>
-        </table>
-    </div>
-
-      {/* MODAL (IGUAL AO ANTERIOR) */}
-      {showModal && (
-        <div className="fixed inset-0 bg-[#1E22A8]/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
-                <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-black text-[#1E22A8]">{form.id ? 'EDITAR FORNECEDOR' : 'NOVO FORNECEDOR'}</h3>
-                    <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-red-500"><X/></button>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="col-span-2">
-                        <label className={STYLES.label}>Nome da Empresa *</label>
-                        <input className={STYLES.input} value={form.nome_empresa} onChange={e=>setForm({...form, nome_empresa:e.target.value})} autoFocus/>
-                    </div>
-                    
-                    <div className="col-span-2 h-[1px] bg-slate-100 my-2"></div>
-                    
-                    <div>
-                        <label className={STYLES.label}>Lista de CNPJs</label>
-                        <textarea className={`${STYLES.input} h-20 text-xs`} value={form.lista_cnpjs || ''} onChange={e=>setForm({...form, lista_cnpjs:e.target.value})} placeholder="Separe por ponto e vírgula (;)" />
-                        <p className="text-[10px] text-slate-400 mt-1">Ex: 00.000.000/0001-00; 11.111...</p>
-                    </div>
-
-                    <div>
-                        <label className={STYLES.label}>Lista de Contratos</label>
-                        <textarea className={`${STYLES.input} h-20 text-xs`} value={form.lista_contratos || ''} onChange={e=>setForm({...form, lista_contratos:e.target.value})} placeholder="Separe por ponto e vírgula (;)" />
-                    </div>
-
-                    <div className="col-span-2">
-                        <label className={STYLES.label}>Lista de Centros de Custo</label>
-                        <input className={STYLES.input} value={form.lista_centro_custos || ''} onChange={e=>setForm({...form, lista_centro_custos:e.target.value})} placeholder="Ex: 102030; 405060..." />
-                    </div>
-
-                    <div className="col-span-2 bg-blue-50 p-4 rounded-xl border border-blue-100 mt-2">
-                        <div className="flex items-center gap-2 mb-2 text-[#1E22A8] font-bold text-xs uppercase"><FileText size={14}/> Preenchimento Automático</div>
-                        <div className="grid grid-cols-2 gap-4">
-                             <div>
-                                <label className={STYLES.label}>Descrição Padrão</label>
-                                <input className={`${STYLES.input} !bg-white`} value={form.padrao_descricao_servico || ''} onChange={e=>setForm({...form, padrao_descricao_servico:e.target.value})} />
-                             </div>
-                             <div>
-                                <label className={STYLES.label}>Serviço Protheus</label>
-                                <input className={`${STYLES.input} !bg-white`} value={form.padrao_servico_protheus || ''} onChange={e=>setForm({...form, padrao_servico_protheus:e.target.value})} />
-                             </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="pt-6 flex gap-3">
-                    <button onClick={() => setShowModal(false)} className="flex-1 py-3 rounded-xl font-bold text-slate-400 hover:bg-slate-50 transition-colors">CANCELAR</button>
-                    <button onClick={handleSalvar} className="flex-1 bg-[#1E22A8] text-white font-black py-3 rounded-xl hover:bg-[#E30613] transition-colors shadow-lg flex items-center justify-center gap-2">
-                        <CheckCircle size={18}/> SALVAR
-                    </button>
-                </div>
-            </div>
-        </div>
-      )}
-    </div>
+            <Typography variant="subtitle2" color="primary" fontWeight={800}>
+              Preenchimento automático
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <TextField label="Descrição padrão" value={form.padrao_descricao_servico || ''} onChange={(e) => setForm({ ...form, padrao_descricao_servico: e.target.value })} fullWidth />
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <TextField label="Serviço Protheus" value={form.padrao_servico_protheus || ''} onChange={(e) => setForm({ ...form, padrao_servico_protheus: e.target.value })} fullWidth />
+              </Grid>
+            </Grid>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowModal(false)}>Cancelar</Button>
+          <Button variant="contained" onClick={handleSalvar}>Salvar</Button>
+        </DialogActions>
+      </Dialog>
+    </Stack>
   );
 }
