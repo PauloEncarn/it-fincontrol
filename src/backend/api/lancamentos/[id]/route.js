@@ -44,9 +44,12 @@ export async function PUT(request, context) {
       // IDs e Chaves
       filial_id: limparNumero(body.filial_id),
       fornecedor_id: limparNumero(body.fornecedor_id),
+      contrato_id: limparNumero(body.contrato_id),
+      competencia: limparTexto(body.competencia),
       
       // Dados Financeiros
       valor: limparNumero(body.valor) || 0,
+      valor_previsto: limparNumero(body.valor_previsto),
       data_vencimento: limparTexto(body.data_vencimento),
       data_envio: limparTexto(body.data_envio),
       

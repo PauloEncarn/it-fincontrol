@@ -10,6 +10,8 @@ const supabase = createClient(
 
 // CONFIGURAÇÃO DOS STATUS QUE GERAM ALERTA
 const STATUS_ALERTA = [
+  'Pendente Nota',
+  'Nota Recebida',
   'Aguardando Fatura',
   'Pendente Lançamento',
   'Aguardando Pagamento'

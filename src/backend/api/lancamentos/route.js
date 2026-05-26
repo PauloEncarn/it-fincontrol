@@ -57,9 +57,12 @@ export async function POST(request) {
       // IDs e Chaves
       filial_id: body.filial_id ? parseInt(body.filial_id) : null,
       fornecedor_id: body.fornecedor_id ? parseInt(body.fornecedor_id) : null,
+      contrato_id: body.contrato_id ? parseInt(body.contrato_id) : null,
+      competencia: body.competencia || null,
       
       // Dados Financeiros
       valor: body.valor ? parseFloat(body.valor) : 0,
+      valor_previsto: body.valor_previsto ? parseFloat(body.valor_previsto) : null,
       data_vencimento: body.data_vencimento || null,
       data_envio: body.data_envio || null,
       

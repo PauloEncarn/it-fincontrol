@@ -32,12 +32,15 @@ import StorageOutlinedIcon from '@mui/icons-material/StorageOutlined';
 import { OPCOES_STATUS } from '@/frontend/utils/constants';
 
 const STATUS_COLOR = {
+  'Pendente Nota': 'warning',
+  'Nota Recebida': 'info',
   'Pendente Lançamento': 'warning',
   Pendente: 'warning',
   'Em andamento': 'info',
   'Em Andamento': 'info',
   Concluida: 'success',
   Concluída: 'success',
+  Divergência: 'error',
   Pago: 'success',
   Cancelada: 'error',
   Rejeitado: 'error',

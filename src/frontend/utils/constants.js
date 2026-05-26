@@ -10,10 +10,13 @@ export const CORES = {
 };
 
 export const OPCOES_STATUS = [
+  'Pendente Nota',
+  'Nota Recebida',
   'Pendente Lançamento',
   'Aguardando Fatura',
   'Aguardando Pagamento',
   'Concluída',
+  'Divergência',
   'Cancelada',
 ];
 

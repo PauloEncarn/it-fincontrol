@@ -78,6 +78,24 @@ export default function ModalLancamento({
 
           <Grid size={12}><Divider /></Grid>
 
+          {form.contrato_id && (
+            <>
+              <Grid size={12}>
+                <Typography variant="subtitle2" color="primary" fontWeight={800}>Competência mensal</Typography>
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <TextField label="Competência" value={form.competencia || ''} fullWidth InputProps={{ readOnly: true }} />
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <TextField label="Valor previsto" type="number" value={form.valor_previsto || ''} onChange={(e) => setForm({ ...form, valor_previsto: e.target.value })} fullWidth />
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <TextField label="Contrato ID" value={form.contrato_id || ''} fullWidth InputProps={{ readOnly: true }} />
+              </Grid>
+              <Grid size={12}><Divider /></Grid>
+            </>
+          )}
+
           <Grid size={{ xs: 12, md: 3 }}>
             <TextField label="Nº nota" value={form.numero_nota || ''} onChange={(e) => setForm({ ...form, numero_nota: e.target.value })} fullWidth required />
           </Grid>
