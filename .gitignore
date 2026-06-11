@@ -46,6 +46,7 @@ __pycache__/
 venv/
 
 # Local data and uploads
+.tmp/
 *.db
 *.sqlite
 *.sqlite3
