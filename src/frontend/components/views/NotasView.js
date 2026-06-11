@@ -7,6 +7,7 @@ import {
   Box,
   Button,
   Chip,
+  Divider,
   FormControl,
   IconButton,
   InputLabel,
@@ -17,6 +18,8 @@ import {
   TextField,
   Tooltip,
   Typography,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
@@ -29,6 +32,8 @@ import FileCopyOutlinedIcon from '@mui/icons-material/FileCopyOutlined';
 import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
 import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined';
 import StorageOutlinedIcon from '@mui/icons-material/StorageOutlined';
+import ViewListIcon from '@mui/icons-material/ViewList';
+import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import { OPCOES_STATUS } from '@/frontend/utils/constants';
 
 const STATUS_COLOR = {
@@ -65,6 +70,7 @@ export default function NotasView({
   onRefresh,
 }) {
   const [expandedSupplier, setExpandedSupplier] = useState({});
+  const [viewMode, setViewMode] = useState('grouped');
 
   const handleExportarExcel = () => {
     if (!notas || notas.length === 0) return alert('Sem dados para exportar.');
@@ -136,6 +142,45 @@ export default function NotasView({
     setCompetencia(new Date(ano, mes - 1, 1, 12, 0, 0));
   };
 
+  const formatDate = (value) => {
+    if (!value) return '-';
+    return value.split('T')[0].split('-').reverse().join('/');
+  };
+
+  const renderActions = (nota) => (
+    <Stack direction="row" justifyContent={{ xs: 'flex-start', md: 'flex-end' }} spacing={0.5}>
+      <Tooltip title="Copiar Protheus">
+        <IconButton onClick={() => onCopiarProtheus(nota)} aria-label="Copiar Protheus">
+          <ContentCopyOutlinedIcon />
+        </IconButton>
+      </Tooltip>
+      {isGopaFunc(nota) && (
+        <Tooltip title="Enviar email">
+          <IconButton onClick={() => onEnviarEmail(nota)} aria-label="Enviar email">
+            <EmailOutlinedIcon />
+          </IconButton>
+        </Tooltip>
+      )}
+      {nota.arquivo_nota && (
+        <Tooltip title="Baixar nota">
+          <IconButton onClick={() => onDownload(nota.arquivo_nota)} aria-label="Baixar nota">
+            <DescriptionOutlinedIcon />
+          </IconButton>
+        </Tooltip>
+      )}
+      <Tooltip title="Editar">
+        <IconButton onClick={() => onEditar(nota)} aria-label="Editar nota">
+          <EditOutlinedIcon />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Duplicar">
+        <IconButton onClick={() => onDuplicar(nota)} aria-label="Duplicar nota">
+          <FileCopyOutlinedIcon />
+        </IconButton>
+      </Tooltip>
+    </Stack>
+  );
+
   return (
     <Stack spacing={2.5} sx={{ pb: 8 }}>
       <Paper variant="outlined" sx={{ p: 2 }}>
@@ -160,6 +205,21 @@ export default function NotasView({
               onChange={handleDateChange}
               InputProps={{ startAdornment: <CalendarMonthOutlinedIcon color="action" sx={{ mr: 1 }} /> }}
             />
+            <ToggleButtonGroup
+              exclusive
+              size="small"
+              value={viewMode}
+              onChange={(_, nextMode) => nextMode && setViewMode(nextMode)}
+            >
+              <ToggleButton value="grouped" aria-label="Visualização agrupada">
+                <ViewListIcon fontSize="small" sx={{ mr: 0.75 }} />
+                Agrupado
+              </ToggleButton>
+              <ToggleButton value="grid" aria-label="Visualização em grid">
+                <ViewModuleIcon fontSize="small" sx={{ mr: 0.75 }} />
+                Grid
+              </ToggleButton>
+            </ToggleButtonGroup>
           </Stack>
 
           <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 260 } }}>
@@ -185,6 +245,121 @@ export default function NotasView({
         <Alert icon={<FilterAltOutlinedIcon />} severity="info" variant="outlined">
           Nenhuma nota encontrada com os filtros atuais.
         </Alert>
+      ) : viewMode === 'grid' ? (
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: '1fr',
+              sm: 'repeat(2, minmax(0, 1fr))',
+              xl: 'repeat(3, minmax(0, 1fr))',
+            },
+            gap: 1.5,
+          }}
+        >
+          {notasFiltradas.map((nota) => {
+            const fornecedor = nota.nome_fornecedor || nota.fornecedor?.nome_empresa || 'Fornecedor não informado';
+            const valorReal = parseFloat(nota.valor || 0);
+            const valorPrevisto = nota.valor_previsto ? parseFloat(nota.valor_previsto) : null;
+            const variacao = valorPrevisto !== null ? valorReal - valorPrevisto : 0;
+            const statusTone = STATUS_COLOR[nota.status_pagamento] || 'primary';
+            const borderColor = statusTone === 'default' ? 'divider' : `${statusTone}.main`;
+
+            return (
+              <Paper
+                key={nota.id}
+                variant="outlined"
+                sx={{
+                  p: 2,
+                  minHeight: 292,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 1.5,
+                  borderTop: '4px solid',
+                  borderTopColor: borderColor,
+                  '&:hover': { boxShadow: '0 8px 24px rgba(0,0,0,0.08)' },
+                }}
+              >
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="subtitle1" fontWeight={800} noWrap title={fornecedor}>
+                      {fornecedor}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {nota.filial?.nome_fantasia || '-'} | {nota.competencia || 'Sem competência'}
+                    </Typography>
+                  </Box>
+                  <Chip
+                    size="small"
+                    color={STATUS_COLOR[nota.status_pagamento] || 'default'}
+                    label={nota.status_pagamento || 'Sem status'}
+                    sx={{ fontWeight: 700, maxWidth: 150 }}
+                  />
+                </Stack>
+
+                <Divider />
+
+                <Box>
+                  <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                    Nota fiscal
+                  </Typography>
+                  <Typography variant="h5" fontWeight={900} color="primary">
+                    {nota.numero_nota ? `#${nota.numero_nota}` : 'Pendente'}
+                  </Typography>
+                </Box>
+
+                <Stack direction="row" spacing={2}>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                      Vencimento
+                    </Typography>
+                    <Typography variant="body2" fontWeight={700}>
+                      {formatDate(nota.data_vencimento)}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                      CNPJ
+                    </Typography>
+                    <Typography variant="body2" fontWeight={700} noWrap title={nota.cnpj_usado || '-'}>
+                      {nota.cnpj_usado || '-'}
+                    </Typography>
+                  </Box>
+                </Stack>
+
+                <Box>
+                  <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                    Valor
+                  </Typography>
+                  <Typography variant="h6" fontWeight={900}>
+                    R$ {valorReal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </Typography>
+                  {valorPrevisto !== null && (
+                    <Typography variant="caption" color={Math.abs(variacao) > 0 ? 'warning.main' : 'text.secondary'}>
+                      Previsto R$ {valorPrevisto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      {Math.abs(variacao) > 0 ? ` | Variação R$ ${variacao.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : ''}
+                    </Typography>
+                  )}
+                </Box>
+
+                <FormControl size="small" fullWidth sx={{ mt: 'auto' }}>
+                  <Select
+                    value={nota.status_pagamento || ''}
+                    onChange={(e) => onStatusChange(nota.id, e.target.value)}
+                  >
+                    {OPCOES_STATUS.map((status) => (
+                      <MenuItem key={status} value={status}>
+                        {status}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                {renderActions(nota)}
+              </Paper>
+            );
+          })}
+        </Box>
       ) : (
         <Stack spacing={1.5}>
           {dadosAgrupados.map(([nome, itens]) => {
