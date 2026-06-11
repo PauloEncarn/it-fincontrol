@@ -57,7 +57,7 @@ export async function POST(request) {
       // IDs e Chaves
       filial_id: body.filial_id ? parseInt(body.filial_id) : null,
       fornecedor_id: body.fornecedor_id ? parseInt(body.fornecedor_id) : null,
-      contrato_id: body.contrato_id ? parseInt(body.contrato_id) : null,
+      contrato_id: null,
       competencia: body.competencia || null,
       
       // Dados Financeiros

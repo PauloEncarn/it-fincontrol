@@ -22,7 +22,6 @@ import SolicitacoesView from '@/frontend/components/views/SolicitacoesView';
 import FiliaisView from '@/frontend/components/views/FiliaisView';
 import FornecedoresView from '@/frontend/components/views/FornecedoresView';
 import UsuariosView from '@/frontend/components/views/UsuariosView';
-import ContratosView from '@/frontend/components/views/ContratosView';
 
 // --- PERFORMANCE: DYNAMIC IMPORTS (Lazy Loading) ---
 // O código destes modais só será baixado se o usuário precisar deles
@@ -40,7 +39,7 @@ const ModalSolicitacao = dynamic(() => import('@/frontend/components/modals/Moda
 });
 // ---------------------------------------------------
 
-const initialFormLancamento = { id: null, contrato_id: null, competencia: '', filial_id: '', fornecedor_id: '', cnpj_usado: '', contrato_usado: '', centro_custo_usado: '', numero_nota: '', serie: 'U', valor: '', valor_previsto: '', data_envio: '', data_vencimento: '', descricao_servico: '', servico_protheus: '', numero_medicao: '', numero_pedido: '', solicitacao_fluig: '', observacao: '', status_pagamento: 'Pendente Lançamento', arquivo_nota: '', arquivo_boleto: '', repetir_por: '1' };
+const initialFormLancamento = { id: null, competencia: '', filial_id: '', fornecedor_id: '', cnpj_usado: '', contrato_usado: '', centro_custo_usado: '', numero_nota: '', serie: 'U', valor: '', valor_previsto: '', data_envio: '', data_vencimento: '', descricao_servico: '', servico_protheus: '', numero_medicao: '', numero_pedido: '', solicitacao_fluig: '', observacao: '', status_pagamento: 'Pendente Lançamento', arquivo_nota: '', arquivo_boleto: '', repetir_por: '1' };
 const initialFormSolicitacao = { id: null, filial_id: '', fornecedor_id: '', solicitante: '', cnpj: '', condicao_pagamento: '', valor: '', numero_sc: '', numero_pedido: '', servico: '', servico_protheus: '', centro_custo: '', numero_nota: '', fluig_id: '', data_vencimento: '', status: 'Em Andamento', observacao: '' };
 
 function DashboardContent() {
@@ -65,7 +64,6 @@ function DashboardContent() {
   const [formSolicitacao, setFormSolicitacao] = useState(initialFormSolicitacao);
   const [opcoesFornecedor, setOpcoesFornecedor] = useState({ cnpjs: [], contratos: [], ccs: [] });
   const [sendingEmail, setSendingEmail] = useState(false);
-  const [selectedContrato, setSelectedContrato] = useState(null);
   
   const authConfig = useMemo(() => ({ headers: { Authorization: `Bearer ${token}` } }), [token]);
 
@@ -101,18 +99,6 @@ function DashboardContent() {
   
   const { data: usuarios = [] } = useQuery({ queryKey: ['usuarios'], queryFn: () => axios.get(`${API_URL}/usuarios/`, authConfig).then(res => res.data), enabled: !!token && currentView === 'usuarios' });
 
-  const { data: contratos = [] } = useQuery({
-      queryKey: ['contratos'],
-      queryFn: () => axios.get(`${API_URL}/contratos/`, authConfig).then(res => res.data),
-      enabled: !!token && currentView === 'contratos'
-  });
-
-  const { data: lancamentosContrato = [] } = useQuery({
-      queryKey: ['contrato_lancamentos', selectedContrato?.id],
-      queryFn: () => axios.get(`${API_URL}/contratos/${selectedContrato.id}/lancamentos`, authConfig).then(res => res.data),
-      enabled: !!token && !!selectedContrato?.id
-  });
-  
   const { data: dadosNotas = [], isLoading: loadingNotas } = useQuery({ 
       queryKey: ['notas_operacional', filialFiltro, competenciaNotas.getMonth(), competenciaNotas.getFullYear()], 
       queryFn: async () => { 
@@ -153,8 +139,6 @@ function DashboardContent() {
       await queryClient.invalidateQueries({ queryKey: ['dashboard_full'], exact: false });
       await queryClient.invalidateQueries({ queryKey: ['solicitacoes'], exact: false });
       await queryClient.invalidateQueries({ queryKey: ['busca'], exact: false });
-      await queryClient.invalidateQueries({ queryKey: ['contratos'], exact: false });
-      await queryClient.invalidateQueries({ queryKey: ['contrato_lancamentos'], exact: false });
   };
 
   const handleManualRefresh = async () => {
@@ -177,24 +161,6 @@ function DashboardContent() {
   const mutationFilial = useMutation({ mutationFn: (data) => data.id ? axios.put(`${API_URL}/filiais/${data.id}`, data, authConfig) : axios.post(`${API_URL}/filiais/`, data, authConfig), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['filiais'] }); addToast('success', 'Filial salva!'); } });
   const mutationFornecedor = useMutation({ mutationFn: (data) => data.id ? axios.put(`${API_URL}/fornecedores/${data.id}`, data, authConfig) : axios.post(`${API_URL}/fornecedores/`, data, authConfig), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['fornecedores'] }); addToast('success', 'Fornecedor salvo!'); } });
 
-  const mutationContrato = useMutation({
-      mutationFn: (data) => data.id ? axios.put(`${API_URL}/contratos/${data.id}`, data, authConfig) : axios.post(`${API_URL}/contratos/`, data, authConfig),
-      onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: ['contratos'] });
-          addToast('success', 'Contrato salvo!');
-      },
-      onError: (err) => addToast('error', 'Erro ao salvar contrato: ' + (err.response?.data?.error || err.message))
-  });
-
-  const mutationGerarCompetencia = useMutation({
-      mutationFn: ({ contratoId, competencia }) => axios.post(`${API_URL}/contratos/${contratoId}/lancamentos`, { competencia }, authConfig),
-      onSuccess: () => {
-          atualizarListas();
-          addToast('success', 'Competência gerada!');
-      },
-      onError: (err) => addToast('error', 'Erro ao gerar competência: ' + (err.response?.data?.error || err.message))
-  });
-  
   const mutationSolicitacao = useMutation({ 
       mutationFn: (dados) => dados.id ? axios.put(`${API_URL}/solicitacoes/${dados.id}`, dados, authConfig) : axios.post(`${API_URL}/solicitacoes/`, dados, authConfig), 
       onSuccess: () => { 
@@ -288,7 +254,6 @@ function DashboardContent() {
 // --- TRADUÇÃO DOS TÍTULOS DO RODAPÉ ---
   const titulosRodape = {
       'dashboard': 'Página Inicial',
-      'contratos': 'Contratos Mensais',
       'notas': 'Lançamentos',
       'solicitacoes': 'Solicitações de Compra',
       'filiais': 'Gerenciar Filiais',
@@ -332,20 +297,6 @@ function DashboardContent() {
                                 solicitacoes={solicitacoes} 
                                 filiais={filiais}
                                 fornecedores={fornecedores}
-                            />
-                        )}
-
-                        {currentView === 'contratos' && (
-                            <ContratosView
-                                contratos={contratos}
-                                filiais={filiais}
-                                fornecedores={fornecedores}
-                                lancamentos={lancamentosContrato}
-                                selectedContrato={selectedContrato}
-                                setSelectedContrato={setSelectedContrato}
-                                onSalvar={(contrato) => mutationContrato.mutate(contrato)}
-                                onGerarCompetencia={(contratoId, competencia) => mutationGerarCompetencia.mutate({ contratoId, competencia })}
-                                onEditarLancamento={abrirEdicaoLancamento}
                             />
                         )}
 

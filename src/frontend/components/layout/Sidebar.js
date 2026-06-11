@@ -12,7 +12,6 @@ import {
 } from '@mui/material';
 import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
 import ApartmentOutlinedIcon from '@mui/icons-material/ApartmentOutlined';
-import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import GroupOutlinedIcon from '@mui/icons-material/GroupOutlined';
@@ -23,7 +22,6 @@ const drawerWidth = 248;
 
 const menuItems = [
   { id: 'dashboard', label: 'Página inicial', icon: <DashboardOutlinedIcon /> },
-  { id: 'contratos', label: 'Contratos', icon: <CalendarMonthOutlinedIcon /> },
   { id: 'notas', label: 'Notas fiscais', icon: <DescriptionOutlinedIcon /> },
   { id: 'solicitacoes', label: 'Solicitações', icon: <ShoppingCartOutlinedIcon /> },
   { id: 'fornecedores', label: 'Fornecedores', icon: <GroupOutlinedIcon /> },

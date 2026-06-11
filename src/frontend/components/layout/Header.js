@@ -32,7 +32,6 @@ export default function Header({
   const getInfos = () => {
     switch (currentView) {
       case 'dashboard': return { titulo: 'Página inicial', sub: 'Visão consolidada' };
-      case 'contratos': return { titulo: 'Contratos mensais', sub: 'Recorrências e competências' };
       case 'notas': return { titulo: 'Notas fiscais', sub: 'Gestão operacional' };
       case 'solicitacoes': return { titulo: 'Solicitações de compra', sub: 'Acompanhamento de pedidos' };
       case 'fornecedores': return { titulo: 'Fornecedores', sub: 'Base de cadastro' };
