@@ -51,6 +51,31 @@ const STATUS_COLOR = {
   Rejeitado: 'error',
 };
 
+const GRID_GROUPS = [
+  { id: 'pendente', label: 'Pendente', color: 'warning' },
+  { id: 'em_analise', label: 'Em análise', color: 'info' },
+  { id: 'concluida', label: 'Concluída', color: 'success' },
+  { id: 'aguardando_fatura', label: 'Aguardando fatura', color: 'secondary' },
+  { id: 'contingencia', label: 'Contingência', color: 'error' },
+];
+
+const normalizeText = (value) =>
+  String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+const getGridGroup = (status) => {
+  const normalized = normalizeText(status);
+
+  if (normalized.includes('aguardando fatura')) return 'aguardando_fatura';
+  if (normalized.includes('concluida') || normalized.includes('concluido') || normalized.includes('pago')) return 'concluida';
+  if (normalized.includes('diverg') || normalized.includes('conting') || normalized.includes('cancel') || normalized.includes('rejeit')) return 'contingencia';
+  if (normalized.includes('pendente nota') || normalized === 'pendente') return 'pendente';
+
+  return 'em_analise';
+};
+
 export default function NotasView({
   notas,
   competencia,
@@ -181,6 +206,110 @@ export default function NotasView({
     </Stack>
   );
 
+  const renderGridCard = (nota) => {
+    const fornecedor = nota.nome_fornecedor || nota.fornecedor?.nome_empresa || 'Fornecedor não informado';
+    const valorReal = parseFloat(nota.valor || 0);
+    const valorPrevisto = nota.valor_previsto ? parseFloat(nota.valor_previsto) : null;
+    const variacao = valorPrevisto !== null ? valorReal - valorPrevisto : 0;
+    const statusTone = STATUS_COLOR[nota.status_pagamento] || 'primary';
+    const borderColor = statusTone === 'default' ? 'divider' : `${statusTone}.main`;
+
+    return (
+      <Paper
+        key={nota.id}
+        variant="outlined"
+        sx={{
+          p: 1.5,
+          minHeight: 292,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1.25,
+          borderTop: '4px solid',
+          borderTopColor: borderColor,
+          bgcolor: 'background.paper',
+          '&:hover': { boxShadow: '0 8px 24px rgba(0,0,0,0.08)' },
+        }}
+      >
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="subtitle2" fontWeight={800} noWrap title={fornecedor}>
+              {fornecedor}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {nota.filial?.nome_fantasia || '-'} | {nota.competencia || 'Sem competência'}
+            </Typography>
+          </Box>
+          <Chip
+            size="small"
+            color={STATUS_COLOR[nota.status_pagamento] || 'default'}
+            label={nota.status_pagamento || 'Sem status'}
+            sx={{ fontWeight: 700, maxWidth: 140 }}
+          />
+        </Stack>
+
+        <Divider />
+
+        <Box>
+          <Typography variant="caption" color="text.secondary" fontWeight={700}>
+            Nota fiscal
+          </Typography>
+          <Typography variant="h6" fontWeight={900} color="primary">
+            {nota.numero_nota ? `#${nota.numero_nota}` : 'Pendente'}
+          </Typography>
+        </Box>
+
+        <Stack direction="row" spacing={2}>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="caption" color="text.secondary" fontWeight={700}>
+              Vencimento
+            </Typography>
+            <Typography variant="body2" fontWeight={700}>
+              {formatDate(nota.data_vencimento)}
+            </Typography>
+          </Box>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="caption" color="text.secondary" fontWeight={700}>
+              CNPJ
+            </Typography>
+            <Typography variant="body2" fontWeight={700} noWrap title={nota.cnpj_usado || '-'}>
+              {nota.cnpj_usado || '-'}
+            </Typography>
+          </Box>
+        </Stack>
+
+        <Box>
+          <Typography variant="caption" color="text.secondary" fontWeight={700}>
+            Valor
+          </Typography>
+          <Typography variant="h6" fontWeight={900}>
+            R$ {valorReal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          </Typography>
+          {valorPrevisto !== null && (
+            <Typography variant="caption" color={Math.abs(variacao) > 0 ? 'warning.main' : 'text.secondary'}>
+              Previsto R$ {valorPrevisto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              {Math.abs(variacao) > 0 ? ` | Variação R$ ${variacao.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : ''}
+            </Typography>
+          )}
+        </Box>
+
+        <FormControl size="small" fullWidth sx={{ mt: 'auto' }}>
+          <Select
+            value={nota.status_pagamento || ''}
+            onChange={(e) => onStatusChange(nota.id, e.target.value)}
+          >
+            {OPCOES_STATUS.map((status) => (
+              <MenuItem key={status} value={status}>
+                {status}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        {renderActions(nota)}
+      </Paper>
+    );
+  };
+
   return (
     <Stack spacing={2.5} sx={{ pb: 8 }}>
       <Paper variant="outlined" sx={{ p: 2 }}>
@@ -251,13 +380,58 @@ export default function NotasView({
             display: 'grid',
             gridTemplateColumns: {
               xs: '1fr',
-              sm: 'repeat(2, minmax(0, 1fr))',
-              xl: 'repeat(3, minmax(0, 1fr))',
+              md: 'repeat(2, minmax(280px, 1fr))',
+              xl: 'repeat(5, minmax(240px, 1fr))',
             },
             gap: 1.5,
+            alignItems: 'start',
           }}
         >
-          {notasFiltradas.map((nota) => {
+          {GRID_GROUPS.map((group) => {
+            const notasDoGrupo = notasFiltradas.filter((nota) => getGridGroup(nota.status_pagamento) === group.id);
+            const totalGrupo = notasDoGrupo.reduce((acc, nota) => acc + parseFloat(nota.valor || 0), 0);
+
+            return (
+              <Paper
+                key={group.id}
+                variant="outlined"
+                sx={{
+                  p: 1.5,
+                  minHeight: 360,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 1.25,
+                  bgcolor: '#faf9f8',
+                  borderTop: '4px solid',
+                  borderTopColor: `${group.color}.main`,
+                }}
+              >
+                <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="subtitle2" fontWeight={900}>
+                      {group.label}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {notasDoGrupo.length} notas | R$ {totalGrupo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </Typography>
+                  </Box>
+                  <Chip size="small" color={group.color} label={notasDoGrupo.length} sx={{ fontWeight: 800 }} />
+                </Stack>
+
+                <Stack spacing={1.25}>
+                  {notasDoGrupo.map((nota) => renderGridCard(nota))}
+                  {notasDoGrupo.length === 0 && (
+                    <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.paper', borderStyle: 'dashed' }}>
+                      <Typography variant="body2" color="text.secondary" textAlign="center">
+                        Sem notas
+                      </Typography>
+                    </Paper>
+                  )}
+                </Stack>
+              </Paper>
+            );
+          })}
+          {false && notasFiltradas.map((nota) => {
             const fornecedor = nota.nome_fornecedor || nota.fornecedor?.nome_empresa || 'Fornecedor não informado';
             const valorReal = parseFloat(nota.valor || 0);
             const valorPrevisto = nota.valor_previsto ? parseFloat(nota.valor_previsto) : null;
