@@ -52,11 +52,11 @@ const STATUS_COLOR = {
 };
 
 const GRID_GROUPS = [
-  { id: 'pendente', label: 'Pendente', color: 'warning' },
-  { id: 'em_analise', label: 'Em análise', color: 'info' },
-  { id: 'concluida', label: 'Concluída', color: 'success' },
-  { id: 'aguardando_fatura', label: 'Aguardando fatura', color: 'secondary' },
-  { id: 'contingencia', label: 'Contingência', color: 'error' },
+  { id: 'pendente', label: 'Pendente', color: 'warning', targetStatus: 'Pendente Nota' },
+  { id: 'em_analise', label: 'Em análise', color: 'info', targetStatus: 'Nota Recebida' },
+  { id: 'concluida', label: 'Concluída', color: 'success', targetStatus: 'Concluída' },
+  { id: 'aguardando_fatura', label: 'Aguardando fatura', color: 'secondary', targetStatus: 'Aguardando Fatura' },
+  { id: 'contingencia', label: 'Contingência', color: 'error', targetStatus: 'Divergência' },
 ];
 
 const normalizeText = (value) =>
@@ -96,6 +96,7 @@ export default function NotasView({
 }) {
   const [expandedSupplier, setExpandedSupplier] = useState({});
   const [viewMode, setViewMode] = useState('grouped');
+  const [draggedNotaId, setDraggedNotaId] = useState(null);
 
   const handleExportarExcel = () => {
     if (!notas || notas.length === 0) return alert('Sem dados para exportar.');
@@ -167,6 +168,44 @@ export default function NotasView({
     setCompetencia(new Date(ano, mes - 1, 1, 12, 0, 0));
   };
 
+  const agruparPorFornecedor = (listaNotas) =>
+    Object.entries(
+      listaNotas.reduce((grupos, nota) => {
+        const fornecedor = nota.nome_fornecedor || nota.fornecedor?.nome_empresa || 'Fornecedor não informado';
+        grupos[fornecedor] = grupos[fornecedor] || [];
+        grupos[fornecedor].push(nota);
+        return grupos;
+      }, {})
+    ).sort((a, b) => a[0].localeCompare(b[0]));
+
+  const handleDragStart = (event, nota) => {
+    setDraggedNotaId(nota.id);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', String(nota.id));
+  };
+
+  const handleDragEnd = () => {
+    setDraggedNotaId(null);
+  };
+
+  const handleDropOnGroup = (event, group) => {
+    event.preventDefault();
+    const transferId = event.dataTransfer.getData('text/plain');
+    const notaId = transferId || draggedNotaId;
+    const nota = notasFiltradas.find((item) => String(item.id) === String(notaId));
+
+    if (!nota) {
+      setDraggedNotaId(null);
+      return;
+    }
+
+    if (nota.status_pagamento !== group.targetStatus) {
+      onStatusChange(nota.id, group.targetStatus);
+    }
+
+    setDraggedNotaId(null);
+  };
+
   const formatDate = (value) => {
     if (!value) return '-';
     return value.split('T')[0].split('-').reverse().join('/');
@@ -218,6 +257,9 @@ export default function NotasView({
       <Paper
         key={nota.id}
         variant="outlined"
+        draggable
+        onDragStart={(event) => handleDragStart(event, nota)}
+        onDragEnd={handleDragEnd}
         sx={{
           p: 1.5,
           minHeight: 292,
@@ -227,7 +269,11 @@ export default function NotasView({
           borderTop: '4px solid',
           borderTopColor: borderColor,
           bgcolor: 'background.paper',
+          cursor: 'grab',
+          opacity: String(draggedNotaId) === String(nota.id) ? 0.55 : 1,
+          transition: 'box-shadow 0.2s ease, opacity 0.2s ease, transform 0.2s ease',
           '&:hover': { boxShadow: '0 8px 24px rgba(0,0,0,0.08)' },
+          '&:active': { cursor: 'grabbing' },
         }}
       >
         <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
@@ -390,20 +436,27 @@ export default function NotasView({
           {GRID_GROUPS.map((group) => {
             const notasDoGrupo = notasFiltradas.filter((nota) => getGridGroup(nota.status_pagamento) === group.id);
             const totalGrupo = notasDoGrupo.reduce((acc, nota) => acc + parseFloat(nota.valor || 0), 0);
+            const notasPorFornecedor = agruparPorFornecedor(notasDoGrupo);
 
             return (
               <Paper
                 key={group.id}
                 variant="outlined"
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = 'move';
+                }}
+                onDrop={(event) => handleDropOnGroup(event, group)}
                 sx={{
                   p: 1.5,
                   minHeight: 360,
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 1.25,
-                  bgcolor: '#faf9f8',
+                  bgcolor: draggedNotaId ? 'rgba(0, 120, 212, 0.06)' : '#faf9f8',
                   borderTop: '4px solid',
                   borderTopColor: `${group.color}.main`,
+                  transition: 'background-color 0.2s ease, border-color 0.2s ease',
                 }}
               >
                 <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
@@ -414,12 +467,31 @@ export default function NotasView({
                     <Typography variant="caption" color="text.secondary">
                       {notasDoGrupo.length} notas | R$ {totalGrupo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Solte aqui para marcar como {group.targetStatus}
+                    </Typography>
                   </Box>
                   <Chip size="small" color={group.color} label={notasDoGrupo.length} sx={{ fontWeight: 800 }} />
                 </Stack>
 
                 <Stack spacing={1.25}>
-                  {notasDoGrupo.map((nota) => renderGridCard(nota))}
+                  {notasPorFornecedor.map(([fornecedor, notasFornecedor]) => (
+                    <Box key={fornecedor}>
+                      <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                        alignItems="center"
+                        spacing={1}
+                        sx={{ px: 0.5, mb: 0.75 }}
+                      >
+                        <Typography variant="caption" fontWeight={900} noWrap title={fornecedor} color="text.secondary">
+                          {fornecedor}
+                        </Typography>
+                        <Chip size="small" variant="outlined" label={notasFornecedor.length} sx={{ height: 22, fontWeight: 800 }} />
+                      </Stack>
+                      <Stack spacing={1}>{notasFornecedor.map((nota) => renderGridCard(nota))}</Stack>
+                    </Box>
+                  ))}
                   {notasDoGrupo.length === 0 && (
                     <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.paper', borderStyle: 'dashed' }}>
                       <Typography variant="body2" color="text.secondary" textAlign="center">
@@ -428,108 +500,6 @@ export default function NotasView({
                     </Paper>
                   )}
                 </Stack>
-              </Paper>
-            );
-          })}
-          {false && notasFiltradas.map((nota) => {
-            const fornecedor = nota.nome_fornecedor || nota.fornecedor?.nome_empresa || 'Fornecedor não informado';
-            const valorReal = parseFloat(nota.valor || 0);
-            const valorPrevisto = nota.valor_previsto ? parseFloat(nota.valor_previsto) : null;
-            const variacao = valorPrevisto !== null ? valorReal - valorPrevisto : 0;
-            const statusTone = STATUS_COLOR[nota.status_pagamento] || 'primary';
-            const borderColor = statusTone === 'default' ? 'divider' : `${statusTone}.main`;
-
-            return (
-              <Paper
-                key={nota.id}
-                variant="outlined"
-                sx={{
-                  p: 2,
-                  minHeight: 292,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 1.5,
-                  borderTop: '4px solid',
-                  borderTopColor: borderColor,
-                  '&:hover': { boxShadow: '0 8px 24px rgba(0,0,0,0.08)' },
-                }}
-              >
-                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography variant="subtitle1" fontWeight={800} noWrap title={fornecedor}>
-                      {fornecedor}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {nota.filial?.nome_fantasia || '-'} | {nota.competencia || 'Sem competência'}
-                    </Typography>
-                  </Box>
-                  <Chip
-                    size="small"
-                    color={STATUS_COLOR[nota.status_pagamento] || 'default'}
-                    label={nota.status_pagamento || 'Sem status'}
-                    sx={{ fontWeight: 700, maxWidth: 150 }}
-                  />
-                </Stack>
-
-                <Divider />
-
-                <Box>
-                  <Typography variant="caption" color="text.secondary" fontWeight={700}>
-                    Nota fiscal
-                  </Typography>
-                  <Typography variant="h5" fontWeight={900} color="primary">
-                    {nota.numero_nota ? `#${nota.numero_nota}` : 'Pendente'}
-                  </Typography>
-                </Box>
-
-                <Stack direction="row" spacing={2}>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography variant="caption" color="text.secondary" fontWeight={700}>
-                      Vencimento
-                    </Typography>
-                    <Typography variant="body2" fontWeight={700}>
-                      {formatDate(nota.data_vencimento)}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography variant="caption" color="text.secondary" fontWeight={700}>
-                      CNPJ
-                    </Typography>
-                    <Typography variant="body2" fontWeight={700} noWrap title={nota.cnpj_usado || '-'}>
-                      {nota.cnpj_usado || '-'}
-                    </Typography>
-                  </Box>
-                </Stack>
-
-                <Box>
-                  <Typography variant="caption" color="text.secondary" fontWeight={700}>
-                    Valor
-                  </Typography>
-                  <Typography variant="h6" fontWeight={900}>
-                    R$ {valorReal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </Typography>
-                  {valorPrevisto !== null && (
-                    <Typography variant="caption" color={Math.abs(variacao) > 0 ? 'warning.main' : 'text.secondary'}>
-                      Previsto R$ {valorPrevisto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      {Math.abs(variacao) > 0 ? ` | Variação R$ ${variacao.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : ''}
-                    </Typography>
-                  )}
-                </Box>
-
-                <FormControl size="small" fullWidth sx={{ mt: 'auto' }}>
-                  <Select
-                    value={nota.status_pagamento || ''}
-                    onChange={(e) => onStatusChange(nota.id, e.target.value)}
-                  >
-                    {OPCOES_STATUS.map((status) => (
-                      <MenuItem key={status} value={status}>
-                        {status}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-
-                {renderActions(nota)}
               </Paper>
             );
           })}
