@@ -57,7 +57,7 @@ const statusColor = {
 const lancamentoColor = (status) => {
   if (status === 'Concluída' || status === 'Concluida') return 'success';
   if (status === 'Divergência') return 'error';
-  if (status === 'Pendente Nota') return 'warning';
+  if (status === 'Pendente Nota' || status === 'Aguardando Fatura') return 'warning';
   if (status === 'Cancelada') return 'default';
   return 'info';
 };
@@ -131,10 +131,10 @@ export default function ContratosView({
           <Box>
             <Stack direction="row" spacing={1.25} alignItems="center">
               <CalendarMonthOutlinedIcon color="primary" />
-              <Typography variant="h5" fontWeight={700}>Contratos mensais</Typography>
+              <Typography variant="h5" fontWeight={700}>Contratos recorrentes</Typography>
             </Stack>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              Contratos permanentes e lançamentos por competência
+              Cadastro auxiliar para gerar notas 10 dias antes do vencimento
             </Typography>
           </Box>
           <Button variant="contained" startIcon={<AddIcon />} onClick={abrirNovo}>
@@ -151,8 +151,8 @@ export default function ContratosView({
               <TableCell>Filial</TableCell>
               <TableCell>Valor previsto</TableCell>
               <TableCell>Vencimento</TableCell>
-              <TableCell>Último mês</TableCell>
-              <TableCell>Próximo esperado</TableCell>
+              <TableCell>Última nota</TableCell>
+              <TableCell>Próxima competência</TableCell>
               <TableCell>Status</TableCell>
               <TableCell align="right">Ações</TableCell>
             </TableRow>
@@ -175,7 +175,7 @@ export default function ContratosView({
                       <HistoryOutlinedIcon />
                     </IconButton>
                   </Tooltip>
-                  <Tooltip title="Gerar competência">
+                  <Tooltip title="Gerar nota">
                     <IconButton color="success" onClick={() => onGerarCompetencia(contrato.id, contrato.proxima_competencia || competenciaAtual())}>
                       <PlayCircleIcon />
                     </IconButton>
@@ -191,7 +191,7 @@ export default function ContratosView({
             {contratos.length === 0 && (
               <TableRow>
                 <TableCell colSpan={8} align="center" sx={{ py: 6, color: 'text.secondary' }}>
-                  Nenhum contrato mensal cadastrado.
+                  Nenhum contrato recorrente cadastrado.
                 </TableCell>
               </TableRow>
             )}
@@ -209,7 +209,7 @@ export default function ContratosView({
             <Divider />
             <Stack direction="row" spacing={1}>
               <TextField size="small" type="month" label="Competência" value={competencia} onChange={(e) => setCompetencia(e.target.value)} InputLabelProps={{ shrink: true }} fullWidth />
-              <Button variant="contained" onClick={() => onGerarCompetencia(selectedContrato.id, competencia)}>Gerar</Button>
+              <Button variant="contained" onClick={() => onGerarCompetencia(selectedContrato.id, competencia)}>Gerar nota</Button>
             </Stack>
 
             <Stack spacing={1.25}>
@@ -242,7 +242,7 @@ export default function ContratosView({
                 );
               })}
               {lancamentosContrato.length === 0 && (
-                <Typography variant="body2" color="text.secondary">Nenhuma competência gerada para este contrato.</Typography>
+                <Typography variant="body2" color="text.secondary">Nenhuma nota gerada para este contrato.</Typography>
               )}
             </Stack>
           </Stack>
@@ -250,7 +250,7 @@ export default function ContratosView({
       </Drawer>
 
       <Dialog open={showModal} onClose={() => setShowModal(false)} fullWidth maxWidth="md">
-        <DialogTitle>{form.id ? 'Editar contrato mensal' : 'Novo contrato mensal'}</DialogTitle>
+        <DialogTitle>{form.id ? 'Editar contrato recorrente' : 'Novo contrato recorrente'}</DialogTitle>
         <DialogContent dividers>
           <Grid container spacing={2} sx={{ pt: 1 }}>
             <Grid size={{ xs: 12, md: 6 }}>

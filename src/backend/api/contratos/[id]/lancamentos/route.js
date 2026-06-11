@@ -18,7 +18,7 @@ const vencimentoParaCompetencia = (competencia, dia) => {
   return `${ano}-${pad(mes)}-${pad(Math.min(Number(dia) || 1, ultimoDia))}`;
 };
 
-const statusInicial = 'Pendente Nota';
+const statusInicial = 'Aguardando Fatura';
 
 export async function GET(request, context) {
   const params = await context.params;

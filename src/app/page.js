@@ -17,6 +17,7 @@ import Sidebar from '@/frontend/components/layout/Sidebar';
 
 import DashboardView from '@/frontend/components/views/DashboardView';
 import NotasView from '@/frontend/components/views/NotasView'; 
+import ContratosView from '@/frontend/components/views/ContratosView';
 import SearchResultsView from '@/frontend/components/views/SearchResultsView';
 import SolicitacoesView from '@/frontend/components/views/SolicitacoesView';
 import FiliaisView from '@/frontend/components/views/FiliaisView';
@@ -56,6 +57,7 @@ function DashboardContent() {
   const [filialFiltro, setFilialFiltro] = useState('');
   const [statusFiltro, setStatusFiltro] = useState([]);
   const [termoBusca, setTermoBusca] = useState('');
+  const [selectedContrato, setSelectedContrato] = useState(null);
 
   // MODAIS
   const [showModal, setShowModal] = useState(false); 
@@ -120,6 +122,18 @@ function DashboardContent() {
       enabled: !!token && currentView === 'dashboard'
   });
 
+  const { data: contratos = [] } = useQuery({
+      queryKey: ['contratos'],
+      queryFn: () => axios.get(`${API_URL}/contratos/`, authConfig).then(res => res.data),
+      enabled: !!token && currentView === 'contratos'
+  });
+
+  const { data: lancamentosContrato = [] } = useQuery({
+      queryKey: ['contrato_lancamentos', selectedContrato?.id],
+      queryFn: () => axios.get(`${API_URL}/contratos/${selectedContrato.id}/lancamentos`, authConfig).then(res => res.data),
+      enabled: !!token && !!selectedContrato?.id
+  });
+
   const { data: dadosBusca = [], isFetching: carregandoBusca } = useQuery({ queryKey: ['busca', termoBusca], queryFn: async () => { if (!termoBusca) return []; const res = await axios.get(`${API_URL}/lancamentos/?busca=${termoBusca}`, authConfig); return res.data; }, enabled: !!token && termoBusca.length > 2 });
 
   // SOLICITAÇÕES: Baixa tudo para filtrar e enriquecer no front
@@ -139,6 +153,8 @@ function DashboardContent() {
       await queryClient.invalidateQueries({ queryKey: ['dashboard_full'], exact: false });
       await queryClient.invalidateQueries({ queryKey: ['solicitacoes'], exact: false });
       await queryClient.invalidateQueries({ queryKey: ['busca'], exact: false });
+      await queryClient.invalidateQueries({ queryKey: ['contratos'], exact: false });
+      await queryClient.invalidateQueries({ queryKey: ['contrato_lancamentos'], exact: false });
   };
 
   const handleManualRefresh = async () => {
@@ -160,6 +176,24 @@ function DashboardContent() {
 
   const mutationFilial = useMutation({ mutationFn: (data) => data.id ? axios.put(`${API_URL}/filiais/${data.id}`, data, authConfig) : axios.post(`${API_URL}/filiais/`, data, authConfig), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['filiais'] }); addToast('success', 'Filial salva!'); } });
   const mutationFornecedor = useMutation({ mutationFn: (data) => data.id ? axios.put(`${API_URL}/fornecedores/${data.id}`, data, authConfig) : axios.post(`${API_URL}/fornecedores/`, data, authConfig), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['fornecedores'] }); addToast('success', 'Fornecedor salvo!'); } });
+
+  const mutationContrato = useMutation({
+      mutationFn: (data) => data.id ? axios.put(`${API_URL}/contratos/${data.id}`, data, authConfig) : axios.post(`${API_URL}/contratos/`, data, authConfig),
+      onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ['contratos'] });
+          addToast('success', 'Contrato salvo!');
+      },
+      onError: (err) => addToast('error', 'Erro ao salvar contrato: ' + (err.response?.data?.error || err.message))
+  });
+
+  const mutationGerarCompetencia = useMutation({
+      mutationFn: ({ contratoId, competencia }) => axios.post(`${API_URL}/contratos/${contratoId}/lancamentos`, { competencia }, authConfig),
+      onSuccess: () => {
+          atualizarListas();
+          addToast('success', 'Nota gerada em Aguardando Fatura!');
+      },
+      onError: (err) => addToast('error', 'Erro ao gerar nota: ' + (err.response?.data?.error || err.message))
+  });
 
   const mutationSolicitacao = useMutation({ 
       mutationFn: (dados) => dados.id ? axios.put(`${API_URL}/solicitacoes/${dados.id}`, dados, authConfig) : axios.post(`${API_URL}/solicitacoes/`, dados, authConfig), 
@@ -255,6 +289,7 @@ function DashboardContent() {
   const titulosRodape = {
       'dashboard': 'Página Inicial',
       'notas': 'Lançamentos',
+      'contratos': 'Contratos recorrentes',
       'solicitacoes': 'Solicitações de Compra',
       'filiais': 'Gerenciar Filiais',
       'fornecedores': 'Gerenciar Fornecedores',
@@ -319,6 +354,20 @@ function DashboardContent() {
                                 isGopaFunc={isGopaFunc}
                                 busca={termoBusca}
                                 onRefresh={handleManualRefresh}
+                            />
+                        )}
+
+                        {currentView === 'contratos' && (
+                            <ContratosView
+                                contratos={contratos}
+                                filiais={filiais}
+                                fornecedores={fornecedores}
+                                lancamentos={lancamentosContrato}
+                                selectedContrato={selectedContrato}
+                                setSelectedContrato={setSelectedContrato}
+                                onSalvar={(contrato) => mutationContrato.mutate(contrato)}
+                                onGerarCompetencia={(contratoId, competencia) => mutationGerarCompetencia.mutate({ contratoId, competencia })}
+                                onEditarLancamento={abrirEdicaoLancamento}
                             />
                         )}
 
