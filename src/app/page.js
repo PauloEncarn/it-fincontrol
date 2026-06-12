@@ -261,6 +261,16 @@ function DashboardContent() {
       addToast('error', 'Erro ao salvar.');
     }
   };
+
+  const salvarLancamentoInline = async (dados) => {
+    const payload = prepararPayloadLancamento(dados);
+    try {
+      await mutationLancamento.mutateAsync(payload);
+      addToast('success', payload.etapa === 'em_analise' ? 'Nota salva e enviada para análise!' : 'Nota salva!');
+    } catch {
+      addToast('error', 'Erro ao salvar nota.');
+    }
+  };
   
   const salvarEEnviar = async () => { if (!form.arquivo_nota) return addToast('error', 'Anexe a nota fiscal para enviar.'); const payload = prepararPayloadLancamento(form); try { setSendingEmail(true); const response = await mutationLancamento.mutateAsync(payload); const notaSalva = response.data; await handleEnviarEmail({...payload, id: notaSalva.id || form.id}); setShowModal(false); } catch (e) { addToast('error', 'Erro no processo Salvar/Enviar.'); } finally { setSendingEmail(false); } };
 
@@ -389,9 +399,11 @@ function DashboardContent() {
                                 onDownload={(path) => window.open(path.startsWith('http') ? path : `${API_URL}/${path}`, '_blank')}
                                 onStatusChange={(id, st) => mutationStatus.mutate({id, status: st})}
                                 onEtapaChange={(id, etapa, status) => mutationStatus.mutate({id, etapa, status})}
+                                onSalvarInline={salvarLancamentoInline}
                                 isGopaFunc={isGopaFunc}
                                 busca={termoBusca}
                                 onRefresh={handleManualRefresh}
+                                addToast={addToast}
                             />
                         )}
 

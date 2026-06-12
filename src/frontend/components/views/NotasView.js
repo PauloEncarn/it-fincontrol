@@ -36,6 +36,7 @@ import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined';
 import StorageOutlinedIcon from '@mui/icons-material/StorageOutlined';
 import ViewListIcon from '@mui/icons-material/ViewList';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
+import FileDrop from '@/frontend/components/ui/FileDrop';
 
 const STATUS_COLOR = {
   'Pendente Nota': 'warning',
@@ -121,15 +122,19 @@ export default function NotasView({
   onDownload,
   onStatusChange,
   onEtapaChange,
+  onSalvarInline,
   isGopaFunc,
   busca,
   onRefresh,
+  addToast,
 }) {
   const [expandedSupplier, setExpandedSupplier] = useState({});
   const [viewMode, setViewMode] = useState('grouped');
   const [draggedNotaId, setDraggedNotaId] = useState(null);
   const [collapsedGroups, setCollapsedGroups] = useState({});
   const [collapsedGridSuppliers, setCollapsedGridSuppliers] = useState({});
+  const [quickEditId, setQuickEditId] = useState(null);
+  const [quickForms, setQuickForms] = useState({});
 
   const handleExportarExcel = () => {
     if (!notas || notas.length === 0) return alert('Sem dados para exportar.');
@@ -282,6 +287,28 @@ export default function NotasView({
     setCollapsedGridSuppliers((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const quickFormForNota = (nota) => quickForms[nota.id] || {
+    ...nota,
+    data_vencimento: nota.data_vencimento ? String(nota.data_vencimento).split('T')[0] : '',
+    data_envio: nota.data_envio ? String(nota.data_envio).split('T')[0] : '',
+  };
+
+  const updateQuickForm = (nota, patch) => {
+    setQuickForms((prev) => ({
+      ...prev,
+      [nota.id]: {
+        ...quickFormForNota(nota),
+        ...patch,
+      },
+    }));
+  };
+
+  const salvarQuickForm = async (nota) => {
+    const dados = quickFormForNota(nota);
+    await onSalvarInline(dados);
+    setQuickEditId(null);
+  };
+
   const renderActions = (nota) => (
     <Stack spacing={0.75}>
       <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
@@ -336,6 +363,9 @@ export default function NotasView({
           <EditOutlinedIcon />
         </IconButton>
       </Tooltip>
+      <Button size="small" variant="text" onClick={() => setQuickEditId((id) => (id === nota.id ? null : nota.id))}>
+        {quickEditId === nota.id ? 'Fechar edição' : 'Editar no card'}
+      </Button>
       <Tooltip title="Duplicar">
         <IconButton size="small" onClick={() => onDuplicar(nota)} aria-label="Duplicar nota">
           <FileCopyOutlinedIcon />
@@ -347,6 +377,7 @@ export default function NotasView({
 
   const renderGridCard = (nota) => {
     const fornecedor = nota.nome_fornecedor || nota.fornecedor?.nome_empresa || 'Fornecedor não informado';
+    const quick = quickFormForNota(nota);
     const valorReal = parseFloat(nota.valor || 0);
     const valorPrevisto = nota.valor_previsto ? parseFloat(nota.valor_previsto) : null;
     const variacao = valorPrevisto !== null ? valorReal - valorPrevisto : 0;
@@ -471,6 +502,42 @@ export default function NotasView({
             ))}
           </Select>
         </FormControl>
+
+        {quickEditId === nota.id && (
+          <Paper variant="outlined" sx={{ p: 1.25, bgcolor: '#faf9f8' }}>
+            <Stack spacing={1.25}>
+              <Stack direction="row" spacing={1}>
+                <TextField size="small" label="Nº nota" value={quick.numero_nota || ''} onChange={(e) => updateQuickForm(nota, { numero_nota: e.target.value })} fullWidth />
+                <TextField size="small" label="Valor" type="number" value={quick.valor || ''} onChange={(e) => updateQuickForm(nota, { valor: e.target.value })} fullWidth />
+              </Stack>
+              <TextField size="small" label="Vencimento" type="date" value={quick.data_vencimento || ''} onChange={(e) => updateQuickForm(nota, { data_vencimento: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} />
+              <TextField size="small" label="CNPJ" value={quick.cnpj_usado || ''} onChange={(e) => updateQuickForm(nota, { cnpj_usado: e.target.value })} fullWidth />
+              <TextField size="small" label="Centro de custo" value={quick.centro_custo_usado || ''} onChange={(e) => updateQuickForm(nota, { centro_custo_usado: e.target.value })} fullWidth />
+              <Stack direction="row" spacing={1}>
+                <TextField size="small" label="Pedido" value={quick.numero_pedido || ''} onChange={(e) => updateQuickForm(nota, { numero_pedido: e.target.value })} fullWidth />
+                <TextField size="small" label="Fluig" value={quick.solicitacao_fluig || ''} onChange={(e) => updateQuickForm(nota, { solicitacao_fluig: e.target.value })} fullWidth />
+              </Stack>
+              <FileDrop
+                label="Nota fiscal"
+                onFileSelect={(path) => updateQuickForm(nota, { arquivo_nota: path })}
+                existingFile={quick.arquivo_nota}
+                metaData={{ fornecedor, nota: quick.numero_nota, vencimento: quick.data_vencimento }}
+                addToast={addToast}
+              />
+              <FileDrop
+                label="Boleto"
+                onFileSelect={(path) => updateQuickForm(nota, { arquivo_boleto: path })}
+                existingFile={quick.arquivo_boleto}
+                metaData={{ fornecedor, nota: quick.numero_nota, vencimento: quick.data_vencimento }}
+                addToast={addToast}
+              />
+              <Stack direction="row" spacing={1} justifyContent="flex-end">
+                <Button size="small" onClick={() => setQuickEditId(null)}>Cancelar</Button>
+                <Button size="small" variant="contained" onClick={() => salvarQuickForm(nota)}>Salvar</Button>
+              </Stack>
+            </Stack>
+          </Paper>
+        )}
 
         {renderActions(nota)}
       </Paper>
