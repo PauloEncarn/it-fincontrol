@@ -760,6 +760,183 @@ export default function NotasView({
     );
   };
 
+  const resumoFornecedor = (itens) => {
+    const totalValor = itens.reduce((acc, nota) => acc + Number(nota.valor || 0), 0);
+    const abertas = itens.filter((nota) => getNotaGroup(nota) !== 'concluida');
+    const concluidas = itens.filter((nota) => getNotaGroup(nota) === 'concluida');
+    const contingencias = itens.filter((nota) => getNotaGroup(nota) === 'contingencia');
+    const emAnalise = itens.filter((nota) => getNotaGroup(nota) === 'em_analise');
+    const semAnexo = abertas.filter((nota) => !nota.arquivo_nota || !nota.arquivo_boleto);
+    const criticas = abertas.filter((nota) => getDueSignal(nota.data_vencimento)?.color === 'error');
+    const proximoVencimento = abertas
+      .map((nota) => ({ nota, data: parseDateLocal(nota.data_vencimento) }))
+      .filter((item) => item.data)
+      .sort((a, b) => a.data - b.data)[0]?.nota;
+    const score = criticas.length * 5 + contingencias.length * 4 + semAnexo.length * 2 + abertas.length;
+    const tone = score >= 8 || criticas.length ? 'error' : score >= 3 || semAnexo.length ? 'warning' : 'success';
+
+    return {
+      totalValor,
+      abertas,
+      concluidas,
+      contingencias,
+      emAnalise,
+      semAnexo,
+      criticas,
+      proximoVencimento,
+      score,
+      tone,
+    };
+  };
+
+  const renderGroupedSupplier = (nome, itens) => {
+    const resumo = resumoFornecedor(itens);
+    const totalAberto = resumo.abertas.reduce((acc, nota) => acc + Number(nota.valor || 0), 0);
+
+    return (
+      <Accordion
+        key={nome}
+        expanded={Boolean(expandedSupplier[nome])}
+        onChange={() => setExpandedSupplier((prev) => ({ ...prev, [nome]: !prev[nome] }))}
+        disableGutters
+      >
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', md: 'center' }} sx={{ width: '100%', minWidth: 0, pr: 1 }}>
+            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flex: 1, minWidth: 0 }}>
+              <StorageOutlinedIcon color={resumo.tone === 'error' ? 'error' : resumo.tone === 'warning' ? 'warning' : 'success'} />
+              <Box sx={{ minWidth: 0 }}>
+                <Typography fontWeight={900} noWrap title={nome}>
+                  {nome}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {itens.length} notas | Aberto R$ {totalAberto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} | Total R$ {resumo.totalValor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </Typography>
+              </Box>
+            </Stack>
+
+            <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap justifyContent={{ xs: 'flex-start', md: 'flex-end' }}>
+              <Chip size="small" color={resumo.tone} label={resumo.tone === 'error' ? 'Crítico' : resumo.tone === 'warning' ? 'Atenção' : 'OK'} sx={{ fontWeight: 900 }} />
+              {resumo.criticas.length > 0 && <Chip size="small" color="error" variant="outlined" label={`${resumo.criticas.length} venc.`} />}
+              {resumo.contingencias.length > 0 && <Chip size="small" color="error" label={`${resumo.contingencias.length} cont.`} />}
+              {resumo.semAnexo.length > 0 && <Chip size="small" color="warning" label={`${resumo.semAnexo.length} docs`} />}
+              {resumo.emAnalise.length > 0 && <Chip size="small" color="secondary" label={`${resumo.emAnalise.length} análise`} />}
+              {resumo.proximoVencimento && <Chip size="small" variant="outlined" label={`Próx. ${formatDate(resumo.proximoVencimento.data_vencimento)}`} />}
+            </Stack>
+          </Stack>
+        </AccordionSummary>
+
+        <AccordionDetails sx={{ bgcolor: '#faf9f8', borderTop: '1px solid', borderColor: 'divider' }}>
+          <Grid container spacing={1.25} sx={{ mb: 1.5 }}>
+            <Grid item xs={6} md={2.4}>
+              <Paper variant="outlined" sx={{ p: 1.25 }}>
+                <Typography variant="caption" color="text.secondary" fontWeight={800}>Abertas</Typography>
+                <Typography variant="h6" fontWeight={900}>{resumo.abertas.length}</Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={6} md={2.4}>
+              <Paper variant="outlined" sx={{ p: 1.25 }}>
+                <Typography variant="caption" color="text.secondary" fontWeight={800}>Críticas</Typography>
+                <Typography variant="h6" fontWeight={900} color={resumo.criticas.length ? 'error.main' : 'success.main'}>{resumo.criticas.length}</Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={6} md={2.4}>
+              <Paper variant="outlined" sx={{ p: 1.25 }}>
+                <Typography variant="caption" color="text.secondary" fontWeight={800}>Sem docs</Typography>
+                <Typography variant="h6" fontWeight={900} color={resumo.semAnexo.length ? 'warning.main' : 'success.main'}>{resumo.semAnexo.length}</Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={6} md={2.4}>
+              <Paper variant="outlined" sx={{ p: 1.25 }}>
+                <Typography variant="caption" color="text.secondary" fontWeight={800}>Contingência</Typography>
+                <Typography variant="h6" fontWeight={900} color={resumo.contingencias.length ? 'error.main' : 'success.main'}>{resumo.contingencias.length}</Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={6} md={2.4}>
+              <Paper variant="outlined" sx={{ p: 1.25 }}>
+                <Typography variant="caption" color="text.secondary" fontWeight={800}>Concluídas</Typography>
+                <Typography variant="h6" fontWeight={900} color="success.main">{resumo.concluidas.length}</Typography>
+              </Paper>
+            </Grid>
+          </Grid>
+
+          <Stack spacing={1}>
+            {itens
+              .slice()
+              .sort((a, b) => {
+                const groupOrder = { contingencia: 0, pendente: 1, em_andamento: 2, em_analise: 3, concluida: 4 };
+                return (groupOrder[getNotaGroup(a)] ?? 9) - (groupOrder[getNotaGroup(b)] ?? 9)
+                  || (parseDateLocal(a.data_vencimento) || new Date(8640000000000000)) - (parseDateLocal(b.data_vencimento) || new Date(8640000000000000));
+              })
+              .map((nota) => {
+                const dueSignal = getNotaGroup(nota) === 'concluida' ? null : getDueSignal(nota.data_vencimento);
+                const missingDocs = !nota.arquivo_nota || !nota.arquivo_boleto;
+
+                return (
+                  <Paper key={nota.id} variant="outlined" sx={{ p: 1.5, borderLeft: '4px solid', borderLeftColor: dueSignal ? `${dueSignal.color}.main` : 'divider' }}>
+                    <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', lg: 'center' }}>
+                      <Box sx={{ flex: 1, minWidth: 220 }}>
+                        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                          <Typography variant="subtitle1" fontWeight={900}>
+                            #{nota.numero_nota || 'Sem NF'}
+                          </Typography>
+                          <Chip size="small" variant="outlined" label={nota.filial?.nome_fantasia || '-'} />
+                          <Chip size="small" color={STATUS_COLOR[nota.status_pagamento] || 'default'} label={nota.status_pagamento || 'Sem status'} sx={{ fontWeight: 700 }} />
+                          {dueSignal && <Chip size="small" color={dueSignal.color} variant="outlined" label={dueSignal.label} />}
+                          {missingDocs && <Chip size="small" color="warning" label={!nota.arquivo_nota && !nota.arquivo_boleto ? 'Sem anexos' : !nota.arquivo_nota ? 'Sem NF' : 'Sem boleto'} />}
+                        </Stack>
+                        <Typography variant="body2" color="text.secondary">
+                          Venc. {formatDate(nota.data_vencimento)} | Pedido {nota.numero_pedido || '-'} | {isGopaFunc(nota) ? `Medição ${nota.numero_medicao || '-'}` : `Fluig ${nota.solicitacao_fluig || '-'}`}
+                        </Typography>
+                      </Box>
+
+                      <Box sx={{ minWidth: 150 }}>
+                        <Typography variant="caption" color="text.secondary" fontWeight={700}>Valor</Typography>
+                        <Typography variant="subtitle1" fontWeight={900} color="primary">
+                          R$ {parseFloat(nota.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </Typography>
+                      </Box>
+
+                      <Stack direction="row" justifyContent={{ xs: 'flex-start', lg: 'flex-end' }} spacing={0.5} flexWrap="wrap" useFlexGap>
+                        <Tooltip title="Copiar Protheus">
+                          <IconButton onClick={() => onCopiarProtheus(nota)} aria-label="Copiar Protheus">
+                            <ContentCopyOutlinedIcon />
+                          </IconButton>
+                        </Tooltip>
+                        {isGopaFunc(nota) && (
+                          <Tooltip title="Enviar para GOPA">
+                            <IconButton onClick={() => onEnviarEmailGopa(nota)} aria-label="Enviar email">
+                              <EmailOutlinedIcon />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        {nota.arquivo_nota && (
+                          <Tooltip title="Baixar nota">
+                            <IconButton onClick={() => onDownload(nota.arquivo_nota)} aria-label="Baixar nota">
+                              <DescriptionOutlinedIcon />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        <Tooltip title="Editar">
+                          <IconButton onClick={() => onEditar(nota)} aria-label="Editar nota">
+                            <EditOutlinedIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Duplicar">
+                          <IconButton onClick={() => onDuplicar(nota)} aria-label="Duplicar nota">
+                            <FileCopyOutlinedIcon />
+                          </IconButton>
+                        </Tooltip>
+                      </Stack>
+                    </Stack>
+                  </Paper>
+                );
+              })}
+          </Stack>
+        </AccordionDetails>
+      </Accordion>
+    );
+  };
+
   return (
     <>
     <Stack spacing={2.5} sx={{ pb: 8 }}>
@@ -793,7 +970,7 @@ export default function NotasView({
             >
               <ToggleButton value="grouped" aria-label="Visualização agrupada">
                 <ViewListIcon fontSize="small" sx={{ mr: 0.75 }} />
-                Agrupado
+                Fornecedores
               </ToggleButton>
               <ToggleButton value="grid" aria-label="Visualização em grid">
                 <ViewModuleIcon fontSize="small" sx={{ mr: 0.75 }} />
@@ -929,115 +1106,10 @@ export default function NotasView({
         </Box>
       ) : (
         <Stack spacing={1.5}>
-          {dadosAgrupados.map(([nome, itens]) => {
-            const totalGrupo = itens.reduce((acc, nota) => acc + parseFloat(nota.valor || 0), 0);
-
-            return (
-              <Accordion
-                key={nome}
-                expanded={Boolean(expandedSupplier[nome])}
-                onChange={() => setExpandedSupplier((prev) => ({ ...prev, [nome]: !prev[nome] }))}
-                disableGutters
-              >
-                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                  <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0 }}>
-                    <StorageOutlinedIcon color="primary" />
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography fontWeight={700} noWrap>
-                        {nome}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {itens.length} notas | Total R$ {totalGrupo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                </AccordionSummary>
-                <AccordionDetails sx={{ bgcolor: '#faf9f8', borderTop: '1px solid', borderColor: 'divider' }}>
-                  <Stack spacing={1.25}>
-                    {itens.map((nota) => (
-                      <Paper key={nota.id} variant="outlined" sx={{ p: 2 }}>
-                        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ xs: 'stretch', md: 'center' }}>
-                          <Box sx={{ flex: 1, minWidth: 220 }}>
-                            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                              <Typography variant="h6" fontWeight={800}>
-                                #{nota.numero_nota}
-                              </Typography>
-                              <Chip size="small" variant="outlined" label={nota.filial?.nome_fantasia || '-'} />
-                            </Stack>
-                            <Typography variant="body2" color="text.secondary">
-                              CNPJ: {nota.cnpj_usado || '-'} | Vencimento:{' '}
-                              {nota.data_vencimento ? nota.data_vencimento.split('-').reverse().join('/') : '-'}
-                            </Typography>
-                          </Box>
-
-                          <Box sx={{ minWidth: 180, textAlign: { xs: 'left', md: 'center' } }}>
-                            <Typography variant="caption" color="text.secondary" fontWeight={700}>
-                              Valor líquido
-                            </Typography>
-                            <Typography variant="h6" color="primary" fontWeight={800}>
-                              R$ {parseFloat(nota.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                            </Typography>
-                          </Box>
-
-                          <FormControl size="small" sx={{ minWidth: 190 }}>
-                            <Select
-                              value={nota.status_pagamento || ''}
-                              onChange={(e) => onStatusChange(nota.id, e.target.value)}
-                            >
-                              {statusOptionsForNota(nota).map((status) => (
-                                <MenuItem key={status} value={status}>
-                                  {status}
-                                </MenuItem>
-                              ))}
-                            </Select>
-                          </FormControl>
-
-                          <Chip
-                            size="small"
-                            color={STATUS_COLOR[nota.status_pagamento] || 'default'}
-                            label={nota.status_pagamento || 'Sem status'}
-                            sx={{ display: { xs: 'none', lg: 'inline-flex' }, fontWeight: 700 }}
-                          />
-
-                          <Stack direction="row" justifyContent={{ xs: 'flex-start', md: 'flex-end' }} spacing={0.5}>
-                            <Tooltip title="Copiar Protheus">
-                              <IconButton onClick={() => onCopiarProtheus(nota)} aria-label="Copiar Protheus">
-                                <ContentCopyOutlinedIcon />
-                              </IconButton>
-                            </Tooltip>
-                            {isGopaFunc(nota) && (
-                              <Tooltip title="Enviar para GOPA">
-                                <IconButton onClick={() => onEnviarEmailGopa(nota)} aria-label="Enviar email">
-                                  <EmailOutlinedIcon />
-                                </IconButton>
-                              </Tooltip>
-                            )}
-                            {nota.arquivo_nota && (
-                              <Tooltip title="Baixar nota">
-                                <IconButton onClick={() => onDownload(nota.arquivo_nota)} aria-label="Baixar nota">
-                                  <DescriptionOutlinedIcon />
-                                </IconButton>
-                              </Tooltip>
-                            )}
-                            <Tooltip title="Editar">
-                              <IconButton onClick={() => onEditar(nota)} aria-label="Editar nota">
-                                <EditOutlinedIcon />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Duplicar">
-                              <IconButton onClick={() => onDuplicar(nota)} aria-label="Duplicar nota">
-                                <FileCopyOutlinedIcon />
-                              </IconButton>
-                            </Tooltip>
-                          </Stack>
-                        </Stack>
-                      </Paper>
-                    ))}
-                  </Stack>
-                </AccordionDetails>
-              </Accordion>
-            );
-          })}
+          {dadosAgrupados
+            .map(([nome, itens]) => ({ nome, itens, resumo: resumoFornecedor(itens) }))
+            .sort((a, b) => b.resumo.score - a.resumo.score || a.nome.localeCompare(b.nome))
+            .map(({ nome, itens }) => renderGroupedSupplier(nome, itens))}
         </Stack>
       )}
     </Stack>

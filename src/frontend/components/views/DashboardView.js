@@ -1,10 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import {
+  Alert,
   Box,
   Chip,
+  Divider,
   FormControl,
   Grid,
   InputLabel,
+  LinearProgress,
   MenuItem,
   Paper,
   Select,
@@ -14,25 +17,11 @@ import {
 import AccountTreeOutlinedIcon from '@mui/icons-material/AccountTreeOutlined';
 import AssignmentTurnedInOutlinedIcon from '@mui/icons-material/AssignmentTurnedInOutlined';
 import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
+import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 import PaidOutlinedIcon from '@mui/icons-material/PaidOutlined';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
-import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
-import { CORES } from '@/frontend/utils/constants';
+import ReportProblemOutlinedIcon from '@mui/icons-material/ReportProblemOutlined';
+import ScheduleOutlinedIcon from '@mui/icons-material/ScheduleOutlined';
 
 const MESES = ['Todos os meses', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
@@ -41,33 +30,77 @@ const formatCurrency = (value) => Number(value || 0).toLocaleString('pt-BR', {
   currency: 'BRL',
 });
 
+const formatDate = (value) => {
+  if (!value) return '-';
+  const [dateOnly] = String(value).split('T');
+  const parts = dateOnly.split('-');
+  if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  return dateOnly;
+};
+
+const parseDateLocal = (value) => {
+  if (!value) return null;
+  const [dateOnly] = String(value).split('T');
+  const parts = dateOnly.split('-').map(Number);
+  if (parts.length !== 3 || parts.some((part) => !part)) return null;
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+};
+
+const daysUntil = (value) => {
+  const date = parseDateLocal(value);
+  if (!date) return null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  date.setHours(0, 0, 0, 0);
+  return Math.ceil((date.getTime() - today.getTime()) / 86400000);
+};
+
+const getEtapa = (nota) => {
+  if (nota.etapa) return nota.etapa;
+
+  const status = String(nota.status_pagamento || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  if (status.includes('conclu') || status.includes('pago')) return 'concluida';
+  if (status.includes('conting') || status.includes('diverg') || status.includes('rejeit') || status.includes('cancel')) return 'contingencia';
+  if (status.includes('aprovacao') || status.includes('confirmacao') || status.includes('analise')) return 'em_analise';
+  if (status.includes('em andamento')) return 'em_andamento';
+  return 'pendente';
+};
+
+const isConcluida = (nota) => getEtapa(nota) === 'concluida';
+const isContingencia = (nota) => getEtapa(nota) === 'contingencia';
+const isAnalise = (nota) => getEtapa(nota) === 'em_analise';
+const isGopa = (nota) => String(nota.filial?.nome_fantasia || '').toUpperCase().includes('GOPA');
+const hasAnexos = (nota) => Boolean(nota.arquivo_nota && nota.arquivo_boleto);
+
 function KpiCard({ title, value, detail, icon, tone = 'primary' }) {
   const toneMap = {
     primary: { color: 'primary.main', bg: 'primary.light' },
     success: { color: 'success.main', bg: '#dff6dd' },
     warning: { color: 'warning.main', bg: '#fff4ce' },
     error: { color: 'error.main', bg: '#fde7e9' },
+    secondary: { color: 'secondary.main', bg: '#e8e8fb' },
     neutral: { color: 'text.secondary', bg: '#f3f2f1' },
   };
   const colors = toneMap[tone] || toneMap.primary;
 
   return (
-    <Paper variant="outlined" sx={{ p: 2, minHeight: 116, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+    <Paper variant="outlined" sx={{ p: 2, height: '100%', minHeight: 118 }}>
       <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
-        <Box>
-          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="caption" color="text.secondary" fontWeight={800}>
             {title}
           </Typography>
-          <Typography variant="h5" sx={{ mt: 0.5, color: 'text.primary' }}>
+          <Typography variant="h5" fontWeight={900} sx={{ mt: 0.5 }}>
             {value}
           </Typography>
         </Box>
-        <Box sx={{ width: 36, height: 36, display: 'grid', placeItems: 'center', bgcolor: colors.bg, color: colors.color }}>
+        <Box sx={{ width: 38, height: 38, display: 'grid', placeItems: 'center', bgcolor: colors.bg, color: colors.color }}>
           {icon}
         </Box>
       </Stack>
       {detail && (
-        <Typography variant="caption" color="text.secondary">
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
           {detail}
         </Typography>
       )}
@@ -75,117 +108,131 @@ function KpiCard({ title, value, detail, icon, tone = 'primary' }) {
   );
 }
 
-function SectionHeader({ icon, title, subtitle, children }) {
+function SectionTitle({ title, subtitle }) {
   return (
-    <Stack
-      direction={{ xs: 'column', md: 'row' }}
-      alignItems={{ xs: 'stretch', md: 'center' }}
-      justifyContent="space-between"
-      spacing={2}
-      sx={{ px: 2.5, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: '#faf9f8' }}
-    >
-      <Stack direction="row" spacing={1.5} alignItems="center">
-        <Box sx={{ width: 36, height: 36, display: 'grid', placeItems: 'center', bgcolor: 'primary.light', color: 'primary.main' }}>
-          {icon}
-        </Box>
-        <Box>
-          <Typography variant="h6" sx={{ fontSize: 17 }}>
-            {title}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {subtitle}
-          </Typography>
-        </Box>
-      </Stack>
-      {children}
-    </Stack>
+    <Box>
+      <Typography variant="subtitle1" fontWeight={900}>
+        {title}
+      </Typography>
+      {subtitle && (
+        <Typography variant="caption" color="text.secondary">
+          {subtitle}
+        </Typography>
+      )}
+    </Box>
   );
 }
 
-export default function DashboardView({ notas, solicitacoes, filiais }) {
-  const [mesNotas, setMesNotas] = useState(new Date().getMonth() + 1);
-  const [anoNotas, setAnoNotas] = useState(2025);
+function NotaLinha({ nota, badge }) {
+  return (
+    <Paper variant="outlined" sx={{ p: 1.25 }}>
+      <Stack direction="row" spacing={1.25} justifyContent="space-between" alignItems="center">
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="body2" fontWeight={900} noWrap title={nota.nome_fornecedor || nota.fornecedor?.nome_empresa || 'Fornecedor'}>
+            {nota.nome_fornecedor || nota.fornecedor?.nome_empresa || 'Fornecedor não informado'}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            NF {nota.numero_nota || '-'} | Venc. {formatDate(nota.data_vencimento)}
+          </Typography>
+        </Box>
+        {badge}
+      </Stack>
+    </Paper>
+  );
+}
+
+export default function DashboardView({ notas, filiais }) {
+  const hoje = new Date();
+  const [mesNotas, setMesNotas] = useState(hoje.getMonth() + 1);
+  const [anoNotas, setAnoNotas] = useState(hoje.getFullYear());
   const [filialNotas, setFilialNotas] = useState('');
-  const [mesSolic, setMesSolic] = useState(0);
-  const [anoSolic, setAnoSolic] = useState(2025);
 
   const dadosNotas = useMemo(() => {
-    const lista = notas.filter((nota) => {
-      const dataStr = nota.data_vencimento || nota.data_envio;
-      if (!dataStr) return false;
-
-      const data = new Date(dataStr);
+    return notas.filter((nota) => {
+      const dataStr = nota.data_vencimento || nota.data_envio || nota.created_at;
+      const data = parseDateLocal(dataStr) || new Date(dataStr);
       if (Number.isNaN(data.getTime())) return false;
 
-      const matchAno = data.getFullYear() == anoNotas;
-      const matchMes = mesNotas === 0 || data.getMonth() + 1 == mesNotas;
+      const matchAno = data.getFullYear() === Number(anoNotas);
+      const matchMes = mesNotas === 0 || data.getMonth() + 1 === Number(mesNotas);
       const matchFilial = filialNotas ? nota.filial_id == filialNotas : true;
-
       return matchAno && matchMes && matchFilial;
     });
-
-    const evolucao = Array.from({ length: 12 }, (_, index) => ({
-      name: MESES[index + 1].slice(0, 3),
-      valor: 0,
-    }));
-
-    lista.forEach((nota) => {
-      const data = new Date(nota.data_vencimento || nota.data_envio);
-      if (!Number.isNaN(data.getTime())) {
-        evolucao[data.getMonth()].valor += Number(nota.valor || 0);
-      }
-    });
-
-    return { lista, evolucao };
   }, [notas, mesNotas, anoNotas, filialNotas]);
 
-  const dadosSolic = useMemo(() => {
-    return solicitacoes.filter((solicitacao) => {
-      const dataStr = solicitacao.data_vencimento || solicitacao.created_at || new Date().toISOString();
-      const data = new Date(dataStr);
-      const anoItem = Number.isNaN(data.getTime()) ? 2025 : data.getFullYear();
-      const mesItem = Number.isNaN(data.getTime()) ? new Date().getMonth() + 1 : data.getMonth() + 1;
+  const abertas = dadosNotas.filter((nota) => !isConcluida(nota));
+  const concluidas = dadosNotas.filter(isConcluida);
+  const contingencias = dadosNotas.filter(isContingencia);
+  const analise = dadosNotas.filter(isAnalise);
+  const aguardandoGopa = dadosNotas.filter((nota) => nota.status_pagamento === 'Aguardando Confirmação GOPA');
+  const semDocumento = abertas.filter((nota) => !hasAnexos(nota));
+  const gopaEnviar = abertas.filter((nota) => isGopa(nota) && getEtapa(nota) === 'em_andamento');
+  const vencendoCriticas = abertas
+    .map((nota) => ({ nota, dias: daysUntil(nota.data_vencimento) }))
+    .filter((item) => item.dias !== null && item.dias <= 10)
+    .sort((a, b) => a.dias - b.dias);
 
-      return anoItem == anoSolic && (mesSolic === 0 || mesItem == mesSolic);
-    });
-  }, [solicitacoes, mesSolic, anoSolic]);
+  const totalAberto = abertas.reduce((acc, nota) => acc + Number(nota.valor || 0), 0);
+  const valorMes = dadosNotas.reduce((acc, nota) => acc + Number(nota.valor || 0), 0);
+  const percentualConcluido = dadosNotas.length ? Math.round((concluidas.length / dadosNotas.length) * 100) : 0;
 
-  const totalNotas = dadosNotas.lista.reduce((acc, nota) => acc + Number(nota.valor || 0), 0);
-  const totalSolic = dadosSolic.reduce((acc, solicitacao) => acc + Number(solicitacao.valor || 0), 0);
-  const pendentes = dadosNotas.lista.filter((nota) => ['Pendente Nota', 'Pendente Boleto', 'Pendente Fatura', 'Aguardando Fatura', 'Pendente Lançamento'].includes(nota.status_pagamento)).length;
-  const concluidas = dadosNotas.lista.filter((nota) => nota.status_pagamento === 'Concluída').length;
-  const emProcesso = dadosNotas.lista.filter((nota) => ['Em Andamento', 'Aguardando Aprovação Fluig', 'Aguardando Confirmação GOPA', 'Aguardando Contingência Gerente', 'Aguardando Contingência Head', 'Nota Recebida'].includes(nota.status_pagamento)).length;
+  const fornecedoresResumo = Object.values(dadosNotas.reduce((acc, nota) => {
+    const nome = nota.nome_fornecedor || nota.fornecedor?.nome_empresa || 'Fornecedor não informado';
+    if (!acc[nome]) {
+      acc[nome] = { nome, total: 0, valor: 0, abertas: 0, criticas: 0, contingencias: 0, semDocumento: 0 };
+    }
 
-  const statusData = [
-    { name: 'Pendente', value: pendentes, color: CORES.vermelhoCicopal },
-    { name: 'Em processo', value: emProcesso, color: CORES.amareloAlerta },
-    { name: 'Concluída', value: concluidas, color: CORES.verdeSucesso },
+    const item = acc[nome];
+    item.total += 1;
+    item.valor += Number(nota.valor || 0);
+    if (!isConcluida(nota)) item.abertas += 1;
+    if (isContingencia(nota)) item.contingencias += 1;
+    if (!isConcluida(nota) && !hasAnexos(nota)) item.semDocumento += 1;
+
+    const dias = daysUntil(nota.data_vencimento);
+    if (!isConcluida(nota) && dias !== null && dias <= 10) item.criticas += 1;
+
+    return acc;
+  }, {}))
+    .map((item) => ({
+      ...item,
+      score: item.criticas * 5 + item.contingencias * 4 + item.semDocumento * 2 + item.abertas,
+    }))
+    .sort((a, b) => b.score - a.score || b.valor - a.valor)
+    .slice(0, 6);
+
+  const proximasAcoes = [
+    { label: 'Preparar notas pendentes', value: abertas.filter((nota) => getEtapa(nota) === 'pendente').length, tone: 'warning' },
+    { label: 'Enviar GOPA', value: gopaEnviar.length, tone: 'secondary' },
+    { label: 'Revisar contingências', value: contingencias.length, tone: 'error' },
+    { label: 'Cobrar confirmações em análise', value: analise.length, tone: 'primary' },
+    { label: 'Completar anexos', value: semDocumento.length, tone: 'warning' },
   ].filter((item) => item.value > 0);
 
-  const filiaisMap = {};
-  dadosNotas.lista.forEach((nota) => {
-    const nome = nota.filial?.nome_fantasia || 'Outros';
-    filiaisMap[nome] = (filiaisMap[nome] || 0) + Number(nota.valor || 0);
-  });
-  const filiaisData = Object.entries(filiaisMap)
-    .map(([name, valor]) => ({ name, valor }))
-    .sort((a, b) => b.valor - a.valor)
-    .slice(0, 5);
-
-  const solicitacoesStatus = [
-    { name: 'Concluído', val: dadosSolic.filter((item) => item.status === 'Concluído').length, color: '#107c10' },
-    { name: 'Em andamento', val: dadosSolic.filter((item) => item.status === 'Em Andamento').length, color: '#0078d4' },
-    { name: 'Rejeitado', val: dadosSolic.filter((item) => item.status === 'Rejeitado').length, color: '#a4262c' },
-  ];
-
   return (
-    <Stack spacing={3}>
+    <Stack spacing={2.5}>
       <Paper variant="outlined">
-        <SectionHeader
-          icon={<ReceiptLongOutlinedIcon />}
-          title="Gestão de notas"
-          subtitle="Resumo financeiro, status e distribuição por filial"
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          alignItems={{ xs: 'stretch', md: 'center' }}
+          justifyContent="space-between"
+          spacing={2}
+          sx={{ px: 2.5, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: '#faf9f8' }}
         >
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <Box sx={{ width: 40, height: 40, display: 'grid', placeItems: 'center', bgcolor: 'primary.light', color: 'primary.main' }}>
+              <ReceiptLongOutlinedIcon />
+            </Box>
+            <Box>
+              <Typography variant="h6" fontWeight={900}>
+                Painel do mês
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Alertas, risco financeiro e ações prioritárias
+              </Typography>
+            </Box>
+          </Stack>
+
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
             <FormControl size="small" sx={{ minWidth: 112 }}>
               <InputLabel>Ano</InputLabel>
@@ -207,126 +254,136 @@ export default function DashboardView({ notas, solicitacoes, filiais }) {
               </Select>
             </FormControl>
           </Stack>
-        </SectionHeader>
+        </Stack>
 
         <Box sx={{ p: 2.5 }}>
           <Grid container spacing={2}>
-            <Grid item xs={12} md={3}>
-              <KpiCard title="Total filtrado" value={formatCurrency(totalNotas)} detail={`${dadosNotas.lista.length} notas`} icon={<PaidOutlinedIcon />} />
+            <Grid item xs={12} sm={6} lg={2}>
+              <KpiCard title="Notas do mês" value={dadosNotas.length} detail={formatCurrency(valorMes)} icon={<ReceiptLongOutlinedIcon />} />
             </Grid>
-            <Grid item xs={12} md={3}>
-              <KpiCard title="Pendentes" value={pendentes} detail="Requer atenção" icon={<ErrorOutlineOutlinedIcon />} tone="error" />
+            <Grid item xs={12} sm={6} lg={2}>
+              <KpiCard title="Aberto" value={formatCurrency(totalAberto)} detail={`${abertas.length} notas em aberto`} icon={<PaidOutlinedIcon />} tone="warning" />
             </Grid>
-            <Grid item xs={12} md={3}>
-              <KpiCard title="Concluídas" value={concluidas} detail="Fluxo finalizado" icon={<AssignmentTurnedInOutlinedIcon />} tone="success" />
+            <Grid item xs={12} sm={6} lg={2}>
+              <KpiCard title="Críticas" value={vencendoCriticas.length} detail="Vencidas ou até 10 dias" icon={<ErrorOutlineOutlinedIcon />} tone="error" />
             </Grid>
-            <Grid item xs={12} md={3}>
-              <KpiCard title="Em processo" value={emProcesso} detail="Aguardando ação" icon={<AccountTreeOutlinedIcon />} tone="warning" />
+            <Grid item xs={12} sm={6} lg={2}>
+              <KpiCard title="Contingência" value={contingencias.length} detail="Problemas ou sem saldo" icon={<ReportProblemOutlinedIcon />} tone="error" />
             </Grid>
-
-            <Grid item xs={12} lg={6}>
-              <Paper variant="outlined" sx={{ p: 2, height: 300 }}>
-                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-                  <Typography variant="subtitle2">Evolução ou status</Typography>
-                  <Chip size="small" label={mesNotas === 0 ? 'Ano completo' : MESES[mesNotas]} />
-                </Stack>
-                <ResponsiveContainer width="100%" height="85%">
-                  {mesNotas === 0 ? (
-                    <AreaChart data={dadosNotas.evolucao}>
-                      <defs>
-                        <linearGradient id="sharepointBlue" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#0078d4" stopOpacity={0.28} />
-                          <stop offset="95%" stopColor="#0078d4" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} />
-                      <YAxis tick={{ fontSize: 11 }} axisLine={false} />
-                      <Tooltip formatter={(value) => formatCurrency(value)} />
-                      <Area type="monotone" dataKey="valor" stroke="#0078d4" fill="url(#sharepointBlue)" strokeWidth={2} />
-                    </AreaChart>
-                  ) : (
-                    <PieChart>
-                      <Pie data={statusData} cx="45%" cy="50%" innerRadius={58} outerRadius={82} paddingAngle={4} dataKey="value">
-                        {statusData.map((entry) => <Cell key={entry.name} fill={entry.color} strokeWidth={0} />)}
-                      </Pie>
-                      <Tooltip />
-                      <Legend verticalAlign="middle" align="right" layout="vertical" />
-                    </PieChart>
-                  )}
-                </ResponsiveContainer>
-              </Paper>
+            <Grid item xs={12} sm={6} lg={2}>
+              <KpiCard title="GOPA" value={aguardandoGopa.length} detail="Aguardando confirmação" icon={<AccountTreeOutlinedIcon />} tone="secondary" />
             </Grid>
-
-            <Grid item xs={12} lg={6}>
-              <Paper variant="outlined" sx={{ p: 2, height: 300 }}>
-                <Typography variant="subtitle2" sx={{ mb: 2 }}>Top filiais por valor</Typography>
-                <ResponsiveContainer width="100%" height="88%">
-                  <BarChart data={filiaisData} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" horizontal vertical={false} />
-                    <XAxis type="number" hide />
-                    <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 11 }} />
-                    <Tooltip formatter={(value) => formatCurrency(value)} />
-                    <Bar dataKey="valor" fill="#0078d4" radius={[0, 2, 2, 0]} barSize={20} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </Paper>
+            <Grid item xs={12} sm={6} lg={2}>
+              <KpiCard title="Concluídas" value={`${percentualConcluido}%`} detail={`${concluidas.length} notas finalizadas`} icon={<AssignmentTurnedInOutlinedIcon />} tone="success" />
             </Grid>
           </Grid>
         </Box>
       </Paper>
 
-      <Paper variant="outlined">
-        <SectionHeader
-          icon={<ShoppingCartOutlinedIcon />}
-          title="Solicitações de compra"
-          subtitle="Pedidos filtrados por competência"
-        >
-          <Stack direction="row" spacing={1}>
-            <FormControl size="small" sx={{ minWidth: 112 }}>
-              <InputLabel>Ano</InputLabel>
-              <Select label="Ano" value={anoSolic} onChange={(event) => setAnoSolic(event.target.value)}>
-                {[2024, 2025, 2026].map((ano) => <MenuItem key={ano} value={ano}>{ano}</MenuItem>)}
-              </Select>
-            </FormControl>
-            <FormControl size="small" sx={{ minWidth: 160 }}>
-              <InputLabel>Mês</InputLabel>
-              <Select label="Mês" value={mesSolic} onChange={(event) => setMesSolic(Number(event.target.value))}>
-                {MESES.map((mes, index) => <MenuItem key={mes} value={index}>{mes}</MenuItem>)}
-              </Select>
-            </FormControl>
-          </Stack>
-        </SectionHeader>
+      <Grid container spacing={2}>
+        <Grid item xs={12} lg={7}>
+          <Paper variant="outlined" sx={{ p: 2, height: '100%' }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+              <SectionTitle title="Críticas agora" subtitle="Vencidas ou com até 10 dias para pagamento" />
+              <Chip color={vencendoCriticas.length ? 'error' : 'success'} label={vencendoCriticas.length ? `${vencendoCriticas.length} alertas` : 'Sem alertas'} />
+            </Stack>
 
-        <Box sx={{ p: 2.5 }}>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={4}>
-              <KpiCard
-                title="Total em pedidos"
-                value={formatCurrency(totalSolic)}
-                detail={`${dadosSolic.length} pedidos encontrados`}
-                icon={<ShoppingCartOutlinedIcon />}
-                tone="neutral"
-              />
-            </Grid>
-            <Grid item xs={12} md={8}>
-              <Paper variant="outlined" sx={{ p: 2, height: 180 }}>
-                <Typography variant="subtitle2" sx={{ mb: 1 }}>Status dos pedidos</Typography>
-                <ResponsiveContainer width="100%" height="82%">
-                  <BarChart data={solicitacoesStatus} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                    <XAxis type="number" hide />
-                    <YAxis dataKey="name" type="category" width={110} tick={{ fontSize: 11 }} />
-                    <Tooltip />
-                    <Bar dataKey="val" radius={[0, 2, 2, 0]} barSize={20}>
-                      {solicitacoesStatus.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </Paper>
-            </Grid>
-          </Grid>
-        </Box>
+            <Stack spacing={1}>
+              {vencendoCriticas.slice(0, 6).map(({ nota, dias }) => (
+                <NotaLinha
+                  key={nota.id}
+                  nota={nota}
+                  badge={<Chip size="small" color="error" label={dias < 0 ? 'Vencida' : dias === 0 ? 'Hoje' : `${dias} dias`} sx={{ fontWeight: 800 }} />}
+                />
+              ))}
+              {vencendoCriticas.length === 0 && (
+                <Alert severity="success" variant="outlined">Nenhuma nota crítica no filtro atual.</Alert>
+              )}
+            </Stack>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} lg={5}>
+          <Paper variant="outlined" sx={{ p: 2, height: '100%' }}>
+            <SectionTitle title="Próximas ações" subtitle="Fila objetiva para destravar o mês" />
+            <Stack spacing={1.25} sx={{ mt: 2 }}>
+              {proximasAcoes.map((acao) => (
+                <Box key={acao.label}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
+                    <Typography variant="body2" fontWeight={800}>{acao.label}</Typography>
+                    <Chip size="small" color={acao.tone} label={acao.value} sx={{ fontWeight: 900 }} />
+                  </Stack>
+                  <LinearProgress variant="determinate" value={Math.min(100, acao.value * 12)} color={acao.tone} sx={{ height: 7 }} />
+                </Box>
+              ))}
+              {proximasAcoes.length === 0 && (
+                <Alert severity="success" variant="outlined">Nada urgente pendente no momento.</Alert>
+              )}
+            </Stack>
+          </Paper>
+        </Grid>
+      </Grid>
+
+      <Grid container spacing={2}>
+        <Grid item xs={12} lg={6}>
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <SectionTitle title="Fornecedores em atenção" subtitle="Prioridade por vencimento, contingência e ausência de anexos" />
+            <Stack spacing={1.25} sx={{ mt: 2 }}>
+              {fornecedoresResumo.map((fornecedor) => (
+                <Paper key={fornecedor.nome} variant="outlined" sx={{ p: 1.5 }}>
+                  <Stack direction="row" justifyContent="space-between" spacing={1.5} alignItems="flex-start">
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="body2" fontWeight={900} noWrap title={fornecedor.nome}>
+                        {fornecedor.nome}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {fornecedor.total} notas | {formatCurrency(fornecedor.valor)}
+                      </Typography>
+                    </Box>
+                    <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap justifyContent="flex-end">
+                      {fornecedor.criticas > 0 && <Chip size="small" color="error" label={`${fornecedor.criticas} críticas`} />}
+                      {fornecedor.contingencias > 0 && <Chip size="small" color="error" variant="outlined" label={`${fornecedor.contingencias} cont.`} />}
+                      {fornecedor.semDocumento > 0 && <Chip size="small" color="warning" label={`${fornecedor.semDocumento} anexos`} />}
+                      {fornecedor.abertas > 0 && <Chip size="small" variant="outlined" label={`${fornecedor.abertas} abertas`} />}
+                    </Stack>
+                  </Stack>
+                </Paper>
+              ))}
+              {fornecedoresResumo.length === 0 && (
+                <Alert severity="info" variant="outlined">Sem fornecedores no filtro atual.</Alert>
+              )}
+            </Stack>
+          </Paper>
+        </Grid>
+
+        <Grid item xs={12} lg={6}>
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <SectionTitle title="Pendências de documentos" subtitle="Notas sem nota fiscal ou boleto anexado" />
+            <Stack spacing={1} sx={{ mt: 2 }}>
+              {semDocumento.slice(0, 6).map((nota) => (
+                <NotaLinha
+                  key={nota.id}
+                  nota={nota}
+                  badge={<Chip size="small" color="warning" label={!nota.arquivo_nota && !nota.arquivo_boleto ? 'Sem anexos' : !nota.arquivo_nota ? 'Sem NF' : 'Sem boleto'} />}
+                />
+              ))}
+              {semDocumento.length === 0 && (
+                <Alert severity="success" variant="outlined">Todas as notas abertas do filtro têm anexos essenciais.</Alert>
+              )}
+            </Stack>
+          </Paper>
+        </Grid>
+      </Grid>
+
+      <Paper variant="outlined" sx={{ p: 2 }}>
+        <SectionTitle title="Leitura rápida" subtitle="Como está o mês filtrado" />
+        <Divider sx={{ my: 1.5 }} />
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} flexWrap="wrap" useFlexGap>
+          <Chip icon={<ScheduleOutlinedIcon />} label={`${abertas.length} notas abertas`} />
+          <Chip icon={<FactCheckOutlinedIcon />} color="success" label={`${concluidas.length} concluídas`} />
+          <Chip icon={<ReportProblemOutlinedIcon />} color={contingencias.length ? 'error' : 'default'} label={`${contingencias.length} em contingência`} />
+          <Chip icon={<ErrorOutlineOutlinedIcon />} color={vencendoCriticas.length ? 'error' : 'default'} label={`${vencendoCriticas.length} vencendo/vencidas`} />
+        </Stack>
       </Paper>
     </Stack>
   );
