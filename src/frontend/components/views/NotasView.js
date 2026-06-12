@@ -137,6 +137,7 @@ export default function NotasView({
   const [draggedNotaId, setDraggedNotaId] = useState(null);
   const [collapsedGroups, setCollapsedGroups] = useState({});
   const [collapsedGridSuppliers, setCollapsedGridSuppliers] = useState({});
+  const [expandedAttachments, setExpandedAttachments] = useState({});
   const [editingCell, setEditingCell] = useState(null);
   const [editingValue, setEditingValue] = useState('');
   const [previewFile, setPreviewFile] = useState(null);
@@ -292,6 +293,10 @@ export default function NotasView({
     setCollapsedGridSuppliers((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const toggleAttachments = (notaId) => {
+    setExpandedAttachments((prev) => ({ ...prev, [notaId]: !prev[notaId] }));
+  };
+
   const fileUrl = (path) => path ? (path.startsWith('http') ? path : `${API_URL}/${path}`) : '';
 
   const openPreview = (path, title) => {
@@ -437,6 +442,8 @@ export default function NotasView({
     const variacao = valorPrevisto !== null ? valorReal - valorPrevisto : 0;
     const statusTone = STATUS_COLOR[nota.status_pagamento] || 'primary';
     const borderColor = statusTone === 'default' ? 'divider' : `${statusTone}.main`;
+    const anexosAbertos = Boolean(expandedAttachments[nota.id]);
+    const totalAnexos = Number(Boolean(nota.arquivo_nota)) + Number(Boolean(nota.arquivo_boleto));
 
     return (
       <Paper
@@ -571,41 +578,57 @@ export default function NotasView({
           </Select>
         </FormControl>
 
-        <Paper variant="outlined" sx={{ p: 1.25, bgcolor: '#faf9f8' }}>
-          <Stack spacing={1}>
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              {nota.arquivo_nota && (
-                <Button size="small" variant="outlined" startIcon={<DescriptionOutlinedIcon />} onClick={() => openPreview(nota.arquivo_nota, 'Nota fiscal')}>
-                  Ver nota
-                </Button>
-              )}
-              {nota.arquivo_boleto && (
-                <Button size="small" variant="outlined" startIcon={<DescriptionOutlinedIcon />} onClick={() => openPreview(nota.arquivo_boleto, 'Boleto')}>
-                  Ver boleto
-                </Button>
-              )}
+        <Paper variant="outlined" sx={{ bgcolor: '#faf9f8' }}>
+          <Button
+            fullWidth
+            size="small"
+            onClick={() => toggleAttachments(nota.id)}
+            endIcon={anexosAbertos ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+            sx={{ justifyContent: 'space-between', px: 1.25, py: 0.75, color: 'text.primary' }}
+          >
+            <Stack direction="row" spacing={1} alignItems="center">
+              <DescriptionOutlinedIcon fontSize="small" />
+              <Typography variant="body2" fontWeight={800}>Anexos</Typography>
+              <Chip size="small" variant="outlined" label={totalAnexos} sx={{ height: 20, fontWeight: 800 }} />
             </Stack>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <FileDrop
-                  label="Adicionar nota"
-                  onFileSelect={(path) => onSalvarInline({ ...nota, arquivo_nota: path })}
-                  existingFile={nota.arquivo_nota}
-                  metaData={{ fornecedor, nota: nota.numero_nota || `ID-${nota.id}`, vencimento: nota.data_vencimento }}
-                  addToast={addToast}
-                />
-              </Box>
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <FileDrop
-                  label="Adicionar boleto"
-                  onFileSelect={(path) => onSalvarInline({ ...nota, arquivo_boleto: path })}
-                  existingFile={nota.arquivo_boleto}
-                  metaData={{ fornecedor, nota: nota.numero_nota || `ID-${nota.id}`, vencimento: nota.data_vencimento }}
-                  addToast={addToast}
-                />
-              </Box>
+          </Button>
+
+          {anexosAbertos && (
+            <Stack spacing={1} sx={{ p: 1.25, pt: 0 }}>
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                {nota.arquivo_nota && (
+                  <Button size="small" variant="outlined" startIcon={<DescriptionOutlinedIcon />} onClick={() => openPreview(nota.arquivo_nota, 'Nota fiscal')}>
+                    Ver nota
+                  </Button>
+                )}
+                {nota.arquivo_boleto && (
+                  <Button size="small" variant="outlined" startIcon={<DescriptionOutlinedIcon />} onClick={() => openPreview(nota.arquivo_boleto, 'Boleto')}>
+                    Ver boleto
+                  </Button>
+                )}
+              </Stack>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <FileDrop
+                    label="Adicionar nota"
+                    onFileSelect={(path) => onSalvarInline({ ...nota, arquivo_nota: path })}
+                    existingFile={nota.arquivo_nota}
+                    metaData={{ fornecedor, nota: nota.numero_nota || `ID-${nota.id}`, vencimento: nota.data_vencimento }}
+                    addToast={addToast}
+                  />
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <FileDrop
+                    label="Adicionar boleto"
+                    onFileSelect={(path) => onSalvarInline({ ...nota, arquivo_boleto: path })}
+                    existingFile={nota.arquivo_boleto}
+                    metaData={{ fornecedor, nota: nota.numero_nota || `ID-${nota.id}`, vencimento: nota.data_vencimento }}
+                    addToast={addToast}
+                  />
+                </Box>
+              </Stack>
             </Stack>
-          </Stack>
+          )}
         </Paper>
 
         {renderActions(nota)}
