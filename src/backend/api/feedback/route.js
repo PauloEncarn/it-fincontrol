@@ -31,23 +31,30 @@ export async function GET(request) {
     let mensagemCorpo = '';
 
     // --- NOVA LÓGICA DE STATUS ---
+    let novaEtapa = null;
+
     if (action === 'autorizar') {
         novoStatus = 'Concluída'; // <--- Mudado para Concluída
+        novaEtapa = 'concluida';
         corTitulo = '#10B981'; // Verde
         icone = '✅';
         mensagemTitulo = 'Pagamento Confirmado!';
         mensagemCorpo = 'A nota foi baixada e o status atualizado para <strong>Concluída</strong>.';
     } else if (action === 'sem_saldo') {
         novoStatus = 'Aguardando Pagamento'; // <--- Mudado para Aguardando Pagamento
+        novaEtapa = 'contingencia';
         corTitulo = '#F59E0B'; // Amarelo/Laranja (Alerta)
         icone = '💰';
         mensagemTitulo = 'Sem Saldo Informado';
         mensagemCorpo = 'Registramos a falta de saldo. A nota ficará em <strong>Aguardando Pagamento</strong> para tentativa futura.';
     }
 
+    const payload = { status_pagamento: novoStatus };
+    if (novaEtapa) payload.etapa = novaEtapa;
+
     const { error } = await supabase
         .from('lancamentos')
-        .update({ status_pagamento: novoStatus })
+        .update(payload)
         .eq('id', id);
 
     if (error) throw error;

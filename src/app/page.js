@@ -210,7 +210,11 @@ function DashboardContent() {
   const mutationDeleteUsuario = useMutation({ mutationFn: (id) => axios.delete(`${API_URL}/usuarios/${id}`, authConfig), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['usuarios'] }); addToast('success', 'Usuário excluído!'); }, onError: () => addToast('error', 'Erro ao excluir usuário.') });
 
   // --- HELPERS E CALLBACKS (Otimizados com useCallback) ---
-  const isGopaFunc = useCallback((nota) => { const fId = nota.filial_id || (form && form.filial_id); const filial = filiais.find(f => f.id == fId); return filial?.nome_fantasia?.toUpperCase().includes('GOPA') || filial?.nome_fantasia?.toUpperCase().includes('REFRESA'); }, [filiais, form]);
+  const getFilialNota = useCallback((nota) => {
+    const fId = nota.filial_id || (form && form.filial_id);
+    return filiais.find(f => f.id == fId);
+  }, [filiais, form]);
+  const isGopaFunc = useCallback((nota) => getFilialNota(nota)?.nome_fantasia?.toUpperCase().includes('GOPA'), [getFilialNota]);
   
   const splitOptions = (value) => (value || '').split(';').map((item) => item.trim()).filter(Boolean);
   const getDateInputValue = (value) => value ? String(value).split('T')[0] : '';
@@ -241,7 +245,8 @@ function DashboardContent() {
     nota.cnpj_usado &&
     nota.centro_custo_usado &&
     nota.numero_pedido &&
-    (isGopaFunc(nota) || nota.solicitacao_fluig)
+    !isGopaFunc(nota) &&
+    nota.solicitacao_fluig
   );
 
   const prepararPayloadLancamento = (dados) => {
@@ -324,6 +329,58 @@ function DashboardContent() {
     } catch (error) {
       console.error(error);
       addToast('error', 'Falha ao enviar e-mail.');
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
+  const handleEnviarEmailGopa = async (nota) => {
+    const obrigatorios = [
+      ['número da nota', nota.numero_nota],
+      ['pedido', nota.numero_pedido],
+      ['medição', nota.numero_medicao],
+      ['nota fiscal', nota.arquivo_nota],
+      ['boleto', nota.arquivo_boleto],
+      ['vencimento', nota.data_vencimento],
+    ];
+    const faltando = obrigatorios.filter(([, valor]) => !valor).map(([label]) => label);
+
+    if (faltando.length) {
+      addToast('error', `Preencha antes de enviar: ${faltando.join(', ')}.`);
+      abrirEdicaoLancamento(nota);
+      return;
+    }
+
+    let nomeFornecedorFinal = nota.nome_fornecedor;
+    if (!nomeFornecedorFinal && nota.fornecedor_id) {
+      const fornecedor = fornecedores.find(x => x.id == nota.fornecedor_id);
+      if (fornecedor) nomeFornecedorFinal = fornecedor.nome_empresa;
+    }
+
+    setSendingEmail(true);
+
+    try {
+      await axios.post(`${API_URL}/enviar-email`, {
+        tipo: 'gopa',
+        id: nota.id,
+        numero_nota: nota.numero_nota,
+        fornecedor: nomeFornecedorFinal || 'Fornecedor',
+        valor: nota.valor,
+        vencimento: nota.data_vencimento,
+        numero_pedido: nota.numero_pedido,
+        numero_medicao: nota.numero_medicao,
+        arquivos: [nota.arquivo_nota, nota.arquivo_boleto],
+      }, authConfig);
+
+      mutationStatus.mutate({
+        id: nota.id,
+        etapa: 'em_analise',
+        status: 'Aguardando Confirmação GOPA',
+      });
+      addToast('success', 'E-mail enviado para GOPA e nota enviada para análise!');
+    } catch (error) {
+      console.error(error);
+      addToast('error', 'Falha ao enviar e-mail para GOPA.');
     } finally {
       setSendingEmail(false);
     }
@@ -414,6 +471,7 @@ function DashboardContent() {
                                 onDuplicar={duplicarNota}
                                 onCopiarProtheus={(n) => navigator.clipboard.writeText(`${n.fornecedor?.nome_empresa} | CPF/CNPJ: ${n.cnpj_usado||'?'} | NF: ${n.numero_nota} | Valor R$: ${n.valor.toLocaleString('pt-BR',{minimumFractionDigits:2})}`).then(()=>addToast('success', "Copiado!"))}
                                 onEnviarEmail={handleEnviarEmail}
+                                onEnviarEmailGopa={handleEnviarEmailGopa}
                                 onDownload={(path) => window.open(path.startsWith('http') ? path : `${API_URL}/${path}`, '_blank')}
                                 onStatusChange={(id, st) => mutationStatus.mutate({id, status: st})}
                                 onEtapaChange={(id, etapa, status) => mutationStatus.mutate({id, etapa, status})}

@@ -53,7 +53,7 @@ const STATUS_COLOR = {
   'Em Andamento': 'info',
   'Nota Recebida': 'info',
   'Aguardando Aprovação Fluig': 'secondary',
-  'Aguardando Confirmação Refresa': 'secondary',
+  'Aguardando Confirmação GOPA': 'secondary',
   'Aguardando Contingência Gerente': 'error',
   'Aguardando Contingência Head': 'error',
   Concluida: 'success',
@@ -75,7 +75,7 @@ const GRID_GROUPS = [
 const STATUS_BY_GROUP = {
   pendente: ['Pendente Nota', 'Pendente Boleto', 'Pendente Fatura'],
   em_andamento: ['Em Andamento'],
-  em_analise: ['Aguardando Aprovação Fluig', 'Aguardando Confirmação Refresa'],
+  em_analise: ['Aguardando Aprovação Fluig', 'Aguardando Confirmação GOPA'],
   contingencia: ['Aguardando Contingência Gerente', 'Aguardando Contingência Head'],
   concluida: ['Concluída', 'Cancelada'],
 };
@@ -175,6 +175,7 @@ export default function NotasView({
   onDuplicar,
   onCopiarProtheus,
   onEnviarEmail,
+  onEnviarEmailGopa,
   onDownload,
   onStatusChange,
   onEtapaChange,
@@ -319,7 +320,8 @@ export default function NotasView({
     nota.cnpj_usado &&
     nota.centro_custo_usado &&
     nota.numero_pedido &&
-    (isGopaFunc(nota) || nota.solicitacao_fluig)
+    !isGopaFunc(nota) &&
+    nota.solicitacao_fluig
   );
 
   const iniciarLancamento = (nota) => {
@@ -435,9 +437,15 @@ export default function NotasView({
       )}
       {getNotaGroup(nota) === 'em_andamento' && (
         <>
-          <Button size="small" variant="contained" endIcon={<ChevronRightIcon />} onClick={() => prosseguirLancamento(nota)} sx={{ flex: '1 1 120px', whiteSpace: 'nowrap' }}>
-            Prosseguir
-          </Button>
+          {isGopaFunc(nota) ? (
+            <Button size="small" variant="contained" startIcon={<EmailOutlinedIcon />} onClick={() => onEnviarEmailGopa(nota)} sx={{ flex: '1 1 140px', whiteSpace: 'nowrap' }}>
+              Enviar GOPA
+            </Button>
+          ) : (
+            <Button size="small" variant="contained" endIcon={<ChevronRightIcon />} onClick={() => prosseguirLancamento(nota)} sx={{ flex: '1 1 120px', whiteSpace: 'nowrap' }}>
+              Prosseguir
+            </Button>
+          )}
           <Button size="small" color="error" variant="outlined" onClick={() => onEtapaChange(nota.id, 'contingencia', 'Aguardando Contingência Gerente')} sx={{ flex: '1 1 100px', whiteSpace: 'nowrap' }}>
             Sem saldo
           </Button>
@@ -461,8 +469,8 @@ export default function NotasView({
         </IconButton>
       </Tooltip>
       {isGopaFunc(nota) && (
-        <Tooltip title="Enviar email">
-          <IconButton size="small" onClick={() => onEnviarEmail(nota)} aria-label="Enviar email">
+        <Tooltip title="Enviar para GOPA">
+          <IconButton size="small" onClick={() => onEnviarEmailGopa(nota)} aria-label="Enviar email">
             <EmailOutlinedIcon />
           </IconButton>
         </Tooltip>
@@ -641,10 +649,17 @@ export default function NotasView({
             <Typography variant="caption" color="text.secondary" fontWeight={700}>Pedido</Typography>
             {renderEditableValue(nota, 'numero_pedido', 'Pedido', nota.numero_pedido)}
           </Box>
-          <Box sx={{ flex: '1 1 120px', minWidth: 0 }}>
-            <Typography variant="caption" color="text.secondary" fontWeight={700}>Fluig</Typography>
-            {renderEditableValue(nota, 'solicitacao_fluig', 'Fluig', nota.solicitacao_fluig)}
-          </Box>
+          {isGopaFunc(nota) ? (
+            <Box sx={{ flex: '1 1 120px', minWidth: 0 }}>
+              <Typography variant="caption" color="text.secondary" fontWeight={700}>Medição</Typography>
+              {renderEditableValue(nota, 'numero_medicao', 'Medição', nota.numero_medicao)}
+            </Box>
+          ) : (
+            <Box sx={{ flex: '1 1 120px', minWidth: 0 }}>
+              <Typography variant="caption" color="text.secondary" fontWeight={700}>Fluig</Typography>
+              {renderEditableValue(nota, 'solicitacao_fluig', 'Fluig', nota.solicitacao_fluig)}
+            </Box>
+          )}
         </Stack>
 
         <Box>
@@ -991,8 +1006,8 @@ export default function NotasView({
                               </IconButton>
                             </Tooltip>
                             {isGopaFunc(nota) && (
-                              <Tooltip title="Enviar email">
-                                <IconButton onClick={() => onEnviarEmail(nota)} aria-label="Enviar email">
+                              <Tooltip title="Enviar para GOPA">
+                                <IconButton onClick={() => onEnviarEmailGopa(nota)} aria-label="Enviar email">
                                   <EmailOutlinedIcon />
                                 </IconButton>
                               </Tooltip>

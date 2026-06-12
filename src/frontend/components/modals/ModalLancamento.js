@@ -13,7 +13,6 @@ import {
   Typography,
 } from '@mui/material';
 import AddCircleOutlinedIcon from '@mui/icons-material/AddCircleOutlined';
-import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
 import FileDrop from '@/frontend/components/ui/FileDrop';
 
 const formatDateForInput = (value) => {
@@ -40,8 +39,6 @@ export default function ModalLancamento({
   opcoesFornecedor,
   onFornecedorChange,
   onSalvar,
-  onSalvarEEnviar,
-  sendingEmail,
   addToast,
   isGopa,
 }) {
@@ -150,11 +147,6 @@ export default function ModalLancamento({
       <DialogActions>
         <Button onClick={onClose}>Cancelar</Button>
         <Button variant="contained" onClick={onSalvar}>Salvar</Button>
-        {isGopa && (
-          <Button variant="contained" color="secondary" startIcon={<SendOutlinedIcon />} disabled={sendingEmail} onClick={onSalvarEEnviar}>
-            Salvar e enviar
-          </Button>
-        )}
       </DialogActions>
     </Dialog>
   );

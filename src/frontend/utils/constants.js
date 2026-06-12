@@ -15,7 +15,7 @@ export const OPCOES_STATUS = [
   'Pendente Fatura',
   'Em Andamento',
   'Aguardando Aprovação Fluig',
-  'Aguardando Confirmação Refresa',
+  'Aguardando Confirmação GOPA',
   'Aguardando Contingência Gerente',
   'Aguardando Contingência Head',
   'Concluída',
