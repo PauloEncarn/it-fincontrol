@@ -52,8 +52,8 @@ const STATUS_COLOR = {
   'Em andamento': 'info',
   'Em Andamento': 'info',
   'Nota Recebida': 'info',
-  'Aguardando Aprovação Fluig': 'info',
-  'Aguardando Confirmação Refresa': 'info',
+  'Aguardando Aprovação Fluig': 'secondary',
+  'Aguardando Confirmação Refresa': 'secondary',
   'Aguardando Contingência Gerente': 'error',
   'Aguardando Contingência Head': 'error',
   Concluida: 'success',
@@ -67,7 +67,7 @@ const STATUS_COLOR = {
 const GRID_GROUPS = [
   { id: 'pendente', label: 'Pendente', color: 'warning', targetStatus: 'Pendente Nota' },
   { id: 'em_andamento', label: 'Em andamento', color: 'primary', targetStatus: 'Em Andamento' },
-  { id: 'em_analise', label: 'Em análise', color: 'info', targetStatus: 'Aguardando Aprovação Fluig' },
+  { id: 'em_analise', label: 'Em análise', color: 'secondary', targetStatus: 'Aguardando Aprovação Fluig' },
   { id: 'contingencia', label: 'Contingência', color: 'error', targetStatus: 'Aguardando Contingência Gerente' },
   { id: 'concluida', label: 'Concluída', color: 'success', targetStatus: 'Concluída' },
 ];
@@ -123,6 +123,38 @@ const maskDateInput = (value) => {
   if (digits.length <= 2) return digits;
   if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
   return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+};
+
+const parseDateLocal = (value) => {
+  if (!value) return null;
+  const text = String(value).split('T')[0];
+  const match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+};
+
+const getDueSignal = (dateValue) => {
+  const dueDate = parseDateLocal(dateValue);
+  if (!dueDate) return null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  dueDate.setHours(0, 0, 0, 0);
+
+  const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / 86400000);
+  if (daysUntilDue < 0) {
+    return { color: 'error', label: `Vencida há ${Math.abs(daysUntilDue)}d` };
+  }
+  if (daysUntilDue === 0) {
+    return { color: 'error', label: 'Vence hoje' };
+  }
+  if (daysUntilDue <= 10) {
+    return { color: 'error', label: `Vence em ${daysUntilDue}d` };
+  }
+  if (daysUntilDue <= 12) {
+    return { color: 'warning', label: `Atenção ${daysUntilDue}d` };
+  }
+  return { color: 'success', label: `Folga ${daysUntilDue}d` };
 };
 
 export default function NotasView({
@@ -459,6 +491,7 @@ export default function NotasView({
     const borderColor = statusTone === 'default' ? 'divider' : `${statusTone}.main`;
     const anexosAbertos = Boolean(expandedAttachments[nota.id]);
     const totalAnexos = Number(Boolean(nota.arquivo_nota)) + Number(Boolean(nota.arquivo_boleto));
+    const dueSignal = getDueSignal(nota.data_vencimento);
 
     return (
       <Paper
@@ -492,12 +525,23 @@ export default function NotasView({
               {nota.filial?.nome_fantasia || '-'} | {nota.competencia || 'Sem competência'}
             </Typography>
           </Box>
-          <Chip
-            size="small"
-            color={STATUS_COLOR[nota.status_pagamento] || 'default'}
-            label={nota.status_pagamento || 'Sem status'}
-            sx={{ fontWeight: 700, maxWidth: 140 }}
-          />
+          <Stack spacing={0.75} alignItems="flex-end">
+            <Chip
+              size="small"
+              color={STATUS_COLOR[nota.status_pagamento] || 'default'}
+              label={nota.status_pagamento || 'Sem status'}
+              sx={{ fontWeight: 700, maxWidth: 150 }}
+            />
+            {dueSignal && (
+              <Chip
+                size="small"
+                color={dueSignal.color}
+                label={dueSignal.label}
+                variant="outlined"
+                sx={{ height: 22, fontWeight: 800, bgcolor: 'background.paper' }}
+              />
+            )}
+          </Stack>
         </Stack>
 
         <Divider />
@@ -526,9 +570,23 @@ export default function NotasView({
 
         <Stack direction="row" spacing={2}>
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography variant="caption" color="text.secondary" fontWeight={700}>
-              Vencimento
-            </Typography>
+            <Stack direction="row" alignItems="center" spacing={0.75}>
+              <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                Vencimento
+              </Typography>
+              {dueSignal && (
+                <Box
+                  component="span"
+                  sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    bgcolor: `${dueSignal.color}.main`,
+                    flex: '0 0 auto',
+                  }}
+                />
+              )}
+            </Stack>
             {renderEditableValue(nota, 'data_vencimento', 'Vencimento', nota.data_vencimento ? String(nota.data_vencimento).split('T')[0] : '', {
               mask: 'date',
               format: formatDate,
