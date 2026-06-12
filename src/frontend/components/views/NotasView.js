@@ -80,6 +80,12 @@ const STATUS_BY_GROUP = {
   concluida: ['Concluída', 'Cancelada'],
 };
 
+const DUE_SIGNAL_STYLE = {
+  error: { bg: '#fde7e9', border: '#a4262c', text: '#a4262c' },
+  warning: { bg: '#fff4ce', border: '#ffb900', text: '#8a5a00' },
+  success: { bg: '#dff6dd', border: '#107c10', text: '#107c10' },
+};
+
 const normalizeText = (value) =>
   String(value || '')
     .normalize('NFD')
@@ -143,18 +149,18 @@ const getDueSignal = (dateValue) => {
 
   const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / 86400000);
   if (daysUntilDue < 0) {
-    return { color: 'error', title: `Vencida há ${Math.abs(daysUntilDue)} dias` };
+    return { color: 'error', label: 'Prazo crítico', title: `Vencida há ${Math.abs(daysUntilDue)} dias` };
   }
   if (daysUntilDue === 0) {
-    return { color: 'error', title: 'Vence hoje' };
+    return { color: 'error', label: 'Prazo crítico', title: 'Vence hoje' };
   }
   if (daysUntilDue <= 10) {
-    return { color: 'error', title: `Vence em ${daysUntilDue} dias` };
+    return { color: 'error', label: 'Prazo crítico', title: `Vence em ${daysUntilDue} dias` };
   }
   if (daysUntilDue <= 12) {
-    return { color: 'warning', title: `${daysUntilDue} dias até o vencimento` };
+    return { color: 'warning', label: 'Atenção', title: `${daysUntilDue} dias até o vencimento` };
   }
-  return { color: 'success', title: `${daysUntilDue} dias até o vencimento` };
+  return { color: 'success', label: 'Dentro do prazo', title: `${daysUntilDue} dias até o vencimento` };
 };
 
 export default function NotasView({
@@ -493,6 +499,7 @@ export default function NotasView({
     const anexosAbertos = Boolean(expandedAttachments[nota.id]);
     const totalAnexos = Number(Boolean(nota.arquivo_nota)) + Number(Boolean(nota.arquivo_boleto));
     const dueSignal = notaGroup === 'concluida' ? null : getDueSignal(nota.data_vencimento);
+    const dueSignalStyle = dueSignal ? DUE_SIGNAL_STYLE[dueSignal.color] : null;
 
     return (
       <Paper
@@ -536,15 +543,40 @@ export default function NotasView({
           </Stack>
         </Stack>
 
-        {dueSignal && (
+        {dueSignal && dueSignalStyle && (
           <Tooltip title={dueSignal.title}>
             <Box
               sx={{
-                height: 6,
-                borderRadius: 999,
-                bgcolor: `${dueSignal.color}.main`,
+                px: 1,
+                py: 0.75,
+                borderRadius: 1,
+                border: '1px solid',
+                borderLeft: '5px solid',
+                borderColor: dueSignalStyle.border,
+                bgcolor: dueSignalStyle.bg,
+                color: dueSignalStyle.text,
               }}
-            />
+            >
+              <Stack direction="row" spacing={0.75} alignItems="center" justifyContent="space-between">
+                <Stack direction="row" spacing={0.75} alignItems="center" sx={{ minWidth: 0 }}>
+                  <CalendarMonthOutlinedIcon sx={{ fontSize: 18 }} />
+                  <Typography variant="caption" fontWeight={900} noWrap>
+                    {dueSignal.label}
+                  </Typography>
+                </Stack>
+                <Box
+                  component="span"
+                  sx={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: '50%',
+                    bgcolor: dueSignalStyle.border,
+                    boxShadow: `0 0 0 3px ${dueSignalStyle.bg}`,
+                    flex: '0 0 auto',
+                  }}
+                />
+              </Stack>
+            </Box>
           </Tooltip>
         )}
 
