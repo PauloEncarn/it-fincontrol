@@ -143,18 +143,18 @@ const getDueSignal = (dateValue) => {
 
   const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / 86400000);
   if (daysUntilDue < 0) {
-    return { color: 'error', label: `Vencida há ${Math.abs(daysUntilDue)}d` };
+    return { color: 'error', title: `Vencida há ${Math.abs(daysUntilDue)} dias` };
   }
   if (daysUntilDue === 0) {
-    return { color: 'error', label: 'Vence hoje' };
+    return { color: 'error', title: 'Vence hoje' };
   }
   if (daysUntilDue <= 10) {
-    return { color: 'error', label: `Vence em ${daysUntilDue}d` };
+    return { color: 'error', title: `Vence em ${daysUntilDue} dias` };
   }
   if (daysUntilDue <= 12) {
-    return { color: 'warning', label: `Atenção ${daysUntilDue}d` };
+    return { color: 'warning', title: `${daysUntilDue} dias até o vencimento` };
   }
-  return { color: 'success', label: `Folga ${daysUntilDue}d` };
+  return { color: 'success', title: `${daysUntilDue} dias até o vencimento` };
 };
 
 export default function NotasView({
@@ -483,6 +483,7 @@ export default function NotasView({
   );
 
   const renderGridCard = (nota) => {
+    const notaGroup = getNotaGroup(nota);
     const fornecedor = nota.nome_fornecedor || nota.fornecedor?.nome_empresa || 'Fornecedor não informado';
     const valorReal = parseFloat(nota.valor || 0);
     const valorPrevisto = nota.valor_previsto ? parseFloat(nota.valor_previsto) : null;
@@ -491,7 +492,7 @@ export default function NotasView({
     const borderColor = statusTone === 'default' ? 'divider' : `${statusTone}.main`;
     const anexosAbertos = Boolean(expandedAttachments[nota.id]);
     const totalAnexos = Number(Boolean(nota.arquivo_nota)) + Number(Boolean(nota.arquivo_boleto));
-    const dueSignal = getDueSignal(nota.data_vencimento);
+    const dueSignal = notaGroup === 'concluida' ? null : getDueSignal(nota.data_vencimento);
 
     return (
       <Paper
@@ -532,21 +533,24 @@ export default function NotasView({
               label={nota.status_pagamento || 'Sem status'}
               sx={{ fontWeight: 700, maxWidth: 150 }}
             />
-            {dueSignal && (
-              <Chip
-                size="small"
-                color={dueSignal.color}
-                label={dueSignal.label}
-                variant="outlined"
-                sx={{ height: 22, fontWeight: 800, bgcolor: 'background.paper' }}
-              />
-            )}
           </Stack>
         </Stack>
 
+        {dueSignal && (
+          <Tooltip title={dueSignal.title}>
+            <Box
+              sx={{
+                height: 6,
+                borderRadius: 999,
+                bgcolor: `${dueSignal.color}.main`,
+              }}
+            />
+          </Tooltip>
+        )}
+
         <Divider />
 
-        {getNotaGroup(nota) === 'pendente' && (
+        {notaGroup === 'pendente' && (
           <Alert severity="warning" variant="outlined" sx={{ py: 0.25 }}>
             Revise os anexos e prepare o lançamento.
           </Alert>
