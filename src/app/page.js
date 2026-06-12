@@ -40,7 +40,7 @@ const ModalSolicitacao = dynamic(() => import('@/frontend/components/modals/Moda
 });
 // ---------------------------------------------------
 
-const initialFormLancamento = { id: null, competencia: '', filial_id: '', fornecedor_id: '', cnpj_usado: '', contrato_usado: '', centro_custo_usado: '', numero_nota: '', serie: 'U', valor: '', valor_previsto: '', data_envio: '', data_vencimento: '', descricao_servico: '', servico_protheus: '', numero_medicao: '', numero_pedido: '', solicitacao_fluig: '', observacao: '', status_pagamento: 'Pendente Nota', arquivo_nota: '', arquivo_boleto: '', repetir_por: '1' };
+const initialFormLancamento = { id: null, competencia: '', filial_id: '', fornecedor_id: '', cnpj_usado: '', contrato_usado: '', centro_custo_usado: '', numero_nota: '', serie: 'U', valor: '', valor_previsto: '', data_envio: '', data_vencimento: '', descricao_servico: '', servico_protheus: '', numero_medicao: '', numero_pedido: '', solicitacao_fluig: '', observacao: '', etapa: 'pendente', status_pagamento: 'Pendente Nota', arquivo_nota: '', arquivo_boleto: '', repetir_por: '1' };
 const initialFormSolicitacao = { id: null, filial_id: '', fornecedor_id: '', solicitante: '', cnpj: '', condicao_pagamento: '', valor: '', numero_sc: '', numero_pedido: '', servico: '', servico_protheus: '', centro_custo: '', numero_nota: '', fluig_id: '', data_vencimento: '', status: 'Em Andamento', observacao: '' };
 
 function DashboardContent() {
@@ -167,10 +167,10 @@ function DashboardContent() {
   const mutationLancamento = useMutation({ mutationFn: (nota) => nota.id ? axios.put(`${API_URL}/lancamentos/${nota.id}`, nota, authConfig) : axios.post(`${API_URL}/lancamentos/`, nota, authConfig), onSuccess: () => { atualizarListas(); }});
   
   const mutationStatus = useMutation({ 
-      mutationFn: ({id, status}) => axios.patch(`${API_URL}/lancamentos/${id}/status`, { status }, authConfig), 
+      mutationFn: ({id, status, etapa}) => axios.patch(`${API_URL}/lancamentos/${id}/status`, { status, etapa }, authConfig), 
       onSuccess: () => { 
           atualizarListas(); 
-          addToast('success', 'Status atualizado!'); 
+          addToast('success', 'Nota atualizada!'); 
       } 
   });
 
@@ -221,7 +221,7 @@ function DashboardContent() {
   
   const abrirEdicaoLancamento = useCallback((nota) => { handleFornecedorChange(nota.fornecedor_id); setForm({...nota, data_envio: getDateInputValue(nota.data_envio), data_vencimento: getDateInputValue(nota.data_vencimento)}); setShowModal(true); }, [handleFornecedorChange]);
   
-  const duplicarNota = useCallback((nota) => { openConfirm("Duplicar Lançamento", "Deseja criar uma cópia?", () => { handleFornecedorChange(nota.fornecedor_id); setForm({ ...nota, id: null, contrato_id: null, competencia: '', numero_nota: '', arquivo_nota: '', arquivo_boleto: '', data_envio: '', data_vencimento: getDateInputValue(nota.data_vencimento), status_pagamento: 'Pendente Nota', repetir_por: '1' }); setShowModal(true); }); }, [handleFornecedorChange]);
+  const duplicarNota = useCallback((nota) => { openConfirm("Duplicar Lançamento", "Deseja criar uma cópia?", () => { handleFornecedorChange(nota.fornecedor_id); setForm({ ...nota, id: null, contrato_id: null, competencia: '', numero_nota: '', arquivo_nota: '', arquivo_boleto: '', data_envio: '', data_vencimento: getDateInputValue(nota.data_vencimento), etapa: 'pendente', status_pagamento: 'Pendente Nota', repetir_por: '1' }); setShowModal(true); }); }, [handleFornecedorChange]);
   
   const salvarLancamento = async () => { const statusPendente = ['Pendente Nota', 'Pendente Boleto', 'Pendente Fatura'].includes(form.status_pagamento); if (!form.filial_id || !form.fornecedor_id || !form.valor || (!statusPendente && !form.numero_nota)) return addToast('error', 'Preencha os campos obrigatórios!'); const payload = { ...form, data_envio: form.data_envio === '' ? null : form.data_envio }; try { await mutationLancamento.mutateAsync(payload); addToast('success', 'Lançamento salvo!'); setShowModal(false); } catch { addToast('error', 'Erro ao salvar.'); } };
   
@@ -351,6 +351,7 @@ function DashboardContent() {
                                 onEnviarEmail={handleEnviarEmail}
                                 onDownload={(path) => window.open(path.startsWith('http') ? path : `${API_URL}/${path}`, '_blank')}
                                 onStatusChange={(id, st) => mutationStatus.mutate({id, status: st})}
+                                onEtapaChange={(id, etapa, status) => mutationStatus.mutate({id, etapa, status})}
                                 isGopaFunc={isGopaFunc}
                                 busca={termoBusca}
                                 onRefresh={handleManualRefresh}

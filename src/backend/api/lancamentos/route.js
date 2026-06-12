@@ -84,6 +84,7 @@ export async function POST(request) {
       observacao: body.observacao,
       
       // Controle
+      etapa: body.etapa || 'pendente',
       status_pagamento: body.status_pagamento || 'Pendente Nota',
       arquivo_nota: body.arquivo_nota,
       arquivo_boleto: body.arquivo_boleto,

@@ -68,6 +68,7 @@ export async function POST(request, context) {
     valor_previsto: contrato.valor_base_previsto,
     valor: contrato.valor_base_previsto,
     data_vencimento: vencimentoParaCompetencia(competencia, contrato.dia_vencimento),
+    etapa: 'pendente',
     status_pagamento: statusInicial,
     repetir_por: 1,
   };

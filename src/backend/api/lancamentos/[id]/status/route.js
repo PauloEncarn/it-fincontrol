@@ -6,39 +6,53 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+const ETAPAS_VALIDAS = ['pendente', 'em_andamento', 'em_analise', 'contingencia', 'concluida'];
+
+const limparTexto = (value) => {
+  if (value === null || value === undefined) return null;
+  const text = String(value).trim();
+  return text || null;
+};
+
 export async function PATCH(request, context) {
   try {
-    // No Next.js 15, params é uma Promise, então usamos await
     const params = await context.params;
-    const id = params.id; // O ID vem da pasta pai [id]
-
+    const id = params.id;
     const body = await request.json();
 
-    console.log(`🔄 [Status] Atualizando ID ${id}:`, body);
-
-    // Flexibilidade para ler o status
     let novoStatus = body.status_pagamento || body.status;
-
-    // Converte boleano se necessário
     if (novoStatus === true) novoStatus = 'Pago';
     if (novoStatus === false) novoStatus = 'Pendente';
 
-    if (!novoStatus) {
-        return NextResponse.json({ error: 'Status não informado' }, { status: 400 });
+    const novaEtapa = limparTexto(body.etapa);
+    const payload = {};
+
+    if (novoStatus !== undefined && novoStatus !== null && String(novoStatus).trim()) {
+      payload.status_pagamento = String(novoStatus).trim();
     }
 
-    // Atualiza no Banco
+    if (novaEtapa) {
+      if (!ETAPAS_VALIDAS.includes(novaEtapa)) {
+        return NextResponse.json({ error: 'Etapa inválida.' }, { status: 400 });
+      }
+
+      payload.etapa = novaEtapa;
+    }
+
+    if (Object.keys(payload).length === 0) {
+      return NextResponse.json({ error: 'Informe status ou etapa.' }, { status: 400 });
+    }
+
     const { error } = await supabase
       .from('lancamentos')
-      .update({ status_pagamento: novoStatus })
+      .update(payload)
       .eq('id', id);
 
     if (error) throw error;
 
     return NextResponse.json({ success: true });
-
   } catch (error) {
-    console.error("🔥 Erro Status:", error);
+    console.error('[lancamentos/status] Erro:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

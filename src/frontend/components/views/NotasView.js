@@ -22,11 +22,13 @@ import {
   ToggleButtonGroup,
 } from '@mui/material';
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import FileCopyOutlinedIcon from '@mui/icons-material/FileCopyOutlined';
 import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
@@ -34,7 +36,6 @@ import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined';
 import StorageOutlinedIcon from '@mui/icons-material/StorageOutlined';
 import ViewListIcon from '@mui/icons-material/ViewList';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
-import { OPCOES_STATUS } from '@/frontend/utils/constants';
 
 const STATUS_COLOR = {
   'Pendente Nota': 'warning',
@@ -66,6 +67,14 @@ const GRID_GROUPS = [
   { id: 'concluida', label: 'Concluída', color: 'success', targetStatus: 'Concluída' },
 ];
 
+const STATUS_BY_GROUP = {
+  pendente: ['Pendente Nota', 'Pendente Boleto', 'Pendente Fatura'],
+  em_andamento: ['Em Andamento'],
+  em_analise: ['Aguardando Aprovação Fluig', 'Aguardando Confirmação Refresa'],
+  contingencia: ['Aguardando Contingência Gerente', 'Aguardando Contingência Head'],
+  concluida: ['Concluída', 'Cancelada'],
+};
+
 const normalizeText = (value) =>
   String(value || '')
     .normalize('NFD')
@@ -84,6 +93,19 @@ const getGridGroup = (status) => {
   return 'pendente';
 };
 
+const getNotaGroup = (nota) => {
+  if (nota?.etapa && GRID_GROUPS.some((group) => group.id === nota.etapa)) return nota.etapa;
+  return getGridGroup(nota?.status_pagamento);
+};
+
+const statusOptionsForNota = (nota) => {
+  const etapa = getNotaGroup(nota);
+  const options = STATUS_BY_GROUP[etapa] || STATUS_BY_GROUP.pendente;
+  return options.includes(nota.status_pagamento) || !nota.status_pagamento
+    ? options
+    : [nota.status_pagamento, ...options];
+};
+
 export default function NotasView({
   notas,
   competencia,
@@ -98,6 +120,7 @@ export default function NotasView({
   onEnviarEmail,
   onDownload,
   onStatusChange,
+  onEtapaChange,
   isGopaFunc,
   busca,
   onRefresh,
@@ -209,8 +232,11 @@ export default function NotasView({
       return;
     }
 
-    if (nota.status_pagamento !== group.targetStatus) {
-      onStatusChange(nota.id, group.targetStatus);
+    if (getNotaGroup(nota) !== group.id) {
+      const nextStatus = STATUS_BY_GROUP[group.id]?.includes(nota.status_pagamento)
+        ? undefined
+        : group.targetStatus;
+      onEtapaChange(nota.id, group.id, nextStatus);
     }
 
     setDraggedNotaId(null);
@@ -232,17 +258,17 @@ export default function NotasView({
   );
 
   const iniciarLancamento = (nota) => {
-    onStatusChange(nota.id, 'Em Andamento');
-    onEditar({ ...nota, status_pagamento: 'Em Andamento' });
+    onEtapaChange(nota.id, 'em_andamento', 'Em Andamento');
+    onEditar({ ...nota, etapa: 'em_andamento', status_pagamento: 'Em Andamento' });
   };
 
   const prosseguirLancamento = (nota) => {
     if (!hasInfoForAnalysis(nota)) {
-      onEditar({ ...nota, status_pagamento: 'Em Andamento' });
+      onEditar({ ...nota, etapa: 'em_andamento', status_pagamento: 'Em Andamento' });
       return;
     }
 
-    onStatusChange(nota.id, 'Aguardando Aprovação Fluig');
+    onEtapaChange(nota.id, 'em_analise', 'Aguardando Aprovação Fluig');
   };
 
   const toggleGroupCollapsed = (groupId) => {
@@ -256,28 +282,28 @@ export default function NotasView({
 
   const renderActions = (nota) => (
     <Stack direction="row" justifyContent={{ xs: 'flex-start', md: 'flex-end' }} spacing={0.5} flexWrap="wrap" useFlexGap>
-      {getGridGroup(nota.status_pagamento) === 'pendente' && (
-        <Button size="small" variant="contained" onClick={() => iniciarLancamento(nota)}>
-          Iniciar lançamento
+      {getNotaGroup(nota) === 'pendente' && (
+        <Button size="small" variant="contained" endIcon={<ChevronRightIcon />} onClick={() => iniciarLancamento(nota)}>
+          Preparar
         </Button>
       )}
-      {getGridGroup(nota.status_pagamento) === 'em_andamento' && (
+      {getNotaGroup(nota) === 'em_andamento' && (
         <>
-          <Button size="small" variant="contained" onClick={() => prosseguirLancamento(nota)}>
+          <Button size="small" variant="contained" endIcon={<ChevronRightIcon />} onClick={() => prosseguirLancamento(nota)}>
             Prosseguir
           </Button>
-          <Button size="small" color="error" variant="outlined" onClick={() => onStatusChange(nota.id, 'Aguardando Contingência Gerente')}>
-            Contingência
+          <Button size="small" color="error" variant="outlined" onClick={() => onEtapaChange(nota.id, 'contingencia', 'Aguardando Contingência Gerente')}>
+            Sem saldo
           </Button>
         </>
       )}
-      {getGridGroup(nota.status_pagamento) === 'contingencia' && nota.status_pagamento !== 'Aguardando Contingência Head' && (
+      {getNotaGroup(nota) === 'contingencia' && nota.status_pagamento !== 'Aguardando Contingência Head' && (
         <Button size="small" color="error" variant="contained" onClick={() => onStatusChange(nota.id, 'Aguardando Contingência Head')}>
           Enviar Head
         </Button>
       )}
-      {getGridGroup(nota.status_pagamento) === 'em_analise' && (
-        <Button size="small" color="success" variant="contained" onClick={() => onStatusChange(nota.id, 'Concluída')}>
+      {getNotaGroup(nota) === 'em_analise' && (
+        <Button size="small" color="success" variant="contained" onClick={() => onEtapaChange(nota.id, 'concluida', 'Concluída')}>
           Concluir
         </Button>
       )}
@@ -363,6 +389,12 @@ export default function NotasView({
 
         <Divider />
 
+        {getNotaGroup(nota) === 'pendente' && (
+          <Alert severity="warning" variant="outlined" sx={{ py: 0.25 }}>
+            Revise os anexos e prepare o lançamento.
+          </Alert>
+        )}
+
         <Box>
           <Typography variant="caption" color="text.secondary" fontWeight={700}>
             Nota fiscal
@@ -411,7 +443,7 @@ export default function NotasView({
             value={nota.status_pagamento || ''}
             onChange={(e) => onStatusChange(nota.id, e.target.value)}
           >
-            {OPCOES_STATUS.map((status) => (
+            {statusOptionsForNota(nota).map((status) => (
               <MenuItem key={status} value={status}>
                 {status}
               </MenuItem>
@@ -502,7 +534,7 @@ export default function NotasView({
           }}
         >
           {GRID_GROUPS.map((group) => {
-            const notasDoGrupo = notasFiltradas.filter((nota) => getGridGroup(nota.status_pagamento) === group.id);
+            const notasDoGrupo = notasFiltradas.filter((nota) => getNotaGroup(nota) === group.id);
             const notasPorFornecedor = agruparPorFornecedor(notasDoGrupo);
             const groupCollapsed = Boolean(collapsedGroups[group.id]);
 
@@ -541,9 +573,11 @@ export default function NotasView({
                   </Box>
                   <Stack direction="row" spacing={0.75} alignItems="center">
                     <Chip size="small" color={group.color} label={notasDoGrupo.length} sx={{ fontWeight: 800 }} />
-                    <Button size="small" onClick={() => toggleGroupCollapsed(group.id)}>
-                      {groupCollapsed ? 'Exibir' : 'Encolher'}
-                    </Button>
+                    <Tooltip title={groupCollapsed ? 'Exibir coluna' : 'Encolher coluna'}>
+                      <IconButton size="small" onClick={() => toggleGroupCollapsed(group.id)}>
+                        {groupCollapsed ? <ExpandMoreIcon fontSize="small" /> : <ExpandLessIcon fontSize="small" />}
+                      </IconButton>
+                    </Tooltip>
                   </Stack>
                 </Stack>
 
@@ -563,9 +597,11 @@ export default function NotasView({
                         </Typography>
                         <Stack direction="row" spacing={0.75} alignItems="center">
                           <Chip size="small" variant="outlined" label={notasFornecedor.length} sx={{ height: 22, fontWeight: 800 }} />
-                          <Button size="small" onClick={() => toggleGridSupplierCollapsed(group.id, fornecedor)}>
-                            {collapsedGridSuppliers[`${group.id}::${fornecedor}`] ? 'Exibir' : 'Encolher'}
-                          </Button>
+                          <Tooltip title={collapsedGridSuppliers[`${group.id}::${fornecedor}`] ? 'Exibir fornecedor' : 'Encolher fornecedor'}>
+                            <IconButton size="small" onClick={() => toggleGridSupplierCollapsed(group.id, fornecedor)}>
+                              {collapsedGridSuppliers[`${group.id}::${fornecedor}`] ? <ExpandMoreIcon fontSize="small" /> : <ExpandLessIcon fontSize="small" />}
+                            </IconButton>
+                          </Tooltip>
                         </Stack>
                       </Stack>
                       {!collapsedGridSuppliers[`${group.id}::${fornecedor}`] && (
@@ -643,7 +679,7 @@ export default function NotasView({
                               value={nota.status_pagamento || ''}
                               onChange={(e) => onStatusChange(nota.id, e.target.value)}
                             >
-                              {OPCOES_STATUS.map((status) => (
+                              {statusOptionsForNota(nota).map((status) => (
                                 <MenuItem key={status} value={status}>
                                   {status}
                                 </MenuItem>

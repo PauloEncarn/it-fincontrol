@@ -16,13 +16,6 @@ const STATUS_PENDENCIA = [
   'Pendente Lançamento',
 ];
 
-const STATUS_LEMBRETE = [
-  'Aguardando Aprovação Fluig',
-  'Aguardando Confirmação Refresa',
-  'Aguardando Contingência Gerente',
-  'Aguardando Contingência Head',
-];
-
 export const dynamic = 'force-dynamic';
 
 const moeda = (value) => Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -123,7 +116,7 @@ export async function GET() {
       const { data, error } = await supabase
         .from('lancamentos')
         .select(selectRelacoes)
-        .in('status_pagamento', STATUS_LEMBRETE)
+        .in('etapa', ['em_analise', 'contingencia'])
         .order('data_vencimento', { ascending: true });
 
       if (error) throw error;

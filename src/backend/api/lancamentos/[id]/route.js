@@ -71,6 +71,7 @@ export async function PUT(request, context) {
       observacao: limparTexto(body.observacao),
       
       // Controle e Arquivos
+      etapa: limparTexto(body.etapa) || 'pendente',
       status_pagamento: limparTexto(body.status_pagamento),
       arquivo_nota: limparTexto(body.arquivo_nota),
       arquivo_boleto: limparTexto(body.arquivo_boleto),
