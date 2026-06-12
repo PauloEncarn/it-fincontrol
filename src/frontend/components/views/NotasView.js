@@ -7,6 +7,9 @@ import {
   Box,
   Button,
   Chip,
+  Dialog,
+  DialogContent,
+  DialogTitle,
   Divider,
   FormControl,
   IconButton,
@@ -37,6 +40,7 @@ import StorageOutlinedIcon from '@mui/icons-material/StorageOutlined';
 import ViewListIcon from '@mui/icons-material/ViewList';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import FileDrop from '@/frontend/components/ui/FileDrop';
+import { API_URL } from '@/frontend/utils/constants';
 
 const STATUS_COLOR = {
   'Pendente Nota': 'warning',
@@ -133,8 +137,9 @@ export default function NotasView({
   const [draggedNotaId, setDraggedNotaId] = useState(null);
   const [collapsedGroups, setCollapsedGroups] = useState({});
   const [collapsedGridSuppliers, setCollapsedGridSuppliers] = useState({});
-  const [quickEditId, setQuickEditId] = useState(null);
-  const [quickForms, setQuickForms] = useState({});
+  const [editingCell, setEditingCell] = useState(null);
+  const [editingValue, setEditingValue] = useState('');
+  const [previewFile, setPreviewFile] = useState(null);
 
   const handleExportarExcel = () => {
     if (!notas || notas.length === 0) return alert('Sem dados para exportar.');
@@ -287,26 +292,79 @@ export default function NotasView({
     setCollapsedGridSuppliers((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const quickFormForNota = (nota) => quickForms[nota.id] || {
-    ...nota,
-    data_vencimento: nota.data_vencimento ? String(nota.data_vencimento).split('T')[0] : '',
-    data_envio: nota.data_envio ? String(nota.data_envio).split('T')[0] : '',
+  const fileUrl = (path) => path ? (path.startsWith('http') ? path : `${API_URL}/${path}`) : '';
+
+  const openPreview = (path, title) => {
+    if (!path) return;
+    setPreviewFile({ title, url: fileUrl(path) });
   };
 
-  const updateQuickForm = (nota, patch) => {
-    setQuickForms((prev) => ({
-      ...prev,
-      [nota.id]: {
-        ...quickFormForNota(nota),
-        ...patch,
-      },
-    }));
+  const beginInlineEdit = (nota, field, value) => {
+    setEditingCell(`${nota.id}:${field}`);
+    setEditingValue(value ?? '');
   };
 
-  const salvarQuickForm = async (nota) => {
-    const dados = quickFormForNota(nota);
-    await onSalvarInline(dados);
-    setQuickEditId(null);
+  const cancelInlineEdit = () => {
+    setEditingCell(null);
+    setEditingValue('');
+  };
+
+  const commitInlineEdit = async (nota, field) => {
+    const original = nota[field] ?? '';
+    if (String(original) !== String(editingValue)) {
+      await onSalvarInline({ ...nota, [field]: editingValue });
+    }
+    cancelInlineEdit();
+  };
+
+  const renderEditableValue = (nota, field, label, value, options = {}) => {
+    const cellKey = `${nota.id}:${field}`;
+    const isEditing = editingCell === cellKey;
+    const displayValue = options.format ? options.format(value) : (value || '-');
+
+    if (isEditing) {
+      return (
+        <TextField
+          autoFocus
+          size="small"
+          type={options.type || 'text'}
+          label={label}
+          value={editingValue}
+          onChange={(event) => setEditingValue(event.target.value)}
+          onBlur={() => commitInlineEdit(nota, field)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') commitInlineEdit(nota, field);
+            if (event.key === 'Escape') cancelInlineEdit();
+          }}
+          fullWidth
+          InputLabelProps={options.type === 'date' ? { shrink: true } : undefined}
+        />
+      );
+    }
+
+    return (
+      <Box
+        role="button"
+        tabIndex={0}
+        onClick={() => beginInlineEdit(nota, field, value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') beginInlineEdit(nota, field, value);
+        }}
+        sx={{
+          minHeight: 28,
+          cursor: 'text',
+          borderBottom: '1px dashed',
+          borderColor: 'divider',
+          '&:hover': { borderColor: 'primary.main', color: 'primary.main' },
+        }}
+      >
+        {options.render ? options.render(displayValue) : (
+          <Typography variant={options.variant || 'body2'} fontWeight={options.fontWeight || 700} noWrap title={String(displayValue)}>
+            {displayValue}
+          </Typography>
+        )}
+      </Box>
+    );
   };
 
   const renderActions = (nota) => (
@@ -363,9 +421,6 @@ export default function NotasView({
           <EditOutlinedIcon />
         </IconButton>
       </Tooltip>
-      <Button size="small" variant="text" onClick={() => setQuickEditId((id) => (id === nota.id ? null : nota.id))}>
-        {quickEditId === nota.id ? 'Fechar edição' : 'Editar no card'}
-      </Button>
       <Tooltip title="Duplicar">
         <IconButton size="small" onClick={() => onDuplicar(nota)} aria-label="Duplicar nota">
           <FileCopyOutlinedIcon />
@@ -377,7 +432,6 @@ export default function NotasView({
 
   const renderGridCard = (nota) => {
     const fornecedor = nota.nome_fornecedor || nota.fornecedor?.nome_empresa || 'Fornecedor não informado';
-    const quick = quickFormForNota(nota);
     const valorReal = parseFloat(nota.valor || 0);
     const valorPrevisto = nota.valor_previsto ? parseFloat(nota.valor_previsto) : null;
     const variacao = valorPrevisto !== null ? valorReal - valorPrevisto : 0;
@@ -436,9 +490,16 @@ export default function NotasView({
           <Typography variant="caption" color="text.secondary" fontWeight={700}>
             Nota fiscal
           </Typography>
-          <Typography variant="h6" fontWeight={900} color="primary">
-            {nota.numero_nota ? `#${nota.numero_nota}` : 'Pendente'}
-          </Typography>
+          {renderEditableValue(nota, 'numero_nota', 'Nº nota', nota.numero_nota, {
+            variant: 'h6',
+            fontWeight: 900,
+            format: (value) => value ? `#${value}` : 'Pendente',
+            render: (value) => (
+              <Typography variant="h6" fontWeight={900} color="primary" noWrap title={String(value)}>
+                {value}
+              </Typography>
+            ),
+          })}
         </Box>
 
         <Stack direction="row" spacing={2}>
@@ -446,48 +507,55 @@ export default function NotasView({
             <Typography variant="caption" color="text.secondary" fontWeight={700}>
               Vencimento
             </Typography>
-            <Typography variant="body2" fontWeight={700}>
-              {formatDate(nota.data_vencimento)}
-            </Typography>
+            {renderEditableValue(nota, 'data_vencimento', 'Vencimento', nota.data_vencimento ? String(nota.data_vencimento).split('T')[0] : '', {
+              type: 'date',
+              format: formatDate,
+            })}
           </Box>
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography variant="caption" color="text.secondary" fontWeight={700}>
               CNPJ
             </Typography>
-            <Typography variant="body2" fontWeight={700} noWrap title={nota.cnpj_usado || '-'}>
-              {nota.cnpj_usado || '-'}
-            </Typography>
+            {renderEditableValue(nota, 'cnpj_usado', 'CNPJ', nota.cnpj_usado)}
           </Box>
         </Stack>
 
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          <Chip
-            size="small"
-            variant="outlined"
-            label={`Pedido: ${nota.numero_pedido || '-'}`}
-            sx={{ maxWidth: '100%', '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }}
-          />
-          <Chip
-            size="small"
-            variant="outlined"
-            label={`Fluig: ${nota.solicitacao_fluig || '-'}`}
-            sx={{ maxWidth: '100%', '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }}
-          />
+          <Box sx={{ flex: '1 1 120px', minWidth: 0 }}>
+            <Typography variant="caption" color="text.secondary" fontWeight={700}>Pedido</Typography>
+            {renderEditableValue(nota, 'numero_pedido', 'Pedido', nota.numero_pedido)}
+          </Box>
+          <Box sx={{ flex: '1 1 120px', minWidth: 0 }}>
+            <Typography variant="caption" color="text.secondary" fontWeight={700}>Fluig</Typography>
+            {renderEditableValue(nota, 'solicitacao_fluig', 'Fluig', nota.solicitacao_fluig)}
+          </Box>
         </Stack>
 
         <Box>
           <Typography variant="caption" color="text.secondary" fontWeight={700}>
             Valor
           </Typography>
-          <Typography variant="h6" fontWeight={900}>
-            R$ {valorReal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-          </Typography>
+          {renderEditableValue(nota, 'valor', 'Valor', nota.valor || '', {
+            type: 'number',
+            render: () => (
+              <Typography variant="h6" fontWeight={900}>
+                R$ {valorReal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </Typography>
+            ),
+          })}
           {valorPrevisto !== null && (
             <Typography variant="caption" color={Math.abs(variacao) > 0 ? 'warning.main' : 'text.secondary'}>
               Previsto R$ {valorPrevisto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               {Math.abs(variacao) > 0 ? ` | Variação R$ ${variacao.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : ''}
             </Typography>
           )}
+        </Box>
+
+        <Box>
+          <Typography variant="caption" color="text.secondary" fontWeight={700}>
+            Centro de custo
+          </Typography>
+          {renderEditableValue(nota, 'centro_custo_usado', 'Centro de custo', nota.centro_custo_usado)}
         </Box>
 
         <FormControl size="small" fullWidth sx={{ mt: 'auto' }}>
@@ -503,41 +571,42 @@ export default function NotasView({
           </Select>
         </FormControl>
 
-        {quickEditId === nota.id && (
-          <Paper variant="outlined" sx={{ p: 1.25, bgcolor: '#faf9f8' }}>
-            <Stack spacing={1.25}>
-              <Stack direction="row" spacing={1}>
-                <TextField size="small" label="Nº nota" value={quick.numero_nota || ''} onChange={(e) => updateQuickForm(nota, { numero_nota: e.target.value })} fullWidth />
-                <TextField size="small" label="Valor" type="number" value={quick.valor || ''} onChange={(e) => updateQuickForm(nota, { valor: e.target.value })} fullWidth />
-              </Stack>
-              <TextField size="small" label="Vencimento" type="date" value={quick.data_vencimento || ''} onChange={(e) => updateQuickForm(nota, { data_vencimento: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} />
-              <TextField size="small" label="CNPJ" value={quick.cnpj_usado || ''} onChange={(e) => updateQuickForm(nota, { cnpj_usado: e.target.value })} fullWidth />
-              <TextField size="small" label="Centro de custo" value={quick.centro_custo_usado || ''} onChange={(e) => updateQuickForm(nota, { centro_custo_usado: e.target.value })} fullWidth />
-              <Stack direction="row" spacing={1}>
-                <TextField size="small" label="Pedido" value={quick.numero_pedido || ''} onChange={(e) => updateQuickForm(nota, { numero_pedido: e.target.value })} fullWidth />
-                <TextField size="small" label="Fluig" value={quick.solicitacao_fluig || ''} onChange={(e) => updateQuickForm(nota, { solicitacao_fluig: e.target.value })} fullWidth />
-              </Stack>
-              <FileDrop
-                label="Nota fiscal"
-                onFileSelect={(path) => updateQuickForm(nota, { arquivo_nota: path })}
-                existingFile={quick.arquivo_nota}
-                metaData={{ fornecedor, nota: quick.numero_nota, vencimento: quick.data_vencimento }}
-                addToast={addToast}
-              />
-              <FileDrop
-                label="Boleto"
-                onFileSelect={(path) => updateQuickForm(nota, { arquivo_boleto: path })}
-                existingFile={quick.arquivo_boleto}
-                metaData={{ fornecedor, nota: quick.numero_nota, vencimento: quick.data_vencimento }}
-                addToast={addToast}
-              />
-              <Stack direction="row" spacing={1} justifyContent="flex-end">
-                <Button size="small" onClick={() => setQuickEditId(null)}>Cancelar</Button>
-                <Button size="small" variant="contained" onClick={() => salvarQuickForm(nota)}>Salvar</Button>
-              </Stack>
+        <Paper variant="outlined" sx={{ p: 1.25, bgcolor: '#faf9f8' }}>
+          <Stack spacing={1}>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              {nota.arquivo_nota && (
+                <Button size="small" variant="outlined" startIcon={<DescriptionOutlinedIcon />} onClick={() => openPreview(nota.arquivo_nota, 'Nota fiscal')}>
+                  Ver nota
+                </Button>
+              )}
+              {nota.arquivo_boleto && (
+                <Button size="small" variant="outlined" startIcon={<DescriptionOutlinedIcon />} onClick={() => openPreview(nota.arquivo_boleto, 'Boleto')}>
+                  Ver boleto
+                </Button>
+              )}
             </Stack>
-          </Paper>
-        )}
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <FileDrop
+                  label="Adicionar nota"
+                  onFileSelect={(path) => onSalvarInline({ ...nota, arquivo_nota: path })}
+                  existingFile={nota.arquivo_nota}
+                  metaData={{ fornecedor, nota: nota.numero_nota || `ID-${nota.id}`, vencimento: nota.data_vencimento }}
+                  addToast={addToast}
+                />
+              </Box>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <FileDrop
+                  label="Adicionar boleto"
+                  onFileSelect={(path) => onSalvarInline({ ...nota, arquivo_boleto: path })}
+                  existingFile={nota.arquivo_boleto}
+                  metaData={{ fornecedor, nota: nota.numero_nota || `ID-${nota.id}`, vencimento: nota.data_vencimento }}
+                  addToast={addToast}
+                />
+              </Box>
+            </Stack>
+          </Stack>
+        </Paper>
 
         {renderActions(nota)}
       </Paper>
@@ -545,6 +614,7 @@ export default function NotasView({
   };
 
   return (
+    <>
     <Stack spacing={2.5} sx={{ pb: 8 }}>
       <Paper variant="outlined" sx={{ p: 2 }}>
         <Stack
@@ -824,5 +894,26 @@ export default function NotasView({
         </Stack>
       )}
     </Stack>
+    <Dialog open={Boolean(previewFile)} onClose={() => setPreviewFile(null)} fullWidth maxWidth="lg">
+      <DialogTitle>{previewFile?.title || 'Arquivo'}</DialogTitle>
+      <DialogContent dividers sx={{ height: '78vh', p: 0 }}>
+        {previewFile?.url && /\.(png|jpe?g|webp)$/i.test(previewFile.url.split('?')[0]) ? (
+          <Box
+            component="img"
+            src={previewFile.url}
+            alt={previewFile.title || 'Arquivo'}
+            sx={{ width: '100%', height: '100%', objectFit: 'contain', bgcolor: '#111827' }}
+          />
+        ) : (
+          <Box
+            component="iframe"
+            src={previewFile?.url || ''}
+            title={previewFile?.title || 'Arquivo'}
+            sx={{ width: '100%', height: '100%', border: 0 }}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
