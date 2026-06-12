@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { diffLancamentoFields, getActorFromRequest, registrarEventoLancamento } from '@/backend/utils/audit';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -16,6 +17,7 @@ const limparTexto = (value) => {
 
 export async function PATCH(request, context) {
   try {
+    const ator = await getActorFromRequest(request);
     const params = await context.params;
     const id = params.id;
     const body = await request.json();
@@ -43,12 +45,34 @@ export async function PATCH(request, context) {
       return NextResponse.json({ error: 'Informe status ou etapa.' }, { status: 400 });
     }
 
-    const { error } = await supabase
+    const { data: notaAntes, error: erroBusca } = await supabase
+      .from('lancamentos')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (erroBusca) throw erroBusca;
+
+    const { data, error } = await supabase
       .from('lancamentos')
       .update(payload)
-      .eq('id', id);
+      .eq('id', id)
+      .select();
 
     if (error) throw error;
+
+    const notaDepois = data?.[0] || { ...notaAntes, ...payload };
+    const camposAlterados = diffLancamentoFields(notaAntes, notaDepois, ['status_pagamento', 'etapa']);
+    await registrarEventoLancamento(supabase, {
+      lancamentoId: id,
+      tipo: 'status',
+      titulo: 'Status alterado',
+      descricao: camposAlterados.map((item) => `${item.campo}: ${item.antes || '-'} -> ${item.depois || '-'}`).join(' | '),
+      ator,
+      antes: notaAntes,
+      depois: notaDepois,
+      metadata: { campos_alterados: camposAlterados, payload },
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

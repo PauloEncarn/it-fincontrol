@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getActorFromRequest, registrarEventoLancamento } from '@/backend/utils/audit';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -39,6 +40,7 @@ export async function GET(request, context) {
 }
 
 export async function POST(request, context) {
+  const ator = await getActorFromRequest(request);
   const params = await context.params;
   const id = params.id;
   const body = await request.json().catch(() => ({}));
@@ -90,5 +92,17 @@ export async function POST(request, context) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await registrarEventoLancamento(supabase, {
+    lancamentoId: data?.id,
+    tipo: 'geracao_recorrente',
+    titulo: 'Nota recorrente gerada manualmente',
+    descricao: 'Competencia criada a partir do cadastro do contrato recorrente.',
+    ator,
+    depois: data || null,
+    metadata: {
+      contrato_id: contrato.id,
+      competencia,
+    },
+  });
   return NextResponse.json(data || { success: true });
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getActorFromRequest, registrarEventoLancamento } from '@/backend/utils/audit';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -50,6 +51,7 @@ export async function GET(request) {
 // --- POST: CRIAR NOTA ---
 export async function POST(request) {
   try {
+    const ator = await getActorFromRequest(request);
     const body = await request.json();
     
     // MONTAGEM DO PAYLOAD
@@ -97,6 +99,21 @@ export async function POST(request) {
       .select();
 
     if (error) throw error;
+
+    await registrarEventoLancamento(supabase, {
+      lancamentoId: data[0]?.id,
+      tipo: 'criacao',
+      titulo: 'Nota criada',
+      descricao: 'Lancamento cadastrado no sistema.',
+      ator,
+      depois: data[0],
+      metadata: {
+        numero_nota: data[0]?.numero_nota,
+        valor: data[0]?.valor,
+        status_pagamento: data[0]?.status_pagamento,
+        etapa: data[0]?.etapa,
+      },
+    });
 
     return NextResponse.json(data[0]);
   } catch (error) {

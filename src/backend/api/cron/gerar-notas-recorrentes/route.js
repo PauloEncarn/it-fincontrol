@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { registrarEventoLancamento } from '@/backend/utils/audit';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -90,10 +91,23 @@ async function createLancamentoForContrato(contrato, competencia, vencimento) {
   const { data, error } = await supabase
     .from('lancamentos')
     .insert([payload])
-    .select('id')
+    .select('*')
     .single();
 
   if (error) throw error;
+  await registrarEventoLancamento(supabase, {
+    lancamentoId: data.id,
+    tipo: 'geracao_recorrente',
+    titulo: 'Nota recorrente gerada',
+    descricao: 'Lancamento criado automaticamente pelo job de contratos recorrentes.',
+    origem: 'job',
+    depois: data,
+    metadata: {
+      contrato_id: contrato.id,
+      competencia,
+      vencimento,
+    },
+  });
   return { status: 'created', id: data.id };
 }
 

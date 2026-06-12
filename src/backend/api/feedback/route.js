@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import jwt from 'jsonwebtoken';
+import { registrarEventoLancamento } from '@/backend/utils/audit';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -117,12 +118,35 @@ export async function GET(request) {
       payload.observacao = notaAtual?.observacao ? `${notaAtual.observacao}\n${notaProblema}` : notaProblema;
     }
 
-    const { error } = await supabase
+    const { data: notaAntes } = await supabase
+        .from('lancamentos')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+    const { data: notaDepois, error } = await supabase
         .from('lancamentos')
         .update(payload)
-        .eq('id', id);
+        .eq('id', id)
+        .select();
 
     if (error) throw error;
+
+    await registrarEventoLancamento(supabase, {
+      lancamentoId: id,
+      tipo: 'feedback_email',
+      titulo: action === 'autorizar'
+        ? 'Pagamento confirmado pelo e-mail'
+        : action === 'problema_pagamento'
+          ? 'Problema no pagamento informado'
+          : 'Sem saldo informado pelo e-mail',
+      descricao: motivo || mensagemTitulo,
+      origem: 'email',
+      ator_nome: 'Recebedor do e-mail',
+      antes: notaAntes || null,
+      depois: notaDepois?.[0] || null,
+      metadata: { action, motivo: motivo || null },
+    });
 
     const htmlFeedback = `
       <!DOCTYPE html>

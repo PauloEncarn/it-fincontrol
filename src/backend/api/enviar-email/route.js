@@ -1,8 +1,15 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import nodemailer from 'nodemailer';
 import path from 'path';
 import jwt from 'jsonwebtoken';
 import { gerarEmailHtml } from '@/backend/utils/emailTemplate'; 
+import { getActorFromRequest, registrarEventoLancamento } from '@/backend/utils/audit';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 const escapeHtml = (value) =>
   String(value ?? '')
@@ -138,6 +145,7 @@ const renderEmailGopa = ({ fornecedor, numero_nota, vencimento, numero_pedido, n
 
 export async function POST(request) {
   try {
+    const ator = await getActorFromRequest(request);
     const data = await request.json();
     const { id, numero_nota, fornecedor, valor, vencimento, arquivos, tipo, numero_pedido, numero_medicao } = data;
     const isGopa = tipo === 'gopa';
@@ -271,6 +279,29 @@ export async function POST(request) {
       html: htmlFinal,
       attachments: attachments
     });
+
+    if (id) {
+      await registrarEventoLancamento(supabase, {
+        lancamentoId: id,
+        tipo: 'email',
+        titulo: isGopa ? 'E-mail enviado para GOPA' : 'E-mail enviado',
+        descricao: isGopa
+          ? 'Documentos encaminhados para confirmacao de pagamento GOPA.'
+          : 'Documentos encaminhados por e-mail.',
+        ator,
+        metadata: {
+          tipo: tipo || 'padrao',
+          destinatario: isGopa ? 'paulo.encarnacao@cicopal.com.br' : 'suporte.ba@cicopal.com.br, contratos.ti@cicopal.com.br',
+          assunto: isGopa
+            ? `NF ${numero_nota} - ${fornecedor} - Venc. ${formatDateBr(vencimento)}`
+            : `NF: ${numero_nota} - ${fornecedor}`,
+          numero_nota,
+          fornecedor,
+          vencimento,
+          anexos: attachments.map((attachment) => attachment.filename),
+        },
+      });
+    }
 
     return NextResponse.json({ success: true });
 

@@ -36,6 +36,7 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import FileCopyOutlinedIcon from '@mui/icons-material/FileCopyOutlined';
 import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
+import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
 import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined';
 import StorageOutlinedIcon from '@mui/icons-material/StorageOutlined';
 import ViewListIcon from '@mui/icons-material/ViewList';
@@ -195,6 +196,9 @@ export default function NotasView({
   const [editingCell, setEditingCell] = useState(null);
   const [editingValue, setEditingValue] = useState('');
   const [previewFile, setPreviewFile] = useState(null);
+  const [timelineNota, setTimelineNota] = useState(null);
+  const [timelineEventos, setTimelineEventos] = useState([]);
+  const [timelineLoading, setTimelineLoading] = useState(false);
 
   const handleExportarExcel = () => {
     if (!notas || notas.length === 0) return alert('Sem dados para exportar.');
@@ -359,6 +363,39 @@ export default function NotasView({
     setPreviewFile({ title, url: fileUrl(path) });
   };
 
+  const formatDateTime = (value) => {
+    if (!value) return '-';
+    return new Date(value).toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const openTimeline = async (nota) => {
+    setTimelineNota(nota);
+    setTimelineEventos([]);
+    setTimelineLoading(true);
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/lancamentos/${nota.id}/timeline`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await response.json();
+
+      if (!response.ok) throw new Error(data.error || 'Erro ao carregar linha do tempo.');
+      setTimelineEventos(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error(error);
+      addToast?.('error', 'Nao foi possivel carregar a linha do tempo.');
+    } finally {
+      setTimelineLoading(false);
+    }
+  };
+
   const beginInlineEdit = (nota, field, value) => {
     setEditingCell(`${nota.id}:${field}`);
     setEditingValue(field === 'data_vencimento' ? formatDateForInput(value) : (value ?? ''));
@@ -428,6 +465,37 @@ export default function NotasView({
     );
   };
 
+  const renderTimelineMetadata = (evento) => {
+    const alterados = evento?.metadata?.campos_alterados;
+
+    if (Array.isArray(alterados) && alterados.length > 0) {
+      return (
+        <Stack spacing={0.5} sx={{ mt: 1 }}>
+          {alterados.slice(0, 6).map((item) => (
+            <Typography key={`${evento.id}-${item.campo}`} variant="caption" color="text.secondary">
+              <Box component="strong" sx={{ color: 'text.primary' }}>{item.campo}</Box>: {String(item.antes ?? '-')} {'->'} {String(item.depois ?? '-')}
+            </Typography>
+          ))}
+          {alterados.length > 6 && (
+            <Typography variant="caption" color="text.secondary">
+              +{alterados.length - 6} alteracao(oes)
+            </Typography>
+          )}
+        </Stack>
+      );
+    }
+
+    if (evento?.tipo === 'email' && evento?.metadata?.destinatario) {
+      return (
+        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+          Para: {evento.metadata.destinatario}
+        </Typography>
+      );
+    }
+
+    return null;
+  };
+
   const renderActions = (nota) => (
     <Stack spacing={0.75}>
       <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
@@ -467,6 +535,11 @@ export default function NotasView({
       <Tooltip title="Copiar Protheus">
         <IconButton size="small" onClick={() => onCopiarProtheus(nota)} aria-label="Copiar Protheus">
           <ContentCopyOutlinedIcon />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Ver linha do tempo">
+        <IconButton size="small" onClick={() => openTimeline(nota)} aria-label="Ver linha do tempo">
+          <HistoryOutlinedIcon />
         </IconButton>
       </Tooltip>
       {isGopaFunc(nota) && (
@@ -1114,6 +1187,75 @@ export default function NotasView({
         </Stack>
       )}
     </Stack>
+    <Dialog open={Boolean(timelineNota)} onClose={() => setTimelineNota(null)} fullWidth maxWidth="md">
+      <DialogTitle>
+        Linha do tempo {timelineNota?.numero_nota ? `- NF ${timelineNota.numero_nota}` : ''}
+      </DialogTitle>
+      <DialogContent dividers>
+        {timelineLoading ? (
+          <Typography variant="body2" color="text.secondary">
+            Carregando eventos...
+          </Typography>
+        ) : timelineEventos.length === 0 ? (
+          <Alert severity="info" variant="outlined">
+            Nenhum evento registrado para esta nota ainda.
+          </Alert>
+        ) : (
+          <Stack spacing={1.5}>
+            {timelineEventos.map((evento, index) => (
+              <Stack key={evento.id} direction="row" spacing={1.5} alignItems="flex-start">
+                <Box
+                  sx={{
+                    width: 28,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    flex: '0 0 auto',
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: '50%',
+                      bgcolor: evento.tipo === 'email' || evento.tipo === 'feedback_email' ? 'secondary.main' : 'primary.main',
+                      mt: 0.75,
+                    }}
+                  />
+                  {index < timelineEventos.length - 1 && (
+                    <Box sx={{ width: 2, flex: 1, minHeight: 58, bgcolor: 'divider', mt: 0.5 }} />
+                  )}
+                </Box>
+                <Paper variant="outlined" sx={{ p: 1.5, flex: 1, bgcolor: '#faf9f8' }}>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1}>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="subtitle2" fontWeight={900}>
+                        {evento.titulo}
+                      </Typography>
+                      {evento.descricao && (
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, whiteSpace: 'pre-line' }}>
+                          {evento.descricao}
+                        </Typography>
+                      )}
+                    </Box>
+                    <Chip size="small" variant="outlined" label={evento.origem || evento.tipo} sx={{ fontWeight: 800 }} />
+                  </Stack>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      {formatDateTime(evento.created_at)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Por: {evento.ator_nome || 'Sistema'}
+                    </Typography>
+                  </Stack>
+                  {renderTimelineMetadata(evento)}
+                </Paper>
+              </Stack>
+            ))}
+          </Stack>
+        )}
+      </DialogContent>
+    </Dialog>
     <Dialog open={Boolean(previewFile)} onClose={() => setPreviewFile(null)} fullWidth maxWidth="lg">
       <DialogTitle>{previewFile?.title || 'Arquivo'}</DialogTitle>
       <DialogContent dividers sx={{ height: '78vh', p: 0 }}>

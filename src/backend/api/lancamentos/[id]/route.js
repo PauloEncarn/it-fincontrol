@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { diffLancamentoFields, getActorFromRequest, registrarEventoLancamento } from '@/backend/utils/audit';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -25,6 +26,7 @@ const limparTexto = (valor) => {
 // --- PUT: ATUALIZAR NOTA ---
 export async function PUT(request, context) {
   try {
+    const ator = await getActorFromRequest(request);
     // 1. Ler o ID corretamente (Compatível com Next.js 15)
     const params = await context.params;
     const id = params.id;
@@ -34,6 +36,14 @@ export async function PUT(request, context) {
     }
 
     const body = await request.json();
+
+    const { data: notaAntes, error: erroBusca } = await supabase
+      .from('lancamentos')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (erroBusca) throw erroBusca;
 
     // 2. MONTAGEM MANUAL (WHITELIST)
     // Isso resolve dois problemas:
@@ -87,6 +97,20 @@ export async function PUT(request, context) {
 
     if (error) throw error;
 
+    const camposAlterados = diffLancamentoFields(notaAntes, data[0]);
+    await registrarEventoLancamento(supabase, {
+      lancamentoId: id,
+      tipo: 'edicao',
+      titulo: 'Nota atualizada',
+      descricao: camposAlterados.length
+        ? `${camposAlterados.length} campo(s) alterado(s).`
+        : 'Registro salvo sem mudancas relevantes.',
+      ator,
+      antes: notaAntes,
+      depois: data[0],
+      metadata: { campos_alterados: camposAlterados },
+    });
+
     return NextResponse.json(data[0]);
   } catch (error) {
     console.error("Erro no PUT Lançamentos:", error);
@@ -97,10 +121,27 @@ export async function PUT(request, context) {
 // --- DELETE: EXCLUIR NOTA ---
 export async function DELETE(request, context) {
   try {
+    const ator = await getActorFromRequest(request);
     const params = await context.params;
     const id = params.id;
 
     if (!id || id === 'undefined') return NextResponse.json({ error: "ID inválido" }, { status: 400 });
+
+    const { data: notaAntes } = await supabase
+      .from('lancamentos')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    await registrarEventoLancamento(supabase, {
+      lancamentoId: id,
+      tipo: 'exclusao',
+      titulo: 'Nota excluida',
+      descricao: 'Lancamento removido do sistema.',
+      ator,
+      antes: notaAntes || null,
+      metadata: { lancamento_id: id },
+    });
 
     const { error } = await supabase
       .from('lancamentos') // <--- CORREÇÃO AQUI TAMBÉM
