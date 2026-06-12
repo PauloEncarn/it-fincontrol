@@ -16,6 +16,20 @@ import AddCircleOutlinedIcon from '@mui/icons-material/AddCircleOutlined';
 import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
 import FileDrop from '@/frontend/components/ui/FileDrop';
 
+const formatDateForInput = (value) => {
+  if (!value) return '';
+  const text = String(value).split('T')[0];
+  const match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : text;
+};
+
+const maskDateInput = (value) => {
+  const digits = String(value || '').replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+};
+
 export default function ModalLancamento({
   isOpen,
   onClose,
@@ -32,6 +46,7 @@ export default function ModalLancamento({
   isGopa,
 }) {
   const nomeFornecedorAtual = fornecedores.find((fornecedor) => fornecedor.id == form.fornecedor_id)?.nome_empresa || '';
+  const setDateField = (field, value) => setForm({ ...form, [field]: maskDateInput(value) });
 
   return (
     <Dialog open={isOpen} onClose={onClose} fullWidth maxWidth="lg">
@@ -93,10 +108,10 @@ export default function ModalLancamento({
             </Grid>
           )}
           <Grid size={{ xs: 12, md: 3 }}>
-            <TextField label="Data envio TI" type="date" value={form.data_envio || ''} onChange={(e) => setForm({ ...form, data_envio: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} inputProps={{ placeholder: '' }} />
+            <TextField label="Data envio TI" value={formatDateForInput(form.data_envio)} onChange={(e) => setDateField('data_envio', e.target.value)} fullWidth placeholder="dd/mm/aaaa" inputProps={{ inputMode: 'numeric', maxLength: 10 }} />
           </Grid>
           <Grid size={{ xs: 12, md: 3 }}>
-            <TextField label="Vencimento" type="date" value={form.data_vencimento || ''} onChange={(e) => setForm({ ...form, data_vencimento: e.target.value })} fullWidth required InputLabelProps={{ shrink: true }} inputProps={{ placeholder: '' }} />
+            <TextField label="Vencimento" value={formatDateForInput(form.data_vencimento)} onChange={(e) => setDateField('data_vencimento', e.target.value)} fullWidth required placeholder="dd/mm/aaaa" inputProps={{ inputMode: 'numeric', maxLength: 10 }} />
           </Grid>
 
           <Grid size={12}>

@@ -111,6 +111,20 @@ const statusOptionsForNota = (nota) => {
     : [nota.status_pagamento, ...options];
 };
 
+const formatDateForInput = (value) => {
+  if (!value) return '';
+  const text = String(value).split('T')[0];
+  const match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : text;
+};
+
+const maskDateInput = (value) => {
+  const digits = String(value || '').replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+};
+
 export default function NotasView({
   notas,
   competencia,
@@ -306,7 +320,7 @@ export default function NotasView({
 
   const beginInlineEdit = (nota, field, value) => {
     setEditingCell(`${nota.id}:${field}`);
-    setEditingValue(value ?? '');
+    setEditingValue(field === 'data_vencimento' ? formatDateForInput(value) : (value ?? ''));
   };
 
   const cancelInlineEdit = () => {
@@ -332,17 +346,18 @@ export default function NotasView({
         <TextField
           autoFocus
           size="small"
-          type={options.type || 'text'}
+          type="text"
           label={label}
           value={editingValue}
-          onChange={(event) => setEditingValue(event.target.value)}
+          onChange={(event) => setEditingValue(options.mask === 'date' ? maskDateInput(event.target.value) : event.target.value)}
           onBlur={() => commitInlineEdit(nota, field)}
           onKeyDown={(event) => {
             if (event.key === 'Enter') commitInlineEdit(nota, field);
             if (event.key === 'Escape') cancelInlineEdit();
           }}
           fullWidth
-          InputLabelProps={options.type === 'date' ? { shrink: true } : undefined}
+          placeholder={options.mask === 'date' ? 'dd/mm/aaaa' : undefined}
+          inputProps={options.mask === 'date' ? { inputMode: 'numeric', maxLength: 10 } : undefined}
         />
       );
     }
@@ -515,7 +530,7 @@ export default function NotasView({
               Vencimento
             </Typography>
             {renderEditableValue(nota, 'data_vencimento', 'Vencimento', nota.data_vencimento ? String(nota.data_vencimento).split('T')[0] : '', {
-              type: 'date',
+              mask: 'date',
               format: formatDate,
             })}
           </Box>

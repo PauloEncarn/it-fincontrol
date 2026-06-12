@@ -214,6 +214,15 @@ function DashboardContent() {
   
   const splitOptions = (value) => (value || '').split(';').map((item) => item.trim()).filter(Boolean);
   const getDateInputValue = (value) => value ? String(value).split('T')[0] : '';
+  const normalizeDateForApi = (value) => {
+    const text = String(value || '').trim();
+    if (!text) return null;
+    const isoDate = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoDate) return `${isoDate[1]}-${isoDate[2]}-${isoDate[3]}`;
+    const brDate = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (brDate) return `${brDate[3]}-${brDate[2]}-${brDate[1]}`;
+    return text.includes('/') ? null : text;
+  };
 
   const handleFornecedorChange = useCallback((id) => { const forn = fornecedores.find(f => f.id == id); if (forn) { const opcoes = { cnpjs: splitOptions(forn.lista_cnpjs), contratos: splitOptions(forn.lista_contratos), ccs: splitOptions(forn.lista_centro_custos) }; setOpcoesFornecedor(opcoes); setForm(p => ({ ...p, fornecedor_id: id, cnpj_usado: p.cnpj_usado || opcoes.cnpjs[0] || '', contrato_usado: p.contrato_usado || opcoes.contratos[0] || '', centro_custo_usado: p.centro_custo_usado || opcoes.ccs[0] || '', descricao_servico: p.descricao_servico || forn.padrao_descricao_servico || '', servico_protheus: p.servico_protheus || forn.padrao_servico_protheus || '' })); } else { setOpcoesFornecedor({ cnpjs: [], contratos: [], ccs: [] }); setForm(p => ({...p, fornecedor_id: id, cnpj_usado: '', contrato_usado: '', centro_custo_usado: ''})); } }, [fornecedores]);
   
@@ -236,7 +245,11 @@ function DashboardContent() {
   );
 
   const prepararPayloadLancamento = (dados) => {
-    const payload = { ...dados, data_envio: dados.data_envio === '' ? null : dados.data_envio };
+    const payload = {
+      ...dados,
+      data_envio: normalizeDateForApi(dados.data_envio),
+      data_vencimento: normalizeDateForApi(dados.data_vencimento),
+    };
     const etapaAtual = payload.etapa || 'pendente';
 
     if (['pendente', 'em_andamento'].includes(etapaAtual)) {
