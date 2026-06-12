@@ -45,7 +45,7 @@ const saudacaoAtual = () => {
   return 'Boa noite';
 };
 
-const renderEmailGopa = ({ fornecedor, numero_nota, vencimento, numero_pedido, numero_medicao, linkOk }) => {
+const renderEmailGopa = ({ fornecedor, numero_nota, vencimento, numero_pedido, numero_medicao, linkOk, linkProblema }) => {
   const vencimentoFormatado = formatDateBr(vencimento);
   const dias = diasAteVencimento(vencimento);
   const prazoTexto = dias === null
@@ -115,6 +115,9 @@ const renderEmailGopa = ({ fornecedor, numero_nota, vencimento, numero_pedido, n
                     <div style="text-align:center; margin-top:26px;">
                       <a href="${linkOk}" target="_blank" style="background:#107c10; color:#ffffff; text-decoration:none; padding:13px 22px; border-radius:4px; font-weight:700; display:inline-block;">
                         Confirmar pagamento concluido
+                      </a>
+                      <a href="${linkProblema}" target="_blank" style="background:#a4262c; color:#ffffff; text-decoration:none; padding:13px 22px; border-radius:4px; font-weight:700; display:inline-block; margin-left:10px;">
+                        Informar problema
                       </a>
                     </div>
                   </td>
@@ -229,6 +232,9 @@ export async function POST(request) {
         numero_medicao,
         linkOk: id && process.env.JWT_SECRET
           ? `${process.env.APP_URL || 'http://localhost:3000'}/api/feedback?token=${jwt.sign({ id, action: 'autorizar' }, process.env.JWT_SECRET, { expiresIn: '7d' })}`
+          : '#',
+        linkProblema: id && process.env.JWT_SECRET
+          ? `${process.env.APP_URL || 'http://localhost:3000'}/api/feedback?token=${jwt.sign({ id, action: 'problema_pagamento' }, process.env.JWT_SECRET, { expiresIn: '7d' })}`
           : '#',
     }) : gerarEmailHtml({
         fornecedor,
