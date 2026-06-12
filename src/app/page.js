@@ -223,9 +223,46 @@ function DashboardContent() {
   
   const duplicarNota = useCallback((nota) => { openConfirm("Duplicar Lançamento", "Deseja criar uma cópia?", () => { handleFornecedorChange(nota.fornecedor_id); setForm({ ...nota, id: null, contrato_id: null, competencia: '', numero_nota: '', arquivo_nota: '', arquivo_boleto: '', data_envio: '', data_vencimento: getDateInputValue(nota.data_vencimento), etapa: 'pendente', status_pagamento: 'Pendente Nota', repetir_por: '1' }); setShowModal(true); }); }, [handleFornecedorChange]);
   
-  const salvarLancamento = async () => { const statusPendente = ['Pendente Nota', 'Pendente Boleto', 'Pendente Fatura'].includes(form.status_pagamento); if (!form.filial_id || !form.fornecedor_id || !form.valor || (!statusPendente && !form.numero_nota)) return addToast('error', 'Preencha os campos obrigatórios!'); const payload = { ...form, data_envio: form.data_envio === '' ? null : form.data_envio }; try { await mutationLancamento.mutateAsync(payload); addToast('success', 'Lançamento salvo!'); setShowModal(false); } catch { addToast('error', 'Erro ao salvar.'); } };
+  const notaCompletaParaAnalise = (nota) => Boolean(
+    nota.filial_id &&
+    nota.fornecedor_id &&
+    nota.numero_nota &&
+    nota.valor &&
+    nota.data_vencimento &&
+    nota.cnpj_usado &&
+    nota.centro_custo_usado &&
+    nota.numero_pedido &&
+    (isGopaFunc(nota) || nota.solicitacao_fluig)
+  );
+
+  const prepararPayloadLancamento = (dados) => {
+    const payload = { ...dados, data_envio: dados.data_envio === '' ? null : dados.data_envio };
+
+    if (['pendente', 'em_andamento'].includes(payload.etapa || 'pendente') && notaCompletaParaAnalise(payload)) {
+      payload.etapa = 'em_analise';
+      payload.status_pagamento = 'Aguardando Aprovação Fluig';
+    }
+
+    return payload;
+  };
+
+  const salvarLancamento = async () => {
+    const statusPendente = ['Pendente Nota', 'Pendente Boleto', 'Pendente Fatura'].includes(form.status_pagamento);
+    if (!form.filial_id || !form.fornecedor_id || !form.valor || (!statusPendente && !form.numero_nota)) {
+      return addToast('error', 'Preencha os campos obrigatórios!');
+    }
+
+    const payload = prepararPayloadLancamento(form);
+    try {
+      await mutationLancamento.mutateAsync(payload);
+      addToast('success', payload.etapa === 'em_analise' ? 'Lançamento salvo e enviado para análise!' : 'Lançamento salvo!');
+      setShowModal(false);
+    } catch {
+      addToast('error', 'Erro ao salvar.');
+    }
+  };
   
-  const salvarEEnviar = async () => { if (!form.arquivo_nota) return addToast('error', 'Anexe a nota fiscal para enviar.'); const payload = { ...form, data_envio: form.data_envio === '' ? null : form.data_envio }; try { setSendingEmail(true); const response = await mutationLancamento.mutateAsync(payload); const notaSalva = response.data; await handleEnviarEmail({...payload, id: notaSalva.id || form.id}); setShowModal(false); } catch (e) { addToast('error', 'Erro no processo Salvar/Enviar.'); } finally { setSendingEmail(false); } };
+  const salvarEEnviar = async () => { if (!form.arquivo_nota) return addToast('error', 'Anexe a nota fiscal para enviar.'); const payload = prepararPayloadLancamento(form); try { setSendingEmail(true); const response = await mutationLancamento.mutateAsync(payload); const notaSalva = response.data; await handleEnviarEmail({...payload, id: notaSalva.id || form.id}); setShowModal(false); } catch (e) { addToast('error', 'Erro no processo Salvar/Enviar.'); } finally { setSendingEmail(false); } };
 
   // ENVIO DE EMAIL
   const handleEnviarEmail = async (dadosNota) => {

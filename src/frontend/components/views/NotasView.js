@@ -254,7 +254,9 @@ export default function NotasView({
     nota.valor &&
     nota.data_vencimento &&
     nota.cnpj_usado &&
-    nota.centro_custo_usado
+    nota.centro_custo_usado &&
+    nota.numero_pedido &&
+    (isGopaFunc(nota) || nota.solicitacao_fluig)
   );
 
   const iniciarLancamento = (nota) => {
@@ -281,61 +283,65 @@ export default function NotasView({
   };
 
   const renderActions = (nota) => (
-    <Stack direction="row" justifyContent={{ xs: 'flex-start', md: 'flex-end' }} spacing={0.5} flexWrap="wrap" useFlexGap>
+    <Stack spacing={0.75}>
+      <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
       {getNotaGroup(nota) === 'pendente' && (
-        <Button size="small" variant="contained" endIcon={<ChevronRightIcon />} onClick={() => iniciarLancamento(nota)}>
+        <Button size="small" variant="contained" endIcon={<ChevronRightIcon />} onClick={() => iniciarLancamento(nota)} sx={{ flex: '1 1 120px', whiteSpace: 'nowrap' }}>
           Preparar
         </Button>
       )}
       {getNotaGroup(nota) === 'em_andamento' && (
         <>
-          <Button size="small" variant="contained" endIcon={<ChevronRightIcon />} onClick={() => prosseguirLancamento(nota)}>
+          <Button size="small" variant="contained" endIcon={<ChevronRightIcon />} onClick={() => prosseguirLancamento(nota)} sx={{ flex: '1 1 120px', whiteSpace: 'nowrap' }}>
             Prosseguir
           </Button>
-          <Button size="small" color="error" variant="outlined" onClick={() => onEtapaChange(nota.id, 'contingencia', 'Aguardando Contingência Gerente')}>
+          <Button size="small" color="error" variant="outlined" onClick={() => onEtapaChange(nota.id, 'contingencia', 'Aguardando Contingência Gerente')} sx={{ flex: '1 1 100px', whiteSpace: 'nowrap' }}>
             Sem saldo
           </Button>
         </>
       )}
       {getNotaGroup(nota) === 'contingencia' && nota.status_pagamento !== 'Aguardando Contingência Head' && (
-        <Button size="small" color="error" variant="contained" onClick={() => onStatusChange(nota.id, 'Aguardando Contingência Head')}>
+        <Button size="small" color="error" variant="contained" onClick={() => onStatusChange(nota.id, 'Aguardando Contingência Head')} sx={{ flex: '1 1 120px', whiteSpace: 'nowrap' }}>
           Enviar Head
         </Button>
       )}
       {getNotaGroup(nota) === 'em_analise' && (
-        <Button size="small" color="success" variant="contained" onClick={() => onEtapaChange(nota.id, 'concluida', 'Concluída')}>
+        <Button size="small" color="success" variant="contained" onClick={() => onEtapaChange(nota.id, 'concluida', 'Concluída')} sx={{ flex: '1 1 120px', whiteSpace: 'nowrap' }}>
           Concluir
         </Button>
       )}
+      </Stack>
+      <Stack direction="row" justifyContent="flex-end" spacing={0.25} flexWrap="wrap" useFlexGap>
       <Tooltip title="Copiar Protheus">
-        <IconButton onClick={() => onCopiarProtheus(nota)} aria-label="Copiar Protheus">
+        <IconButton size="small" onClick={() => onCopiarProtheus(nota)} aria-label="Copiar Protheus">
           <ContentCopyOutlinedIcon />
         </IconButton>
       </Tooltip>
       {isGopaFunc(nota) && (
         <Tooltip title="Enviar email">
-          <IconButton onClick={() => onEnviarEmail(nota)} aria-label="Enviar email">
+          <IconButton size="small" onClick={() => onEnviarEmail(nota)} aria-label="Enviar email">
             <EmailOutlinedIcon />
           </IconButton>
         </Tooltip>
       )}
       {nota.arquivo_nota && (
         <Tooltip title="Baixar nota">
-          <IconButton onClick={() => onDownload(nota.arquivo_nota)} aria-label="Baixar nota">
+          <IconButton size="small" onClick={() => onDownload(nota.arquivo_nota)} aria-label="Baixar nota">
             <DescriptionOutlinedIcon />
           </IconButton>
         </Tooltip>
       )}
       <Tooltip title="Editar">
-        <IconButton onClick={() => onEditar(nota)} aria-label="Editar nota">
+        <IconButton size="small" onClick={() => onEditar(nota)} aria-label="Editar nota">
           <EditOutlinedIcon />
         </IconButton>
       </Tooltip>
       <Tooltip title="Duplicar">
-        <IconButton onClick={() => onDuplicar(nota)} aria-label="Duplicar nota">
+        <IconButton size="small" onClick={() => onDuplicar(nota)} aria-label="Duplicar nota">
           <FileCopyOutlinedIcon />
         </IconButton>
       </Tooltip>
+    </Stack>
     </Stack>
   );
 
@@ -356,7 +362,7 @@ export default function NotasView({
         onDragEnd={handleDragEnd}
         sx={{
           p: 1.5,
-          minHeight: 292,
+          minHeight: 336,
           display: 'flex',
           flexDirection: 'column',
           gap: 1.25,
@@ -421,6 +427,21 @@ export default function NotasView({
               {nota.cnpj_usado || '-'}
             </Typography>
           </Box>
+        </Stack>
+
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          <Chip
+            size="small"
+            variant="outlined"
+            label={`Pedido: ${nota.numero_pedido || '-'}`}
+            sx={{ maxWidth: '100%', '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }}
+          />
+          <Chip
+            size="small"
+            variant="outlined"
+            label={`Fluig: ${nota.solicitacao_fluig || '-'}`}
+            sx={{ maxWidth: '100%', '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }}
+          />
         </Stack>
 
         <Box>
