@@ -40,7 +40,7 @@ const ModalSolicitacao = dynamic(() => import('@/frontend/components/modals/Moda
 });
 // ---------------------------------------------------
 
-const initialFormLancamento = { id: null, competencia: '', filial_id: '', fornecedor_id: '', cnpj_usado: '', contrato_usado: '', centro_custo_usado: '', numero_nota: '', serie: 'U', valor: '', valor_previsto: '', data_envio: '', data_vencimento: '', descricao_servico: '', servico_protheus: '', numero_medicao: '', numero_pedido: '', solicitacao_fluig: '', observacao: '', status_pagamento: 'Pendente Lançamento', arquivo_nota: '', arquivo_boleto: '', repetir_por: '1' };
+const initialFormLancamento = { id: null, competencia: '', filial_id: '', fornecedor_id: '', cnpj_usado: '', contrato_usado: '', centro_custo_usado: '', numero_nota: '', serie: 'U', valor: '', valor_previsto: '', data_envio: '', data_vencimento: '', descricao_servico: '', servico_protheus: '', numero_medicao: '', numero_pedido: '', solicitacao_fluig: '', observacao: '', status_pagamento: 'Pendente Nota', arquivo_nota: '', arquivo_boleto: '', repetir_por: '1' };
 const initialFormSolicitacao = { id: null, filial_id: '', fornecedor_id: '', solicitante: '', cnpj: '', condicao_pagamento: '', valor: '', numero_sc: '', numero_pedido: '', servico: '', servico_protheus: '', centro_custo: '', numero_nota: '', fluig_id: '', data_vencimento: '', status: 'Em Andamento', observacao: '' };
 
 function DashboardContent() {
@@ -190,7 +190,7 @@ function DashboardContent() {
       mutationFn: ({ contratoId, competencia }) => axios.post(`${API_URL}/contratos/${contratoId}/lancamentos`, { competencia }, authConfig),
       onSuccess: () => {
           atualizarListas();
-          addToast('success', 'Nota gerada em Aguardando Fatura!');
+          addToast('success', 'Nota gerada em Pendente Fatura!');
       },
       onError: (err) => addToast('error', 'Erro ao gerar nota: ' + (err.response?.data?.error || err.message))
   });
@@ -221,9 +221,9 @@ function DashboardContent() {
   
   const abrirEdicaoLancamento = useCallback((nota) => { handleFornecedorChange(nota.fornecedor_id); setForm({...nota, data_envio: getDateInputValue(nota.data_envio), data_vencimento: getDateInputValue(nota.data_vencimento)}); setShowModal(true); }, [handleFornecedorChange]);
   
-  const duplicarNota = useCallback((nota) => { openConfirm("Duplicar Lançamento", "Deseja criar uma cópia?", () => { handleFornecedorChange(nota.fornecedor_id); setForm({ ...nota, id: null, contrato_id: null, competencia: '', numero_nota: '', arquivo_nota: '', arquivo_boleto: '', data_envio: '', data_vencimento: getDateInputValue(nota.data_vencimento), status_pagamento: 'Pendente Lançamento', repetir_por: '1' }); setShowModal(true); }); }, [handleFornecedorChange]);
+  const duplicarNota = useCallback((nota) => { openConfirm("Duplicar Lançamento", "Deseja criar uma cópia?", () => { handleFornecedorChange(nota.fornecedor_id); setForm({ ...nota, id: null, contrato_id: null, competencia: '', numero_nota: '', arquivo_nota: '', arquivo_boleto: '', data_envio: '', data_vencimento: getDateInputValue(nota.data_vencimento), status_pagamento: 'Pendente Nota', repetir_por: '1' }); setShowModal(true); }); }, [handleFornecedorChange]);
   
-  const salvarLancamento = async () => { const notaObrigatoria = form.status_pagamento !== 'Pendente Nota'; if (!form.filial_id || !form.fornecedor_id || !form.valor || (notaObrigatoria && !form.numero_nota)) return addToast('error', 'Preencha os campos obrigatórios!'); const payload = { ...form, data_envio: form.data_envio === '' ? null : form.data_envio }; try { await mutationLancamento.mutateAsync(payload); addToast('success', 'Lançamento salvo!'); setShowModal(false); } catch { addToast('error', 'Erro ao salvar.'); } };
+  const salvarLancamento = async () => { const statusPendente = ['Pendente Nota', 'Pendente Boleto', 'Pendente Fatura'].includes(form.status_pagamento); if (!form.filial_id || !form.fornecedor_id || !form.valor || (!statusPendente && !form.numero_nota)) return addToast('error', 'Preencha os campos obrigatórios!'); const payload = { ...form, data_envio: form.data_envio === '' ? null : form.data_envio }; try { await mutationLancamento.mutateAsync(payload); addToast('success', 'Lançamento salvo!'); setShowModal(false); } catch { addToast('error', 'Erro ao salvar.'); } };
   
   const salvarEEnviar = async () => { if (!form.arquivo_nota) return addToast('error', 'Anexe a nota fiscal para enviar.'); const payload = { ...form, data_envio: form.data_envio === '' ? null : form.data_envio }; try { setSendingEmail(true); const response = await mutationLancamento.mutateAsync(payload); const notaSalva = response.data; await handleEnviarEmail({...payload, id: notaSalva.id || form.id}); setShowModal(false); } catch (e) { addToast('error', 'Erro no processo Salvar/Enviar.'); } finally { setSendingEmail(false); } };
 

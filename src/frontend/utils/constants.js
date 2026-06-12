@@ -11,12 +11,14 @@ export const CORES = {
 
 export const OPCOES_STATUS = [
   'Pendente Nota',
-  'Nota Recebida',
-  'Pendente Lançamento',
-  'Aguardando Fatura',
-  'Aguardando Pagamento',
+  'Pendente Boleto',
+  'Pendente Fatura',
+  'Em Andamento',
+  'Aguardando Aprovação Fluig',
+  'Aguardando Confirmação Refresa',
+  'Aguardando Contingência Gerente',
+  'Aguardando Contingência Head',
   'Concluída',
-  'Divergência',
   'Cancelada',
 ];
 

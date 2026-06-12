@@ -59,7 +59,7 @@ const statusColor = {
 const lancamentoColor = (status) => {
   if (status === 'Concluída' || status === 'Concluida') return 'success';
   if (status === 'Divergência') return 'error';
-  if (status === 'Pendente Nota' || status === 'Aguardando Fatura') return 'warning';
+  if (status === 'Pendente Nota' || status === 'Pendente Fatura' || status === 'Aguardando Fatura') return 'warning';
   if (status === 'Cancelada') return 'default';
   return 'info';
 };

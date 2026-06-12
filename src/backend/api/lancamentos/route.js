@@ -84,7 +84,7 @@ export async function POST(request) {
       observacao: body.observacao,
       
       // Controle
-      status_pagamento: body.status_pagamento || 'Pendente Lançamento',
+      status_pagamento: body.status_pagamento || 'Pendente Nota',
       arquivo_nota: body.arquivo_nota,
       arquivo_boleto: body.arquivo_boleto,
       repetir_por: body.repetir_por

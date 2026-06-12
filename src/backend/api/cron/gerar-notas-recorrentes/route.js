@@ -81,7 +81,7 @@ async function createLancamentoForContrato(contrato, competencia, vencimento) {
     valor_previsto: contrato.valor_base_previsto,
     valor: contrato.valor_base_previsto,
     data_vencimento: vencimento,
-    status_pagamento: 'Aguardando Fatura',
+    status_pagamento: 'Pendente Fatura',
     repetir_por: 1,
     observacao: contrato.observacao ? `Gerado automaticamente. ${contrato.observacao}` : 'Gerado automaticamente por contrato recorrente.',
   };

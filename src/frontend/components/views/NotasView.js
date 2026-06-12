@@ -38,11 +38,18 @@ import { OPCOES_STATUS } from '@/frontend/utils/constants';
 
 const STATUS_COLOR = {
   'Pendente Nota': 'warning',
-  'Nota Recebida': 'info',
+  'Pendente Boleto': 'warning',
+  'Pendente Fatura': 'secondary',
+  'Aguardando Fatura': 'secondary',
   'Pendente Lançamento': 'warning',
   Pendente: 'warning',
   'Em andamento': 'info',
   'Em Andamento': 'info',
+  'Nota Recebida': 'info',
+  'Aguardando Aprovação Fluig': 'info',
+  'Aguardando Confirmação Refresa': 'info',
+  'Aguardando Contingência Gerente': 'error',
+  'Aguardando Contingência Head': 'error',
   Concluida: 'success',
   Concluída: 'success',
   Divergência: 'error',
@@ -53,10 +60,10 @@ const STATUS_COLOR = {
 
 const GRID_GROUPS = [
   { id: 'pendente', label: 'Pendente', color: 'warning', targetStatus: 'Pendente Nota' },
-  { id: 'em_analise', label: 'Em análise', color: 'info', targetStatus: 'Nota Recebida' },
+  { id: 'em_andamento', label: 'Em andamento', color: 'primary', targetStatus: 'Em Andamento' },
+  { id: 'em_analise', label: 'Em análise', color: 'info', targetStatus: 'Aguardando Aprovação Fluig' },
+  { id: 'contingencia', label: 'Contingência', color: 'error', targetStatus: 'Aguardando Contingência Gerente' },
   { id: 'concluida', label: 'Concluída', color: 'success', targetStatus: 'Concluída' },
-  { id: 'aguardando_fatura', label: 'Aguardando fatura', color: 'secondary', targetStatus: 'Aguardando Fatura' },
-  { id: 'contingencia', label: 'Contingência', color: 'error', targetStatus: 'Divergência' },
 ];
 
 const normalizeText = (value) =>
@@ -68,12 +75,13 @@ const normalizeText = (value) =>
 const getGridGroup = (status) => {
   const normalized = normalizeText(status);
 
-  if (normalized.includes('aguardando fatura')) return 'aguardando_fatura';
+  if (normalized.includes('em andamento')) return 'em_andamento';
+  if (normalized.includes('aprovacao') || normalized.includes('confirmacao') || normalized.includes('analise') || normalized.includes('nota recebida')) return 'em_analise';
+  if (normalized.includes('conting') || normalized.includes('diverg') || normalized.includes('cancel') || normalized.includes('rejeit')) return 'contingencia';
   if (normalized.includes('concluida') || normalized.includes('concluido') || normalized.includes('pago')) return 'concluida';
-  if (normalized.includes('diverg') || normalized.includes('conting') || normalized.includes('cancel') || normalized.includes('rejeit')) return 'contingencia';
-  if (normalized.includes('pendente nota') || normalized === 'pendente') return 'pendente';
+  if (normalized.includes('pendente') || normalized.includes('aguardando fatura') || normalized === 'pendente') return 'pendente';
 
-  return 'em_analise';
+  return 'pendente';
 };
 
 export default function NotasView({
@@ -97,6 +105,8 @@ export default function NotasView({
   const [expandedSupplier, setExpandedSupplier] = useState({});
   const [viewMode, setViewMode] = useState('grouped');
   const [draggedNotaId, setDraggedNotaId] = useState(null);
+  const [collapsedGroups, setCollapsedGroups] = useState({});
+  const [collapsedGridSuppliers, setCollapsedGridSuppliers] = useState({});
 
   const handleExportarExcel = () => {
     if (!notas || notas.length === 0) return alert('Sem dados para exportar.');
@@ -211,8 +221,66 @@ export default function NotasView({
     return value.split('T')[0].split('-').reverse().join('/');
   };
 
+  const hasInfoForAnalysis = (nota) => Boolean(
+    nota.filial_id &&
+    nota.fornecedor_id &&
+    nota.numero_nota &&
+    nota.valor &&
+    nota.data_vencimento &&
+    nota.cnpj_usado &&
+    nota.centro_custo_usado
+  );
+
+  const iniciarLancamento = (nota) => {
+    onStatusChange(nota.id, 'Em Andamento');
+    onEditar({ ...nota, status_pagamento: 'Em Andamento' });
+  };
+
+  const prosseguirLancamento = (nota) => {
+    if (!hasInfoForAnalysis(nota)) {
+      onEditar({ ...nota, status_pagamento: 'Em Andamento' });
+      return;
+    }
+
+    onStatusChange(nota.id, 'Aguardando Aprovação Fluig');
+  };
+
+  const toggleGroupCollapsed = (groupId) => {
+    setCollapsedGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
+  };
+
+  const toggleGridSupplierCollapsed = (groupId, fornecedor) => {
+    const key = `${groupId}::${fornecedor}`;
+    setCollapsedGridSuppliers((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
   const renderActions = (nota) => (
-    <Stack direction="row" justifyContent={{ xs: 'flex-start', md: 'flex-end' }} spacing={0.5}>
+    <Stack direction="row" justifyContent={{ xs: 'flex-start', md: 'flex-end' }} spacing={0.5} flexWrap="wrap" useFlexGap>
+      {getGridGroup(nota.status_pagamento) === 'pendente' && (
+        <Button size="small" variant="contained" onClick={() => iniciarLancamento(nota)}>
+          Iniciar lançamento
+        </Button>
+      )}
+      {getGridGroup(nota.status_pagamento) === 'em_andamento' && (
+        <>
+          <Button size="small" variant="contained" onClick={() => prosseguirLancamento(nota)}>
+            Prosseguir
+          </Button>
+          <Button size="small" color="error" variant="outlined" onClick={() => onStatusChange(nota.id, 'Aguardando Contingência Gerente')}>
+            Contingência
+          </Button>
+        </>
+      )}
+      {getGridGroup(nota.status_pagamento) === 'contingencia' && nota.status_pagamento !== 'Aguardando Contingência Head' && (
+        <Button size="small" color="error" variant="contained" onClick={() => onStatusChange(nota.id, 'Aguardando Contingência Head')}>
+          Enviar Head
+        </Button>
+      )}
+      {getGridGroup(nota.status_pagamento) === 'em_analise' && (
+        <Button size="small" color="success" variant="contained" onClick={() => onStatusChange(nota.id, 'Concluída')}>
+          Concluir
+        </Button>
+      )}
       <Tooltip title="Copiar Protheus">
         <IconButton onClick={() => onCopiarProtheus(nota)} aria-label="Copiar Protheus">
           <ContentCopyOutlinedIcon />
@@ -435,8 +503,8 @@ export default function NotasView({
         >
           {GRID_GROUPS.map((group) => {
             const notasDoGrupo = notasFiltradas.filter((nota) => getGridGroup(nota.status_pagamento) === group.id);
-            const totalGrupo = notasDoGrupo.reduce((acc, nota) => acc + parseFloat(nota.valor || 0), 0);
             const notasPorFornecedor = agruparPorFornecedor(notasDoGrupo);
+            const groupCollapsed = Boolean(collapsedGroups[group.id]);
 
             return (
               <Paper
@@ -449,7 +517,7 @@ export default function NotasView({
                 onDrop={(event) => handleDropOnGroup(event, group)}
                 sx={{
                   p: 1.5,
-                  minHeight: 360,
+                  minHeight: groupCollapsed ? 92 : 360,
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 1.25,
@@ -465,15 +533,21 @@ export default function NotasView({
                       {group.label}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {notasDoGrupo.length} notas | R$ {totalGrupo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      {notasDoGrupo.length} notas
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                       Solte aqui para marcar como {group.targetStatus}
                     </Typography>
                   </Box>
-                  <Chip size="small" color={group.color} label={notasDoGrupo.length} sx={{ fontWeight: 800 }} />
+                  <Stack direction="row" spacing={0.75} alignItems="center">
+                    <Chip size="small" color={group.color} label={notasDoGrupo.length} sx={{ fontWeight: 800 }} />
+                    <Button size="small" onClick={() => toggleGroupCollapsed(group.id)}>
+                      {groupCollapsed ? 'Exibir' : 'Encolher'}
+                    </Button>
+                  </Stack>
                 </Stack>
 
+                {!groupCollapsed && (
                 <Stack spacing={1.25}>
                   {notasPorFornecedor.map(([fornecedor, notasFornecedor]) => (
                     <Box key={fornecedor}>
@@ -487,9 +561,16 @@ export default function NotasView({
                         <Typography variant="caption" fontWeight={900} noWrap title={fornecedor} color="text.secondary">
                           {fornecedor}
                         </Typography>
-                        <Chip size="small" variant="outlined" label={notasFornecedor.length} sx={{ height: 22, fontWeight: 800 }} />
+                        <Stack direction="row" spacing={0.75} alignItems="center">
+                          <Chip size="small" variant="outlined" label={notasFornecedor.length} sx={{ height: 22, fontWeight: 800 }} />
+                          <Button size="small" onClick={() => toggleGridSupplierCollapsed(group.id, fornecedor)}>
+                            {collapsedGridSuppliers[`${group.id}::${fornecedor}`] ? 'Exibir' : 'Encolher'}
+                          </Button>
+                        </Stack>
                       </Stack>
-                      <Stack spacing={1}>{notasFornecedor.map((nota) => renderGridCard(nota))}</Stack>
+                      {!collapsedGridSuppliers[`${group.id}::${fornecedor}`] && (
+                        <Stack spacing={1}>{notasFornecedor.map((nota) => renderGridCard(nota))}</Stack>
+                      )}
                     </Box>
                   ))}
                   {notasDoGrupo.length === 0 && (
@@ -500,6 +581,7 @@ export default function NotasView({
                     </Paper>
                   )}
                 </Stack>
+                )}
               </Paper>
             );
           })}

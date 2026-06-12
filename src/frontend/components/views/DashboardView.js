@@ -152,9 +152,9 @@ export default function DashboardView({ notas, solicitacoes, filiais }) {
 
   const totalNotas = dadosNotas.lista.reduce((acc, nota) => acc + Number(nota.valor || 0), 0);
   const totalSolic = dadosSolic.reduce((acc, solicitacao) => acc + Number(solicitacao.valor || 0), 0);
-  const pendentes = dadosNotas.lista.filter((nota) => ['Pendente Nota', 'Pendente Lançamento'].includes(nota.status_pagamento)).length;
+  const pendentes = dadosNotas.lista.filter((nota) => ['Pendente Nota', 'Pendente Boleto', 'Pendente Fatura', 'Aguardando Fatura', 'Pendente Lançamento'].includes(nota.status_pagamento)).length;
   const concluidas = dadosNotas.lista.filter((nota) => nota.status_pagamento === 'Concluída').length;
-  const emProcesso = dadosNotas.lista.filter((nota) => nota.status_pagamento?.includes('Aguardando') || nota.status_pagamento === 'Nota Recebida').length;
+  const emProcesso = dadosNotas.lista.filter((nota) => ['Em Andamento', 'Aguardando Aprovação Fluig', 'Aguardando Confirmação Refresa', 'Aguardando Contingência Gerente', 'Aguardando Contingência Head', 'Nota Recebida'].includes(nota.status_pagamento)).length;
 
   const statusData = [
     { name: 'Pendente', value: pendentes, color: CORES.vermelhoCicopal },
