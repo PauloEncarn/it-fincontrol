@@ -44,9 +44,6 @@ function contractAllowsCompetencia(contrato, competenciaDate) {
   const inicio = monthStart(contrato.data_inicio);
   if (inicio && competenciaDate < inicio) return false;
 
-  const fim = monthStart(contrato.data_fim);
-  if (fim && competenciaDate > fim) return false;
-
   return true;
 }
 

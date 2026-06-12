@@ -31,7 +31,7 @@ const payloadFromBody = (body) => ({
   tolerancia_percentual: numberOrNull(body.tolerancia_percentual) ?? 5,
   status: textOrNull(body.status) || 'Ativo',
   data_inicio: textOrNull(body.data_inicio),
-  data_fim: textOrNull(body.data_fim),
+  data_fim: null,
   observacao: textOrNull(body.observacao),
   updated_at: new Date().toISOString(),
 });
@@ -50,12 +50,6 @@ function proximaCompetencia(contrato, ultimoLancamento) {
   const hoje = new Date();
   const mesAtual = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
   const proxima = base < mesAtual && !ultimoLancamento ? mesAtual : base;
-
-  if (contrato.data_fim) {
-    const fim = new Date(`${contrato.data_fim}T12:00:00`);
-    const limite = new Date(fim.getFullYear(), fim.getMonth(), 1);
-    if (proxima > limite) return null;
-  }
 
   return toCompetencia(proxima);
 }

@@ -31,7 +31,7 @@ const payloadFromBody = (body) => ({
   tolerancia_percentual: numberOrNull(body.tolerancia_percentual) ?? 5,
   status: textOrNull(body.status) || 'Ativo',
   data_inicio: textOrNull(body.data_inicio),
-  data_fim: textOrNull(body.data_fim),
+  data_fim: null,
   observacao: textOrNull(body.observacao),
   updated_at: new Date().toISOString(),
 });

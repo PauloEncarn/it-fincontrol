@@ -26,9 +26,12 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
+import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
+import PauseCircleOutlinedIcon from '@mui/icons-material/PauseCircleOutlined';
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
+import ReplayOutlinedIcon from '@mui/icons-material/ReplayOutlined';
 
 const emptyContract = {
   id: null,
@@ -44,7 +47,6 @@ const emptyContract = {
   tolerancia_percentual: 5,
   status: 'Ativo',
   data_inicio: '',
-  data_fim: '',
   observacao: '',
 };
 
@@ -99,7 +101,6 @@ export default function ContratosView({
       fornecedor_id: contrato.fornecedor_id || '',
       filial_id: contrato.filial_id || '',
       data_inicio: contrato.data_inicio || '',
-      data_fim: contrato.data_fim || '',
     });
     setShowModal(true);
   };
@@ -122,6 +123,26 @@ export default function ContratosView({
   const handleSalvar = () => {
     onSalvar(form);
     setShowModal(false);
+  };
+
+  const appendStatusNote = (observacao, status) => {
+    const stamp = new Date().toLocaleDateString('pt-BR');
+    const note = `[${stamp}] Status alterado para ${status}.`;
+    return observacao ? `${observacao}\n${note}` : note;
+  };
+
+  const alterarStatus = (contrato, status) => {
+    const payload = {
+      ...contrato,
+      status,
+      observacao: appendStatusNote(contrato.observacao, status),
+    };
+
+    onSalvar(payload);
+
+    if (selectedContrato?.id === contrato.id) {
+      setSelectedContrato({ ...selectedContrato, ...payload });
+    }
   };
 
   return (
@@ -175,11 +196,34 @@ export default function ContratosView({
                       <HistoryOutlinedIcon />
                     </IconButton>
                   </Tooltip>
-                  <Tooltip title="Gerar nota">
-                    <IconButton color="success" onClick={() => onGerarCompetencia(contrato.id, contrato.proxima_competencia || competenciaAtual())}>
-                      <PlayCircleIcon />
-                    </IconButton>
+                  <Tooltip title={contrato.status === 'Ativo' ? 'Gerar nota' : 'Apenas contratos ativos geram notas'}>
+                    <span>
+                      <IconButton color="success" disabled={contrato.status !== 'Ativo'} onClick={() => onGerarCompetencia(contrato.id, contrato.proxima_competencia || competenciaAtual())}>
+                        <PlayCircleIcon />
+                      </IconButton>
+                    </span>
                   </Tooltip>
+                  {contrato.status === 'Ativo' && (
+                    <Tooltip title="Pausar contrato">
+                      <IconButton color="warning" onClick={() => alterarStatus(contrato, 'Pausado')}>
+                        <PauseCircleOutlinedIcon />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                  {contrato.status !== 'Cancelado' && (
+                    <Tooltip title="Cancelar contrato">
+                      <IconButton color="error" onClick={() => alterarStatus(contrato, 'Cancelado')}>
+                        <CancelOutlinedIcon />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                  {contrato.status !== 'Ativo' && (
+                    <Tooltip title="Reativar contrato">
+                      <IconButton color="success" onClick={() => alterarStatus(contrato, 'Ativo')}>
+                        <ReplayOutlinedIcon />
+                      </IconButton>
+                    </Tooltip>
+                  )}
                   <Tooltip title="Editar contrato">
                     <IconButton onClick={() => abrirEdicao(contrato)}>
                       <EditOutlinedIcon />
@@ -209,27 +253,46 @@ export default function ContratosView({
             <Divider />
             <Stack direction="row" spacing={1}>
               <TextField size="small" type="month" label="Competência" value={competencia} onChange={(e) => setCompetencia(e.target.value)} InputLabelProps={{ shrink: true }} fullWidth />
-              <Button variant="contained" onClick={() => onGerarCompetencia(selectedContrato.id, competencia)}>Gerar nota</Button>
+              <Button variant="contained" disabled={selectedContrato.status !== 'Ativo'} onClick={() => onGerarCompetencia(selectedContrato.id, competencia)}>Gerar nota</Button>
             </Stack>
 
             <Stack spacing={1.25}>
               {lancamentosContrato.map((lancamento) => {
                 const variacao = Number(lancamento.valor || 0) - Number(lancamento.valor_previsto || selectedContrato.valor_base_previsto || 0);
+                const temVariacao = Math.abs(variacao) > 0;
 
                 return (
-                  <Paper key={lancamento.id} variant="outlined" sx={{ p: 1.5 }}>
+                  <Paper
+                    key={lancamento.id}
+                    variant="outlined"
+                    sx={{
+                      p: 1.5,
+                      borderColor: temVariacao ? (variacao > 0 ? 'error.light' : 'success.light') : 'divider',
+                      bgcolor: temVariacao ? (variacao > 0 ? '#fff5f5' : '#f0fdf4') : 'background.paper',
+                    }}
+                  >
                     <Stack direction="row" justifyContent="space-between" spacing={1.5} alignItems="center">
                       <Box sx={{ minWidth: 0 }}>
-                        <Typography fontWeight={800}>{lancamento.competencia || '-'}</Typography>
+                        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                          <Typography fontWeight={800}>{lancamento.competencia || '-'}</Typography>
+                          {temVariacao && (
+                            <Chip size="small" color={variacao > 0 ? 'error' : 'success'} label="Valor alterado" sx={{ fontWeight: 700 }} />
+                          )}
+                        </Stack>
                         <Typography variant="caption" color="text.secondary">
                           NF {lancamento.numero_nota || '-'} | Venc. {lancamento.data_vencimento || '-'}
                         </Typography>
                         <Typography variant="body2">
                           Real {currency(lancamento.valor)} | Previsto {currency(lancamento.valor_previsto || selectedContrato.valor_base_previsto)}
                         </Typography>
-                        {Math.abs(variacao) > 0 && (
+                        {temVariacao && (
                           <Typography variant="caption" color={variacao > 0 ? 'error.main' : 'success.main'}>
                             Variação {currency(variacao)}
+                          </Typography>
+                        )}
+                        {lancamento.observacao && (
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                            Obs.: {lancamento.observacao}
                           </Typography>
                         )}
                       </Box>
@@ -290,9 +353,6 @@ export default function ContratosView({
             </Grid>
             <Grid size={{ xs: 12, md: 4 }}>
               <TextField label="Data início" type="date" value={form.data_inicio || ''} onChange={(e) => setForm({ ...form, data_inicio: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} />
-            </Grid>
-            <Grid size={{ xs: 12, md: 4 }}>
-              <TextField label="Data fim" type="date" value={form.data_fim || ''} onChange={(e) => setForm({ ...form, data_fim: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} />
             </Grid>
             <Grid size={{ xs: 12, md: 6 }}>
               <TextField label="Descrição / serviço" value={form.descricao_servico || ''} onChange={(e) => setForm({ ...form, descricao_servico: e.target.value })} fullWidth />
