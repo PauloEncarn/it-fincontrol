@@ -44,7 +44,6 @@ const emptyContract = {
   servico_protheus: '',
   valor_base_previsto: '',
   dia_vencimento: 1,
-  tolerancia_percentual: 5,
   status: 'Ativo',
   data_inicio: '',
   observacao: '',
@@ -342,9 +341,6 @@ export default function ContratosView({
             </Grid>
             <Grid size={{ xs: 12, md: 4 }}>
               <TextField label="Dia padrão de vencimento" type="number" inputProps={{ min: 1, max: 31 }} value={form.dia_vencimento || 1} onChange={(e) => setForm({ ...form, dia_vencimento: e.target.value })} fullWidth />
-            </Grid>
-            <Grid size={{ xs: 12, md: 4 }}>
-              <TextField label="Tolerância percentual" type="number" value={form.tolerancia_percentual ?? 5} onChange={(e) => setForm({ ...form, tolerancia_percentual: e.target.value })} fullWidth />
             </Grid>
             <Grid size={{ xs: 12, md: 4 }}>
               <TextField select label="Status" value={form.status || 'Ativo'} onChange={(e) => setForm({ ...form, status: e.target.value })} fullWidth>

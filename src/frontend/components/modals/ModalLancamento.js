@@ -15,7 +15,6 @@ import {
 import AddCircleOutlinedIcon from '@mui/icons-material/AddCircleOutlined';
 import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
 import FileDrop from '@/frontend/components/ui/FileDrop';
-import { OPCOES_STATUS } from '@/frontend/utils/constants';
 
 export default function ModalLancamento({
   isOpen,
@@ -87,11 +86,6 @@ export default function ModalLancamento({
           <Grid size={{ xs: 12, md: 3 }}>
             <TextField label="Valor" type="number" value={form.valor || ''} onChange={(e) => setForm({ ...form, valor: e.target.value })} fullWidth required />
           </Grid>
-          <Grid size={{ xs: 12, md: 4 }}>
-            <TextField select label="Status" value={form.status_pagamento || ''} onChange={(e) => setForm({ ...form, status_pagamento: e.target.value })} fullWidth>
-              {OPCOES_STATUS.map((status) => <MenuItem key={status} value={status}>{status}</MenuItem>)}
-            </TextField>
-          </Grid>
 
           {!form.id && (
             <Grid size={{ xs: 12, md: 3 }}>
@@ -99,10 +93,10 @@ export default function ModalLancamento({
             </Grid>
           )}
           <Grid size={{ xs: 12, md: 3 }}>
-            <TextField label="Data envio TI" type="date" value={form.data_envio || ''} onChange={(e) => setForm({ ...form, data_envio: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} />
+            <TextField label="Data envio TI" type="date" value={form.data_envio || ''} onChange={(e) => setForm({ ...form, data_envio: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} inputProps={{ placeholder: '' }} />
           </Grid>
           <Grid size={{ xs: 12, md: 3 }}>
-            <TextField label="Vencimento" type="date" value={form.data_vencimento || ''} onChange={(e) => setForm({ ...form, data_vencimento: e.target.value })} fullWidth required InputLabelProps={{ shrink: true }} />
+            <TextField label="Vencimento" type="date" value={form.data_vencimento || ''} onChange={(e) => setForm({ ...form, data_vencimento: e.target.value })} fullWidth required InputLabelProps={{ shrink: true }} inputProps={{ placeholder: '' }} />
           </Grid>
 
           <Grid size={12}>

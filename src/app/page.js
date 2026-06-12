@@ -237,18 +237,23 @@ function DashboardContent() {
 
   const prepararPayloadLancamento = (dados) => {
     const payload = { ...dados, data_envio: dados.data_envio === '' ? null : dados.data_envio };
+    const etapaAtual = payload.etapa || 'pendente';
 
-    if (['pendente', 'em_andamento'].includes(payload.etapa || 'pendente') && notaCompletaParaAnalise(payload)) {
-      payload.etapa = 'em_analise';
-      payload.status_pagamento = 'Aguardando Aprovação Fluig';
+    if (['pendente', 'em_andamento'].includes(etapaAtual)) {
+      if (notaCompletaParaAnalise(payload)) {
+        payload.etapa = 'em_analise';
+        payload.status_pagamento = 'Aguardando Aprovação Fluig';
+      } else {
+        payload.etapa = 'em_andamento';
+        payload.status_pagamento = 'Em Andamento';
+      }
     }
 
     return payload;
   };
 
   const salvarLancamento = async () => {
-    const statusPendente = ['Pendente Nota', 'Pendente Boleto', 'Pendente Fatura'].includes(form.status_pagamento);
-    if (!form.filial_id || !form.fornecedor_id || !form.valor || (!statusPendente && !form.numero_nota)) {
+    if (!form.filial_id || !form.fornecedor_id || !form.valor) {
       return addToast('error', 'Preencha os campos obrigatórios!');
     }
 
