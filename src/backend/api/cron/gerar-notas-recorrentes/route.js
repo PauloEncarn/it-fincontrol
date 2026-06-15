@@ -78,14 +78,19 @@ async function createLancamentoForContrato(contrato, competencia, vencimento) {
     contrato_usado: contrato.contrato_usado,
     centro_custo_usado: contrato.centro_custo_usado,
     descricao_servico: contrato.descricao_servico,
-    servico_protheus: contrato.servico_protheus,
+    servico_protheus: contrato.produto_protheus || contrato.servico_protheus,
     valor_previsto: contrato.valor_base_previsto,
     valor: contrato.valor_base_previsto,
     data_vencimento: vencimento,
     etapa: 'pendente',
     status_pagamento: 'Pendente Fatura',
     repetir_por: 1,
-    observacao: contrato.observacao ? `Gerado automaticamente. ${contrato.observacao}` : 'Gerado automaticamente por contrato recorrente.',
+    observacao: [
+      'Gerado automaticamente por contrato recorrente.',
+      contrato.subcontrato_nome,
+      contrato.detalhe,
+      contrato.observacao,
+    ].filter(Boolean).join(' '),
   };
 
   const { data, error } = await supabase

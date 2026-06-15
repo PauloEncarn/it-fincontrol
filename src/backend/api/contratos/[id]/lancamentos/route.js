@@ -66,13 +66,14 @@ export async function POST(request, context) {
     contrato_usado: contrato.contrato_usado,
     centro_custo_usado: contrato.centro_custo_usado,
     descricao_servico: contrato.descricao_servico,
-    servico_protheus: contrato.servico_protheus,
+    servico_protheus: contrato.produto_protheus || contrato.servico_protheus,
     valor_previsto: contrato.valor_base_previsto,
     valor: contrato.valor_base_previsto,
     data_vencimento: vencimentoParaCompetencia(competencia, contrato.dia_vencimento),
     etapa: 'pendente',
     status_pagamento: statusInicial,
     repetir_por: 1,
+    observacao: [contrato.subcontrato_nome, contrato.detalhe].filter(Boolean).join(' | ') || null,
   };
 
   const { data: existente, error: errExistente } = await supabase

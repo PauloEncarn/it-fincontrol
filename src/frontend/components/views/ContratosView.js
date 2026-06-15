@@ -1,5 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Box,
   Button,
   Chip,
@@ -32,6 +35,7 @@ import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
 import PauseCircleOutlinedIcon from '@mui/icons-material/PauseCircleOutlined';
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
 import ReplayOutlinedIcon from '@mui/icons-material/ReplayOutlined';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 const emptyContract = {
   id: null,
@@ -39,9 +43,17 @@ const emptyContract = {
   filial_id: '',
   cnpj_usado: '',
   contrato_usado: '',
+  nome_contrato: '',
+  subcontrato_nome: '',
+  produto_protheus: '',
   centro_custo_usado: '',
   descricao_servico: '',
   servico_protheus: '',
+  detalhe: '',
+  fluxo_lancamento: 'manual',
+  email_destino: '',
+  responsavel_interno: '',
+  regra_lancamento: '',
   valor_base_previsto: '',
   dia_vencimento: 1,
   status: 'Ativo',
@@ -87,6 +99,37 @@ export default function ContratosView({
   const lancamentosContrato = useMemo(() => (
     [...(lancamentos || [])].sort((a, b) => String(b.competencia || '').localeCompare(String(a.competencia || '')))
   ), [lancamentos]);
+
+  const gruposContratos = useMemo(() => {
+    const grupos = new Map();
+
+    (contratos || []).forEach((contrato) => {
+      const fornecedor = contrato.fornecedor?.nome_empresa || 'Fornecedor nao informado';
+      const numeroContrato = contrato.contrato_usado || 'Sem contrato';
+      const key = `${fornecedor}::${numeroContrato}`;
+
+      if (!grupos.has(key)) {
+        grupos.set(key, {
+          key,
+          fornecedor,
+          numeroContrato,
+          nomeContrato: contrato.nome_contrato || '',
+          itens: [],
+        });
+      }
+
+      const grupo = grupos.get(key);
+      if (!grupo.nomeContrato && contrato.nome_contrato) grupo.nomeContrato = contrato.nome_contrato;
+      grupo.itens.push(contrato);
+    });
+
+    return [...grupos.values()]
+      .map((grupo) => ({
+        ...grupo,
+        itens: grupo.itens.sort((a, b) => String(a.subcontrato_nome || a.descricao_servico || '').localeCompare(String(b.subcontrato_nome || b.descricao_servico || ''))),
+      }))
+      .sort((a, b) => a.fornecedor.localeCompare(b.fornecedor) || a.numeroContrato.localeCompare(b.numeroContrato));
+  }, [contratos]);
 
   const abrirNovo = () => {
     setForm({ ...emptyContract, data_inicio: new Date().toISOString().slice(0, 10) });
@@ -163,7 +206,121 @@ export default function ContratosView({
         </Stack>
       </Paper>
 
-      <TableContainer component={Paper} variant="outlined">
+      <Stack spacing={1.25}>
+        {gruposContratos.map((grupo) => {
+          const total = grupo.itens.reduce((acc, item) => acc + Number(item.valor_base_previsto || 0), 0);
+          const ativos = grupo.itens.filter((item) => item.status === 'Ativo').length;
+
+          return (
+            <Accordion key={grupo.key} disableGutters>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ xs: 'flex-start', md: 'center' }} sx={{ width: '100%', minWidth: 0, pr: 1 }}>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography fontWeight={900} noWrap title={grupo.fornecedor}>
+                      {grupo.fornecedor}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Contrato {grupo.numeroContrato}{grupo.nomeContrato ? ` | ${grupo.nomeContrato}` : ''}
+                    </Typography>
+                  </Box>
+                  <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                    <Chip size="small" color="primary" variant="outlined" label={`${grupo.itens.length} subcontratos`} />
+                    <Chip size="small" color={ativos > 0 ? 'success' : 'default'} label={`${ativos} ativos`} />
+                    <Chip size="small" variant="outlined" label={currency(total)} />
+                  </Stack>
+                </Stack>
+              </AccordionSummary>
+              <AccordionDetails sx={{ pt: 0 }}>
+                <TableContainer component={Paper} variant="outlined">
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Subcontrato / item</TableCell>
+                        <TableCell>Filial</TableCell>
+                        <TableCell>Produto</TableCell>
+                        <TableCell>Valor</TableCell>
+                        <TableCell>Vencimento</TableCell>
+                        <TableCell>PrÃ³xima</TableCell>
+                        <TableCell>Status</TableCell>
+                        <TableCell align="right">AÃ§Ãµes</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {grupo.itens.map((contrato) => (
+                        <TableRow key={contrato.id} hover>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={800}>
+                              {contrato.subcontrato_nome || contrato.descricao_servico || 'Item recorrente'}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {contrato.detalhe || contrato.centro_custo_usado || '-'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>{contrato.filial?.nome_fantasia || '-'}</TableCell>
+                          <TableCell>{contrato.produto_protheus || contrato.servico_protheus || '-'}</TableCell>
+                          <TableCell>{currency(contrato.valor_base_previsto)}</TableCell>
+                          <TableCell>Dia {contrato.dia_vencimento}</TableCell>
+                          <TableCell>{contrato.proxima_competencia || '-'}</TableCell>
+                          <TableCell>
+                            <Chip size="small" color={statusColor[contrato.status] || 'default'} label={contrato.status} sx={{ fontWeight: 700 }} />
+                          </TableCell>
+                          <TableCell align="right">
+                            <Tooltip title="Linha do tempo">
+                              <IconButton color="primary" onClick={() => setSelectedContrato(contrato)}>
+                                <HistoryOutlinedIcon />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title={contrato.status === 'Ativo' ? 'Gerar nota' : 'Apenas itens ativos geram notas'}>
+                              <span>
+                                <IconButton color="success" disabled={contrato.status !== 'Ativo'} onClick={() => onGerarCompetencia(contrato.id, contrato.proxima_competencia || competenciaAtual())}>
+                                  <PlayCircleIcon />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                            {contrato.status === 'Ativo' && (
+                              <Tooltip title="Pausar item">
+                                <IconButton color="warning" onClick={() => alterarStatus(contrato, 'Pausado')}>
+                                  <PauseCircleOutlinedIcon />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                            {contrato.status !== 'Cancelado' && (
+                              <Tooltip title="Cancelar item">
+                                <IconButton color="error" onClick={() => alterarStatus(contrato, 'Cancelado')}>
+                                  <CancelOutlinedIcon />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                            {contrato.status !== 'Ativo' && (
+                              <Tooltip title="Reativar item">
+                                <IconButton color="success" onClick={() => alterarStatus(contrato, 'Ativo')}>
+                                  <ReplayOutlinedIcon />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                            <Tooltip title="Editar item">
+                              <IconButton onClick={() => abrirEdicao(contrato)}>
+                                <EditOutlinedIcon />
+                              </IconButton>
+                            </Tooltip>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </AccordionDetails>
+            </Accordion>
+          );
+        })}
+        {gruposContratos.length === 0 && (
+          <Paper variant="outlined" sx={{ py: 6, textAlign: 'center', color: 'text.secondary' }}>
+            Nenhum contrato recorrente cadastrado.
+          </Paper>
+        )}
+      </Stack>
+
+      <TableContainer component={Paper} variant="outlined" sx={{ display: 'none' }}>
         <Table>
           <TableHead>
             <TableRow>
@@ -246,7 +403,10 @@ export default function ContratosView({
         {selectedContrato && (
           <Stack spacing={2} sx={{ p: 2.5 }}>
             <Box>
-              <Typography variant="h6" fontWeight={800}>{selectedContrato.fornecedor?.nome_empresa || 'Contrato'}</Typography>
+              <Typography variant="h6" fontWeight={800}>{selectedContrato.subcontrato_nome || selectedContrato.descricao_servico || 'Item recorrente'}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                {selectedContrato.fornecedor?.nome_empresa || '-'} | Contrato {selectedContrato.contrato_usado || '-'}
+              </Typography>
               <Typography variant="body2" color="text.secondary">{selectedContrato.filial?.nome_fantasia || '-'} | {currency(selectedContrato.valor_base_previsto)}</Typography>
             </Box>
             <Divider />
@@ -334,6 +494,15 @@ export default function ContratosView({
               <TextField label="Contrato usado" value={form.contrato_usado || ''} onChange={(e) => setForm({ ...form, contrato_usado: e.target.value })} fullWidth />
             </Grid>
             <Grid size={{ xs: 12, md: 4 }}>
+              <TextField label="Nome do contrato" value={form.nome_contrato || ''} onChange={(e) => setForm({ ...form, nome_contrato: e.target.value })} fullWidth />
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField label="Subcontrato / item" value={form.subcontrato_nome || ''} onChange={(e) => setForm({ ...form, subcontrato_nome: e.target.value })} fullWidth />
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField label="Produto Protheus" value={form.produto_protheus || ''} onChange={(e) => setForm({ ...form, produto_protheus: e.target.value })} fullWidth />
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
               <TextField label="Centro de custo" value={form.centro_custo_usado || ''} onChange={(e) => setForm({ ...form, centro_custo_usado: e.target.value })} fullWidth />
             </Grid>
             <Grid size={{ xs: 12, md: 4 }}>
@@ -350,11 +519,33 @@ export default function ContratosView({
             <Grid size={{ xs: 12, md: 4 }}>
               <TextField label="Data início" type="date" value={form.data_inicio || ''} onChange={(e) => setForm({ ...form, data_inicio: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} />
             </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField select label="Fluxo" value={form.fluxo_lancamento || 'manual'} onChange={(e) => setForm({ ...form, fluxo_lancamento: e.target.value })} fullWidth>
+                {[
+                  ['manual', 'Manual'],
+                  ['fluig', 'Fluig'],
+                  ['gopa', 'GOPA'],
+                  ['email', 'E-mail'],
+                ].map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
+              </TextField>
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField label="Responsável interno" value={form.responsavel_interno || ''} onChange={(e) => setForm({ ...form, responsavel_interno: e.target.value })} fullWidth />
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField label="E-mail destino" value={form.email_destino || ''} onChange={(e) => setForm({ ...form, email_destino: e.target.value })} fullWidth />
+            </Grid>
             <Grid size={{ xs: 12, md: 6 }}>
               <TextField label="Descrição / serviço" value={form.descricao_servico || ''} onChange={(e) => setForm({ ...form, descricao_servico: e.target.value })} fullWidth />
             </Grid>
             <Grid size={{ xs: 12, md: 6 }}>
               <TextField label="Serviço Protheus" value={form.servico_protheus || ''} onChange={(e) => setForm({ ...form, servico_protheus: e.target.value })} fullWidth />
+            </Grid>
+            <Grid size={12}>
+              <TextField label="Detalhe do contrato/subcontrato" value={form.detalhe || ''} onChange={(e) => setForm({ ...form, detalhe: e.target.value })} multiline minRows={2} fullWidth />
+            </Grid>
+            <Grid size={12}>
+              <TextField label="Regra de lançamento" value={form.regra_lancamento || ''} onChange={(e) => setForm({ ...form, regra_lancamento: e.target.value })} multiline minRows={2} fullWidth />
             </Grid>
             <Grid size={12}>
               <TextField label="Observação" value={form.observacao || ''} onChange={(e) => setForm({ ...form, observacao: e.target.value })} multiline minRows={3} fullWidth />
