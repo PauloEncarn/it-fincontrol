@@ -21,6 +21,7 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import AppsIcon from '@mui/icons-material/Apps';
+import CheckCircleIcon from '@mui/icons-material/CheckCircleOutlined';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -74,6 +75,7 @@ export default function Header({
   const getNotificationIcon = (severity) => {
     if (severity === 'error') return <ErrorOutlineIcon color="error" fontSize="small" />;
     if (severity === 'warning') return <WarningAmberIcon color="warning" fontSize="small" />;
+    if (severity === 'success') return <CheckCircleIcon color="success" fontSize="small" />;
     return <InfoOutlinedIcon color="info" fontSize="small" />;
   };
 
@@ -177,7 +179,7 @@ export default function Header({
                     NotificaÃ§Ãµes
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Alertas operacionais das notas abertas
+                    AÃ§Ãµes pontuais e retornos recentes
                   </Typography>
                 </Box>
                 <Stack direction="row" spacing={0.75}>
@@ -190,7 +192,7 @@ export default function Header({
             {unreadCount === 0 ? (
               <Box sx={{ p: 2.5 }}>
                 <Typography variant="body2" color="text.secondary">
-                  Nenhuma pendÃªncia crÃ­tica no momento.
+                  Nenhuma aÃ§Ã£o pendente no momento.
                 </Typography>
               </Box>
             ) : (
