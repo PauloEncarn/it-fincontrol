@@ -42,6 +42,7 @@ export default function Header({
   onNotificationClick,
 }) {
   const [notificationAnchor, setNotificationAnchor] = useState(null);
+  const notificationItems = Array.isArray(notificacoes) ? notificacoes : [];
 
   const getInfos = () => {
     switch (currentView) {
@@ -65,12 +66,12 @@ export default function Header({
   const info = getInfos();
   const actionButton = getAction();
   const showSearch = currentView === 'notas' || currentView === 'solicitacoes';
-  const unreadCount = notificacoes.length;
+  const unreadCount = notificationItems.length;
   const openNotifications = Boolean(notificationAnchor);
   const resumoNotificacoes = useMemo(() => ({
-    criticas: notificacoes.filter((item) => item.severity === 'error').length,
-    atencao: notificacoes.filter((item) => item.severity === 'warning').length,
-  }), [notificacoes]);
+    criticas: notificationItems.filter((item) => item.severity === 'error').length,
+    atencao: notificationItems.filter((item) => item.severity === 'warning').length,
+  }), [notificationItems]);
 
   const getNotificationIcon = (severity) => {
     if (severity === 'error') return <ErrorOutlineIcon color="error" fontSize="small" />;
@@ -197,7 +198,7 @@ export default function Header({
               </Box>
             ) : (
               <List dense disablePadding sx={{ maxHeight: 420, overflowY: 'auto' }}>
-                {notificacoes.map((notificacao) => (
+                {notificationItems.map((notificacao) => (
                   <ListItemButton
                     key={notificacao.key || `${notificacao.id}-${notificacao.title}`}
                     alignItems="flex-start"

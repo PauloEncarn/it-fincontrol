@@ -143,6 +143,38 @@ const renderEmailGopa = ({ fornecedor, numero_nota, vencimento, numero_pedido, n
   `;
 };
 
+const nomeArquivoDoPath = (filePath) => {
+  const clean = String(filePath || '').split('?')[0];
+  const name = clean.split('/').pop() || 'anexo.pdf';
+  return decodeURIComponent(name);
+};
+
+const prepararAnexo = async (filePath) => {
+  if (!filePath || typeof filePath !== 'string') return null;
+
+  const filename = nomeArquivoDoPath(filePath);
+
+  if (filePath.startsWith('http')) {
+    const response = await fetch(filePath);
+    if (!response.ok) {
+      throw new Error(`Nao foi possivel baixar o anexo ${filename}.`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    return {
+      filename,
+      content: Buffer.from(arrayBuffer),
+      contentType: response.headers.get('content-type') || undefined,
+    };
+  }
+
+  const cleanPath = filePath.startsWith('/') ? filePath.slice(1) : filePath;
+  return {
+    filename,
+    path: path.join(process.cwd(), 'public', cleanPath),
+  };
+};
+
 export async function POST(request) {
   try {
     const ator = await getActorFromRequest(request);
@@ -212,22 +244,12 @@ export async function POST(request) {
     });
 
     // 4. PREPARAR ANEXOS
-    const attachments = arquivos && Array.isArray(arquivos) 
-        ? arquivos
-            .filter((url) => url && typeof url === 'string' && url.length > 0)
-            .map((url) => {
-                const isUrl = url.startsWith('http');
-                let originalName = url.split('/').pop().split('?')[0];
-                originalName = decodeURIComponent(originalName);
-
-                if (isUrl) {
-                    return { filename: originalName, path: url };
-                } else {
-                    const cleanPath = url.startsWith('/') ? url.slice(1) : url;
-                    const fullPath = path.join(process.cwd(), 'public', cleanPath);
-                    return { filename: originalName, path: fullPath };
-                }
-            })
+    const attachments = arquivos && Array.isArray(arquivos)
+        ? (await Promise.all(
+            arquivos
+              .filter((url) => url && typeof url === 'string' && url.length > 0)
+              .map((url) => prepararAnexo(url))
+          )).filter(Boolean)
         : [];
 
     // 5. MONTAR O E-MAIL

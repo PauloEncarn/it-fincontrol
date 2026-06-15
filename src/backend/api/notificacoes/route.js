@@ -187,6 +187,31 @@ export async function GET() {
       });
     });
 
+    const { data: usuariosPendentes, error: erroUsuarios } = await supabase
+      .from('usuarios')
+      .select('id, username, nome_completo, setor, cargo, ativo')
+      .eq('ativo', false)
+      .limit(20);
+
+    if (erroUsuarios) {
+      console.warn('[notificacoes] Usuarios pendentes indisponiveis:', erroUsuarios.message);
+    }
+
+    (usuariosPendentes || []).forEach((usuario) => {
+      const nome = usuario.nome_completo || usuario.username || `Usuario #${usuario.id}`;
+      notificacoes.push({
+        id: `usuario-${usuario.id}`,
+        userId: usuario.id,
+        key: `usuario-${usuario.id}-aprovacao`,
+        severity: 'warning',
+        title: `${nome} realizou cadastro`,
+        description: `Aguardando aprovacao de acesso${usuario.setor ? ` | ${usuario.setor}` : ''}`,
+        search: usuario.username || nome,
+        targetView: 'usuarios',
+        sort: 15,
+      });
+    });
+
     const ordenadas = notificacoes
       .sort((a, b) => a.sort - b.sort || String(a.title).localeCompare(String(b.title)))
       .slice(0, 30);
@@ -197,4 +222,3 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
-

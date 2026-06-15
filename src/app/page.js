@@ -166,7 +166,7 @@ function DashboardContent() {
   };
 
   const abrirNotificacao = useCallback((notificacao) => {
-      setCurrentView('notas');
+      setCurrentView(notificacao.targetView || 'notas');
       setTermoBusca(notificacao.search || notificacao.numero_nota || notificacao.fornecedor || '');
   }, []);
 
