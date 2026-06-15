@@ -1,12 +1,18 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   AppBar,
   Avatar,
   Badge,
   Box,
   Button,
+  Chip,
+  Divider,
   IconButton,
   InputAdornment,
+  List,
+  ListItemButton,
+  ListItemText,
+  Popover,
   Stack,
   TextField,
   Toolbar,
@@ -15,10 +21,13 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import AppsIcon from '@mui/icons-material/Apps';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlineOutlined';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import MenuIcon from '@mui/icons-material/Menu';
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import SearchIcon from '@mui/icons-material/Search';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 
 export default function Header({
   currentView,
@@ -28,7 +37,11 @@ export default function Header({
   onNovoLancamento,
   onNovaSolicitacao,
   onRefresh,
+  notificacoes = [],
+  onNotificationClick,
 }) {
+  const [notificationAnchor, setNotificationAnchor] = useState(null);
+
   const getInfos = () => {
     switch (currentView) {
       case 'dashboard': return { titulo: 'Página inicial', sub: 'Visão consolidada' };
@@ -51,6 +64,18 @@ export default function Header({
   const info = getInfos();
   const actionButton = getAction();
   const showSearch = currentView === 'notas' || currentView === 'solicitacoes';
+  const unreadCount = notificacoes.length;
+  const openNotifications = Boolean(notificationAnchor);
+  const resumoNotificacoes = useMemo(() => ({
+    criticas: notificacoes.filter((item) => item.severity === 'error').length,
+    atencao: notificacoes.filter((item) => item.severity === 'warning').length,
+  }), [notificacoes]);
+
+  const getNotificationIcon = (severity) => {
+    if (severity === 'error') return <ErrorOutlineIcon color="error" fontSize="small" />;
+    if (severity === 'warning') return <WarningAmberIcon color="warning" fontSize="small" />;
+    return <InfoOutlinedIcon color="info" fontSize="small" />;
+  };
 
   return (
     <AppBar
@@ -130,12 +155,68 @@ export default function Header({
           )}
 
           <Tooltip title="Notificações">
-            <IconButton>
-              <Badge color="error" variant="dot">
+            <IconButton onClick={(event) => setNotificationAnchor(event.currentTarget)}>
+              <Badge color="error" badgeContent={unreadCount} max={99} invisible={unreadCount === 0}>
                 <NotificationsNoneIcon />
               </Badge>
             </IconButton>
           </Tooltip>
+
+          <Popover
+            open={openNotifications}
+            anchorEl={notificationAnchor}
+            onClose={() => setNotificationAnchor(null)}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+            PaperProps={{ sx: { width: 380, maxWidth: 'calc(100vw - 24px)', mt: 1 } }}
+          >
+            <Box sx={{ p: 2 }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+                <Box>
+                  <Typography variant="subtitle1" fontWeight={900}>
+                    NotificaÃ§Ãµes
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Alertas operacionais das notas abertas
+                  </Typography>
+                </Box>
+                <Stack direction="row" spacing={0.75}>
+                  {resumoNotificacoes.criticas > 0 && <Chip size="small" color="error" label={resumoNotificacoes.criticas} />}
+                  {resumoNotificacoes.atencao > 0 && <Chip size="small" color="warning" label={resumoNotificacoes.atencao} />}
+                </Stack>
+              </Stack>
+            </Box>
+            <Divider />
+            {unreadCount === 0 ? (
+              <Box sx={{ p: 2.5 }}>
+                <Typography variant="body2" color="text.secondary">
+                  Nenhuma pendÃªncia crÃ­tica no momento.
+                </Typography>
+              </Box>
+            ) : (
+              <List dense disablePadding sx={{ maxHeight: 420, overflowY: 'auto' }}>
+                {notificacoes.map((notificacao) => (
+                  <ListItemButton
+                    key={notificacao.key || `${notificacao.id}-${notificacao.title}`}
+                    alignItems="flex-start"
+                    onClick={() => {
+                      setNotificationAnchor(null);
+                      onNotificationClick?.(notificacao);
+                    }}
+                    sx={{ gap: 1, py: 1.25 }}
+                  >
+                    <Box sx={{ pt: 0.35 }}>{getNotificationIcon(notificacao.severity)}</Box>
+                    <ListItemText
+                      primary={notificacao.title}
+                      secondary={notificacao.description}
+                      primaryTypographyProps={{ fontWeight: 800, variant: 'body2' }}
+                      secondaryTypographyProps={{ variant: 'caption' }}
+                    />
+                  </ListItemButton>
+                ))}
+              </List>
+            )}
+          </Popover>
 
           <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.dark', fontSize: 13 }}>TI</Avatar>
         </Stack>

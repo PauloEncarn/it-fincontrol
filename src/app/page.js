@@ -43,6 +43,112 @@ const ModalSolicitacao = dynamic(() => import('@/frontend/components/modals/Moda
 const initialFormLancamento = { id: null, competencia: '', filial_id: '', fornecedor_id: '', cnpj_usado: '', contrato_usado: '', centro_custo_usado: '', numero_nota: '', serie: 'U', valor: '', valor_previsto: '', data_envio: '', data_vencimento: '', descricao_servico: '', servico_protheus: '', numero_medicao: '', numero_pedido: '', solicitacao_fluig: '', observacao: '', etapa: 'pendente', status_pagamento: 'Pendente Nota', arquivo_nota: '', arquivo_boleto: '', repetir_por: '1' };
 const initialFormSolicitacao = { id: null, filial_id: '', fornecedor_id: '', solicitante: '', cnpj: '', condicao_pagamento: '', valor: '', numero_sc: '', numero_pedido: '', servico: '', servico_protheus: '', centro_custo: '', numero_nota: '', fluig_id: '', data_vencimento: '', status: 'Em Andamento', observacao: '' };
 
+const parseDateLocal = (value) => {
+  if (!value) return null;
+  const [dateOnly] = String(value).split('T');
+  const [year, month, day] = dateOnly.split('-').map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+};
+
+const getDiasAteVencimento = (value) => {
+  const due = parseDateLocal(value);
+  if (!due) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  due.setHours(0, 0, 0, 0);
+  return Math.ceil((due.getTime() - today.getTime()) / 86400000);
+};
+
+const getNotaGroup = (nota) => {
+  if (nota?.etapa) return nota.etapa;
+  const status = String(nota?.status_pagamento || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+  if (status.includes('conclu') || status.includes('pago')) return 'concluida';
+  if (status.includes('conting') || status.includes('diverg') || status.includes('rejeit')) return 'contingencia';
+  if (status.includes('analise') || status.includes('aprovacao') || status.includes('confirmacao')) return 'em_analise';
+  if (status.includes('andamento')) return 'em_andamento';
+  return 'pendente';
+};
+
+const buildNotifications = (notas = []) => {
+  const abertas = notas.filter((nota) => getNotaGroup(nota) !== 'concluida');
+  const alertas = [];
+
+  abertas.forEach((nota) => {
+    const fornecedor = nota.nome_fornecedor || nota.fornecedor?.nome_empresa || 'Fornecedor nao informado';
+    const nf = nota.numero_nota ? `NF ${nota.numero_nota}` : `Lancamento #${nota.id}`;
+    const dias = getDiasAteVencimento(nota.data_vencimento);
+    const base = {
+      id: nota.id,
+      notaId: nota.id,
+      fornecedor,
+      numero_nota: nota.numero_nota,
+      search: nota.numero_nota || fornecedor,
+    };
+
+    if (dias !== null && dias <= 10) {
+      alertas.push({
+        ...base,
+        key: `${nota.id}-vencimento`,
+        severity: 'error',
+        title: dias < 0 ? `${nf} vencida` : dias === 0 ? `${nf} vence hoje` : `${nf} vence em ${dias} dias`,
+        description: fornecedor,
+        sort: dias,
+      });
+    } else if (dias !== null && dias <= 12) {
+      alertas.push({
+        ...base,
+        key: `${nota.id}-prazo`,
+        severity: 'warning',
+        title: `${nf} perto do prazo`,
+        description: `${fornecedor} | ${dias} dias para vencer`,
+        sort: dias + 20,
+      });
+    }
+
+    if (!nota.arquivo_nota || !nota.arquivo_boleto) {
+      alertas.push({
+        ...base,
+        key: `${nota.id}-anexos`,
+        severity: 'warning',
+        title: `${nf} com anexo pendente`,
+        description: !nota.arquivo_nota && !nota.arquivo_boleto ? 'Sem nota e boleto' : !nota.arquivo_nota ? 'Sem nota fiscal' : 'Sem boleto',
+        sort: 40,
+      });
+    }
+
+    if (getNotaGroup(nota) === 'contingencia') {
+      alertas.push({
+        ...base,
+        key: `${nota.id}-contingencia`,
+        severity: 'error',
+        title: `${nf} em contingencia`,
+        description: nota.status_pagamento || fornecedor,
+        sort: 5,
+      });
+    }
+
+    if (getNotaGroup(nota) === 'em_analise') {
+      alertas.push({
+        ...base,
+        key: `${nota.id}-analise`,
+        severity: 'info',
+        title: `${nf} aguardando retorno`,
+        description: nota.status_pagamento || fornecedor,
+        sort: 30,
+      });
+    }
+  });
+
+  return alertas
+    .sort((a, b) => a.sort - b.sort || String(a.title).localeCompare(String(b.title)))
+    .slice(0, 25);
+};
+
 function DashboardContent() {
   const queryClient = useQueryClient();
   const [token, setToken] = useState(null);
@@ -122,6 +228,15 @@ function DashboardContent() {
       enabled: !!token && currentView === 'dashboard'
   });
 
+  const { data: notasNotificacoes = [] } = useQuery({
+      queryKey: ['notificacoes_notas'],
+      queryFn: () => axios.get(`${API_URL}/lancamentos/`, authConfig).then(res => res.data),
+      enabled: !!token,
+      staleTime: 1000 * 60
+  });
+
+  const notificacoes = useMemo(() => buildNotifications(notasNotificacoes), [notasNotificacoes]);
+
   const { data: contratos = [] } = useQuery({
       queryKey: ['contratos'],
       queryFn: () => axios.get(`${API_URL}/contratos/`, authConfig).then(res => res.data),
@@ -155,7 +270,13 @@ function DashboardContent() {
       await queryClient.invalidateQueries({ queryKey: ['busca'], exact: false });
       await queryClient.invalidateQueries({ queryKey: ['contratos'], exact: false });
       await queryClient.invalidateQueries({ queryKey: ['contrato_lancamentos'], exact: false });
+      await queryClient.invalidateQueries({ queryKey: ['notificacoes_notas'], exact: false });
   };
+
+  const abrirNotificacao = useCallback((notificacao) => {
+      setCurrentView('notas');
+      setTermoBusca(notificacao.search || notificacao.numero_nota || notificacao.fornecedor || '');
+  }, []);
 
   const handleManualRefresh = async () => {
       addToast('info', 'Sincronizando dados...');
@@ -440,6 +561,8 @@ function DashboardContent() {
                 onNovoLancamento={() => { setForm(initialFormLancamento); setShowModal(true); }}
                 onNovaSolicitacao={() => { setFormSolicitacao(initialFormSolicitacao); setShowModalSolicitacao(true); }}
                 onRefresh={handleManualRefresh}
+                notificacoes={notificacoes}
+                onNotificationClick={abrirNotificacao}
             />
 
             <Box sx={{ width: '100%', maxWidth: 1680, mx: 'auto', px: { xs: 2, md: 3 }, py: 3, pb: 8 }}>
