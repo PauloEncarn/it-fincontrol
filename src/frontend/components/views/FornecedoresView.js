@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Box,
   Button,
@@ -11,6 +11,7 @@ import {
   Grid,
   IconButton,
   InputAdornment,
+  Pagination,
   Paper,
   Stack,
   Table,
@@ -38,14 +39,46 @@ const emptyForm = {
   padrao_servico_protheus: '',
 };
 
+const listValues = (value) => {
+  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
+  return String(value || '').split(/[;|\n]/).map((item) => item.trim()).filter(Boolean);
+};
+
+const listText = (value) => listValues(value).join('\n');
+const displayText = (value) => listValues(value).join('; ');
+const PAGE_SIZE = 25;
+
+function ListCell({ value, maxChips = 3 }) {
+  const itens = listValues(value);
+  if (!itens.length) return '-';
+
+  return (
+    <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap" title={itens.join('; ')}>
+      {itens.slice(0, maxChips).map((item) => (
+        <Chip key={item} size="small" variant="outlined" label={item} />
+      ))}
+      {itens.length > maxChips && <Chip size="small" label={`+${itens.length - maxChips}`} />}
+    </Stack>
+  );
+}
+
 export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) {
   const [showModal, setShowModal] = useState(false);
   const [termo, setTermo] = useState('');
   const [form, setForm] = useState(emptyForm);
+  const [pagina, setPagina] = useState(1);
 
   const dadosFiltrados = fornecedores.filter((fornecedor) =>
-    `${fornecedor.nome_empresa} ${fornecedor.lista_cnpjs || ''}`.toLowerCase().includes(termo.toLowerCase())
+    `${fornecedor.nome_empresa} ${displayText(fornecedor.lista_cnpjs)}`.toLowerCase().includes(termo.toLowerCase())
   );
+  const totalPaginas = Math.max(1, Math.ceil(dadosFiltrados.length / PAGE_SIZE));
+  const paginaAtual = Math.min(pagina, totalPaginas);
+  const dadosPagina = useMemo(() => {
+    const inicio = (paginaAtual - 1) * PAGE_SIZE;
+    return dadosFiltrados.slice(inicio, inicio + PAGE_SIZE);
+  }, [dadosFiltrados, paginaAtual]);
+  const inicioPagina = dadosFiltrados.length ? (paginaAtual - 1) * PAGE_SIZE + 1 : 0;
+  const fimPagina = Math.min(paginaAtual * PAGE_SIZE, dadosFiltrados.length);
 
   const abrirNovo = () => {
     setForm(emptyForm);
@@ -53,13 +86,24 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
   };
 
   const abrirEdicao = (item) => {
-    setForm({ ...emptyForm, ...item });
+    setForm({
+      ...emptyForm,
+      ...item,
+      lista_cnpjs: listText(item.lista_cnpjs),
+      lista_contratos: listText(item.lista_contratos),
+      lista_centro_custos: listText(item.lista_centro_custos),
+    });
     setShowModal(true);
   };
 
   const handleSalvar = () => {
     if (!form.nome_empresa) return alert('O nome da empresa é obrigatório');
-    onSalvar(form);
+    onSalvar({
+      ...form,
+      lista_cnpjs: listValues(form.lista_cnpjs),
+      lista_contratos: listValues(form.lista_contratos),
+      lista_centro_custos: listValues(form.lista_centro_custos),
+    });
     setShowModal(false);
   };
 
@@ -82,7 +126,10 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
               size="small"
               placeholder="Buscar nome ou CNPJ"
               value={termo}
-              onChange={(e) => setTermo(e.target.value)}
+              onChange={(e) => {
+                setTermo(e.target.value);
+                setPagina(1);
+              }}
               InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
             />
             <Button variant="contained" startIcon={<AddIcon />} onClick={abrirNovo}>
@@ -104,21 +151,17 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
             </TableRow>
           </TableHead>
           <TableBody>
-            {dadosFiltrados.map((fornecedor) => (
+            {dadosPagina.map((fornecedor) => (
               <TableRow key={fornecedor.id} hover>
                 <TableCell sx={{ fontWeight: 700 }}>{fornecedor.nome_empresa}</TableCell>
                 <TableCell sx={{ maxWidth: 260 }}>
-                  <Typography variant="body2" noWrap title={fornecedor.lista_cnpjs || '-'}>
-                    {fornecedor.lista_cnpjs || '-'}
-                  </Typography>
+                  <ListCell value={fornecedor.lista_cnpjs} />
                 </TableCell>
                 <TableCell>
-                  {fornecedor.lista_contratos ? <Chip size="small" variant="outlined" label={fornecedor.lista_contratos} /> : '-'}
+                  <ListCell value={fornecedor.lista_contratos} maxChips={2} />
                 </TableCell>
                 <TableCell sx={{ maxWidth: 220 }}>
-                  <Typography variant="body2" noWrap title={fornecedor.lista_centro_custos || '-'}>
-                    {fornecedor.lista_centro_custos || '-'}
-                  </Typography>
+                  <ListCell value={fornecedor.lista_centro_custos} />
                 </TableCell>
                 <TableCell align="right">
                   <IconButton color="primary" onClick={() => abrirEdicao(fornecedor)} aria-label="Editar fornecedor">
@@ -141,6 +184,23 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
         </Table>
       </TableContainer>
 
+      {dadosFiltrados.length > PAGE_SIZE && (
+        <Paper variant="outlined" sx={{ p: 1.5 }}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems="center" justifyContent="space-between">
+            <Typography variant="body2" color="text.secondary">
+              Mostrando {inicioPagina}-{fimPagina} de {dadosFiltrados.length} fornecedores
+            </Typography>
+            <Pagination
+              count={totalPaginas}
+              page={paginaAtual}
+              onChange={(_, value) => setPagina(value)}
+              color="primary"
+              shape="rounded"
+            />
+          </Stack>
+        </Paper>
+      )}
+
       <Dialog open={showModal} onClose={() => setShowModal(false)} fullWidth maxWidth="md">
         <DialogTitle>{form.id ? 'Editar fornecedor' : 'Novo fornecedor'}</DialogTitle>
         <DialogContent>
@@ -149,13 +209,13 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
 
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, md: 6 }}>
-                <TextField label="Lista de CNPJs" value={form.lista_cnpjs || ''} onChange={(e) => setForm({ ...form, lista_cnpjs: e.target.value })} multiline minRows={3} fullWidth helperText="Separe por ponto e vírgula (;)" />
+                <TextField label="Lista de CNPJs" value={form.lista_cnpjs || ''} onChange={(e) => setForm({ ...form, lista_cnpjs: e.target.value })} multiline minRows={3} fullWidth helperText="Um por linha, ou separe por ;" />
               </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
-                <TextField label="Lista de contratos" value={form.lista_contratos || ''} onChange={(e) => setForm({ ...form, lista_contratos: e.target.value })} multiline minRows={3} fullWidth helperText="Separe por ponto e vírgula (;)" />
+                <TextField label="Lista de contratos" value={form.lista_contratos || ''} onChange={(e) => setForm({ ...form, lista_contratos: e.target.value })} multiline minRows={3} fullWidth helperText="Um por linha, ou separe por ;" />
               </Grid>
               <Grid size={12}>
-                <TextField label="Lista de centros de custo" value={form.lista_centro_custos || ''} onChange={(e) => setForm({ ...form, lista_centro_custos: e.target.value })} fullWidth />
+                <TextField label="Lista de centros de custo" value={form.lista_centro_custos || ''} onChange={(e) => setForm({ ...form, lista_centro_custos: e.target.value })} multiline minRows={2} fullWidth helperText="Um por linha, ou separe por ;" />
               </Grid>
             </Grid>
 

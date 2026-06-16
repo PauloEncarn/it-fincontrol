@@ -240,7 +240,10 @@ function DashboardContent() {
   }, [filiais, form]);
   const isGopaFunc = useCallback((nota) => getFilialNota(nota)?.nome_fantasia?.toUpperCase().includes('GOPA'), [getFilialNota]);
   
-  const splitOptions = (value) => (value || '').split(';').map((item) => item.trim()).filter(Boolean);
+  const splitOptions = (value) => {
+    if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
+    return String(value || '').split(/[;|\n]/).map((item) => item.trim()).filter(Boolean);
+  };
   const getDateInputValue = (value) => value ? String(value).split('T')[0] : '';
   const normalizeDateForApi = (value) => {
     const text = String(value || '').trim();

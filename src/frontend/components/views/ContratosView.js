@@ -85,6 +85,10 @@ const competenciaAtual = () => {
   return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
 };
 const PAGE_SIZE = 25;
+const listValues = (value) => {
+  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
+  return String(value || '').split(/[;|\n]/).map((item) => item.trim()).filter(Boolean);
+};
 
 export default function ContratosView({
   contratos,
@@ -170,10 +174,13 @@ export default function ContratosView({
   }, [busca, gruposContratos, statusFiltro]);
 
   const totalPaginas = Math.max(1, Math.ceil(gruposFiltrados.length / PAGE_SIZE));
+  const paginaAtual = Math.min(pagina, totalPaginas);
   const gruposPagina = useMemo(() => {
-    const inicio = (pagina - 1) * PAGE_SIZE;
+    const inicio = (paginaAtual - 1) * PAGE_SIZE;
     return gruposFiltrados.slice(inicio, inicio + PAGE_SIZE);
-  }, [gruposFiltrados, pagina]);
+  }, [gruposFiltrados, paginaAtual]);
+  const inicioPagina = gruposFiltrados.length ? (paginaAtual - 1) * PAGE_SIZE + 1 : 0;
+  const fimPagina = Math.min(paginaAtual * PAGE_SIZE, gruposFiltrados.length);
 
   const resetListagem = () => {
     setPagina(1);
@@ -200,7 +207,7 @@ export default function ContratosView({
 
   const handleFornecedorChange = (id) => {
     const fornecedor = fornecedores.find((item) => item.id == id);
-    const first = (value) => (value || '').split(';').map((item) => item.trim()).filter(Boolean)[0] || '';
+    const first = (value) => listValues(value)[0] || '';
 
     setForm((prev) => ({
       ...prev,
@@ -411,6 +418,26 @@ export default function ContratosView({
           </Paper>
         )}
       </Stack>
+
+      {gruposFiltrados.length > PAGE_SIZE && (
+        <Paper variant="outlined" sx={{ p: 1.5 }}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems="center" justifyContent="space-between">
+            <Typography variant="body2" color="text.secondary">
+              Mostrando {inicioPagina}-{fimPagina} de {gruposFiltrados.length} contratos
+            </Typography>
+            <Pagination
+              count={totalPaginas}
+              page={paginaAtual}
+              onChange={(_, value) => {
+                setPagina(value);
+                setExpandedGroup(null);
+              }}
+              color="primary"
+              shape="rounded"
+            />
+          </Stack>
+        </Paper>
+      )}
 
       <TableContainer component={Paper} variant="outlined" sx={{ display: 'none' }}>
         <Table>
