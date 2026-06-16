@@ -95,7 +95,6 @@ export default function ContratosView({
   contratos,
   filiais,
   fornecedores,
-  mode = 'contratos',
   onLoadFornecedores,
   lancamentos,
   selectedContrato,
@@ -104,39 +103,8 @@ export default function ContratosView({
   onGerarCompetencia,
   onEditarLancamento,
 }) {
-  const isSubcontratos = mode === 'subcontratos';
-  const screenCopy = isSubcontratos
-    ? {
-        title: 'Subcontratos',
-        subtitle: 'Itens, serviços e regras vinculados aos contratos',
-        addLabel: 'Novo subcontrato',
-        searchLabel: 'Buscar subcontrato',
-        searchPlaceholder: 'Fornecedor, contrato, item, produto ou centro de custo',
-        empty: 'Nenhum subcontrato cadastrado.',
-        groupCount: 'contratos encontrados',
-        itemCount: 'subcontratos cadastrados',
-        chipCount: 'subcontratos',
-        tableMain: 'Contrato / subcontrato',
-        editTooltip: 'Editar subcontrato',
-        modalNew: 'Novo subcontrato',
-        modalEdit: 'Editar subcontrato',
-      }
-    : {
-        title: 'Contratos',
-        subtitle: 'Cadastro dos contratos por fornecedor',
-        addLabel: 'Novo contrato',
-        searchLabel: 'Buscar contrato',
-        searchPlaceholder: 'Fornecedor, contrato, CNPJ ou descrição',
-        empty: 'Nenhum contrato cadastrado.',
-        groupCount: 'fornecedores encontrados',
-        itemCount: 'contratos cadastrados',
-        chipCount: 'contratos',
-        tableMain: 'Contrato',
-        editTooltip: 'Editar contrato',
-        modalNew: 'Novo contrato',
-        modalEdit: 'Editar contrato',
-      };
   const [showModal, setShowModal] = useState(false);
+  const [modalTipo, setModalTipo] = useState('contrato');
   const [form, setForm] = useState(emptyContract);
   const [competencia, setCompetencia] = useState(competenciaAtual());
   const [expandedGroup, setExpandedGroup] = useState(null);
@@ -162,14 +130,12 @@ export default function ContratosView({
 
     (contratos || []).forEach((contrato) => {
       const fornecedor = contrato.fornecedor?.nome_empresa || 'Fornecedor nao informado';
-      const contratoBase = contrato.contrato_usado || contrato.nome_contrato || 'Sem contrato';
-      const key = isSubcontratos ? `${fornecedor} | ${contratoBase}` : fornecedor;
+      const key = fornecedor;
 
       if (!grupos.has(key)) {
         grupos.set(key, {
           key,
           fornecedor,
-          contratoBase,
           itens: [],
         });
       }
@@ -186,11 +152,8 @@ export default function ContratosView({
           String(a.subcontrato_nome || a.descricao_servico || '').localeCompare(String(b.subcontrato_nome || b.descricao_servico || ''))
         )),
       }))
-      .sort((a, b) => (
-        a.fornecedor.localeCompare(b.fornecedor) ||
-        String(a.contratoBase || '').localeCompare(String(b.contratoBase || ''))
-      ));
-  }, [contratos, isSubcontratos]);
+      .sort((a, b) => a.fornecedor.localeCompare(b.fornecedor));
+  }, [contratos]);
 
   const gruposFiltrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
@@ -236,12 +199,32 @@ export default function ContratosView({
 
   const abrirNovo = () => {
     onLoadFornecedores?.();
+    setModalTipo('contrato');
     setForm({ ...emptyContract, data_inicio: new Date().toISOString().slice(0, 10) });
+    setShowModal(true);
+  };
+
+  const abrirNovoSubcontrato = (contrato) => {
+    onLoadFornecedores?.();
+    setModalTipo('subcontrato');
+    setForm({
+      ...emptyContract,
+      fornecedor_id: contrato.fornecedor_id || '',
+      filial_id: contrato.filial_id || '',
+      tipo_contrato: contrato.tipo_contrato || 'Recorrente',
+      cnpj_usado: contrato.cnpj_usado || '',
+      contrato_usado: contrato.contrato_usado || '',
+      nome_contrato: contrato.nome_contrato || '',
+      centro_custo_usado: contrato.centro_custo_usado || '',
+      data_inicio: new Date().toISOString().slice(0, 10),
+      status: 'Ativo',
+    });
     setShowModal(true);
   };
 
   const abrirEdicao = (contrato) => {
     onLoadFornecedores?.();
+    setModalTipo(contrato.subcontrato_nome || contrato.produto_protheus || contrato.regra_lancamento ? 'subcontrato' : 'contrato');
     setForm({
       ...emptyContract,
       ...contrato,
@@ -329,14 +312,14 @@ export default function ContratosView({
           <Box>
             <Stack direction="row" spacing={1.25} alignItems="center">
               <CalendarMonthOutlinedIcon color="primary" />
-              <Typography variant="h5" fontWeight={700}>{screenCopy.title}</Typography>
+              <Typography variant="h5" fontWeight={700}>Contratos</Typography>
             </Stack>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              {screenCopy.subtitle}
+              Cadastro de contratos por fornecedor, com subcontratos vinculados
             </Typography>
           </Box>
           <Button variant="contained" startIcon={<AddIcon />} onClick={abrirNovo}>
-            {screenCopy.addLabel}
+            Novo contrato
           </Button>
         </Stack>
       </Paper>
@@ -345,8 +328,8 @@ export default function ContratosView({
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', md: 'center' }}>
           <TextField
             size="small"
-            label={screenCopy.searchLabel}
-            placeholder={screenCopy.searchPlaceholder}
+            label="Buscar contrato"
+            placeholder="Fornecedor, contrato, item, produto ou CNPJ"
             value={busca}
             onChange={(e) => {
               setBusca(e.target.value);
@@ -371,7 +354,7 @@ export default function ContratosView({
             </Select>
           </FormControl>
           <Typography variant="body2" color="text.secondary" sx={{ minWidth: { md: 220 } }}>
-            {gruposFiltrados.length} {screenCopy.groupCount}
+            {gruposFiltrados.length} fornecedores encontrados
           </Typography>
         </Stack>
       </Paper>
@@ -392,15 +375,15 @@ export default function ContratosView({
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                 <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ xs: 'flex-start', md: 'center' }} sx={{ width: '100%', minWidth: 0, pr: 1 }}>
                   <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Typography fontWeight={900} noWrap title={isSubcontratos ? grupo.contratoBase : grupo.fornecedor}>
-                      {isSubcontratos ? grupo.contratoBase : grupo.fornecedor}
+                    <Typography fontWeight={900} noWrap title={grupo.fornecedor}>
+                      {grupo.fornecedor}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {isSubcontratos ? `${grupo.fornecedor} | ${grupo.itens.length} ${screenCopy.itemCount}` : `${grupo.itens.length} ${screenCopy.itemCount}`}
+                      {grupo.itens.length} contratos/subcontratos cadastrados
                     </Typography>
                   </Box>
                   <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-                    <Chip size="small" color="primary" variant="outlined" label={`${grupo.itens.length} ${screenCopy.chipCount}`} />
+                    <Chip size="small" color="primary" variant="outlined" label={`${grupo.itens.length} itens`} />
                     <Chip size="small" color={ativos > 0 ? 'success' : 'default'} label={`${ativos} ativos`} />
                     <Chip size="small" variant="outlined" label={currency(total)} />
                   </Stack>
@@ -411,7 +394,7 @@ export default function ContratosView({
                   <Table size="small">
                     <TableHead>
                       <TableRow>
-                        <TableCell>{screenCopy.tableMain}</TableCell>
+                        <TableCell>Contrato / subcontrato</TableCell>
                         <TableCell>Filial</TableCell>
                         <TableCell>Produto</TableCell>
                         <TableCell>Valor</TableCell>
@@ -430,9 +413,7 @@ export default function ContratosView({
                             </Typography>
                             <Chip size="small" variant="outlined" label={contrato.tipo_contrato || 'Recorrente'} sx={{ mt: 0.5, mb: 0.5, height: 20, fontSize: 11 }} />
                             <Typography variant="caption" color="text.secondary">
-                              {isSubcontratos
-                                ? (contrato.subcontrato_nome || contrato.descricao_servico || 'Subcontrato')
-                                : (contrato.nome_contrato || contrato.descricao_servico || 'Contrato')}
+                              {contrato.subcontrato_nome || contrato.nome_contrato || contrato.descricao_servico || 'Contrato'}
                             </Typography>
                             <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                               {contrato.detalhe || contrato.centro_custo_usado || '-'}
@@ -447,6 +428,13 @@ export default function ContratosView({
                             <Chip size="small" color={statusColor[contrato.status] || 'default'} label={contrato.status} sx={{ fontWeight: 700 }} />
                           </TableCell>
                           <TableCell align="right">
+                            {!contrato.subcontrato_nome && (
+                              <Tooltip title="Adicionar subcontrato">
+                                <IconButton color="primary" onClick={() => abrirNovoSubcontrato(contrato)}>
+                                  <AddIcon />
+                                </IconButton>
+                              </Tooltip>
+                            )}
                             <Tooltip title="Linha do tempo">
                               <IconButton color="primary" onClick={() => setSelectedContrato(contrato)}>
                                 <HistoryOutlinedIcon />
@@ -480,7 +468,7 @@ export default function ContratosView({
                                 </IconButton>
                               </Tooltip>
                             )}
-                            <Tooltip title={screenCopy.editTooltip}>
+                            <Tooltip title="Editar">
                               <IconButton onClick={() => abrirEdicao(contrato)}>
                                 <EditOutlinedIcon />
                               </IconButton>
@@ -497,7 +485,7 @@ export default function ContratosView({
         })}
         {gruposContratos.length === 0 && (
           <Paper variant="outlined" sx={{ py: 6, textAlign: 'center', color: 'text.secondary' }}>
-            {screenCopy.empty}
+            Nenhum contrato cadastrado.
           </Paper>
         )}
       </Stack>
@@ -506,7 +494,7 @@ export default function ContratosView({
         <Paper variant="outlined" sx={{ p: 1.5 }}>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems="center" justifyContent="space-between">
             <Typography variant="body2" color="text.secondary">
-              Mostrando {inicioPagina}-{fimPagina} de {gruposFiltrados.length} {screenCopy.groupCount}
+              Mostrando {inicioPagina}-{fimPagina} de {gruposFiltrados.length} fornecedores
             </Typography>
             <Pagination
               count={totalPaginas}
@@ -674,7 +662,7 @@ export default function ContratosView({
       </Drawer>
 
       <Dialog open={showModal} onClose={() => setShowModal(false)} fullWidth maxWidth="md">
-        <DialogTitle>{form.id ? screenCopy.modalEdit : screenCopy.modalNew}</DialogTitle>
+        <DialogTitle>{form.id ? (modalTipo === 'subcontrato' ? 'Editar subcontrato' : 'Editar contrato') : (modalTipo === 'subcontrato' ? 'Novo subcontrato' : 'Novo contrato')}</DialogTitle>
         <DialogContent dividers>
           <Grid container spacing={2} sx={{ pt: 1 }}>
             <Grid size={{ xs: 12, md: 6 }}>
@@ -703,27 +691,27 @@ export default function ContratosView({
             <Grid size={{ xs: 12, md: 4 }}>
               {renderListField('Contrato usado', 'contrato_usado', opcoesSelecionadas.contratos)}
             </Grid>
-            {isSubcontratos && (
+            {modalTipo === 'subcontrato' && (
               <Grid size={{ xs: 12, md: 4 }}>
                 <TextField label="Subcontrato / item" value={form.subcontrato_nome || ''} onChange={(e) => setForm({ ...form, subcontrato_nome: e.target.value })} fullWidth helperText="Item ou serviço dentro do contrato" />
               </Grid>
             )}
-            {isSubcontratos && (
+            {modalTipo === 'subcontrato' && (
               <Grid size={{ xs: 12, md: 4 }}>
                 <TextField label="Produto Protheus" value={form.produto_protheus || ''} onChange={(e) => setForm({ ...form, produto_protheus: e.target.value })} fullWidth />
               </Grid>
             )}
-            {isSubcontratos && (
+            {modalTipo === 'subcontrato' && (
               <Grid size={{ xs: 12, md: 4 }}>
                 {renderListField('Centro de custo', 'centro_custo_usado', opcoesSelecionadas.centros)}
               </Grid>
             )}
-            {isSubcontratos && (
+            {modalTipo === 'subcontrato' && (
               <Grid size={{ xs: 12, md: 4 }}>
                 <TextField label="Valor base previsto" type="number" value={form.valor_base_previsto || ''} onChange={(e) => setForm({ ...form, valor_base_previsto: e.target.value })} fullWidth />
               </Grid>
             )}
-            {isSubcontratos && (
+            {modalTipo === 'subcontrato' && (
               <Grid size={{ xs: 12, md: 4 }}>
                 <TextField label="Dia padrão de vencimento" type="number" inputProps={{ min: 1, max: 31 }} value={form.dia_vencimento || 1} onChange={(e) => setForm({ ...form, dia_vencimento: e.target.value })} fullWidth />
               </Grid>
@@ -736,7 +724,7 @@ export default function ContratosView({
             <Grid size={{ xs: 12, md: 4 }}>
               <TextField label="Data início" type="date" value={form.data_inicio || ''} onChange={(e) => setForm({ ...form, data_inicio: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} />
             </Grid>
-            {isSubcontratos && (
+            {modalTipo === 'subcontrato' && (
               <>
             <Grid size={{ xs: 12, md: 4 }}>
               <TextField select label="Fluxo" value={form.fluxo_lancamento || 'manual'} onChange={(e) => setForm({ ...form, fluxo_lancamento: e.target.value })} fullWidth>
@@ -763,9 +751,9 @@ export default function ContratosView({
               </>
             )}
             <Grid size={12}>
-              <TextField label={isSubcontratos ? 'Detalhe do subcontrato' : 'Detalhe do contrato'} value={form.detalhe || ''} onChange={(e) => setForm({ ...form, detalhe: e.target.value })} multiline minRows={2} fullWidth />
+              <TextField label={modalTipo === 'subcontrato' ? 'Detalhe do subcontrato' : 'Detalhe do contrato'} value={form.detalhe || ''} onChange={(e) => setForm({ ...form, detalhe: e.target.value })} multiline minRows={2} fullWidth />
             </Grid>
-            {isSubcontratos && (
+            {modalTipo === 'subcontrato' && (
               <Grid size={12}>
                 <TextField label="Regra de lançamento" value={form.regra_lancamento || ''} onChange={(e) => setForm({ ...form, regra_lancamento: e.target.value })} multiline minRows={2} fullWidth />
               </Grid>
