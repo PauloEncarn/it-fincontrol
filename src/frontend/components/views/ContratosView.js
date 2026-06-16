@@ -119,30 +119,29 @@ export default function ContratosView({
 
     (contratos || []).forEach((contrato) => {
       const fornecedor = contrato.fornecedor?.nome_empresa || 'Fornecedor nao informado';
-      const numeroContrato = contrato.contrato_usado || 'Sem contrato';
-      const key = `${fornecedor}::${numeroContrato}`;
+      const key = fornecedor;
 
       if (!grupos.has(key)) {
         grupos.set(key, {
           key,
           fornecedor,
-          numeroContrato,
-          nomeContrato: contrato.nome_contrato || '',
           itens: [],
         });
       }
 
       const grupo = grupos.get(key);
-      if (!grupo.nomeContrato && contrato.nome_contrato) grupo.nomeContrato = contrato.nome_contrato;
       grupo.itens.push(contrato);
     });
 
     return [...grupos.values()]
       .map((grupo) => ({
         ...grupo,
-        itens: grupo.itens.sort((a, b) => String(a.subcontrato_nome || a.descricao_servico || '').localeCompare(String(b.subcontrato_nome || b.descricao_servico || ''))),
+        itens: grupo.itens.sort((a, b) => (
+          String(a.contrato_usado || '').localeCompare(String(b.contrato_usado || '')) ||
+          String(a.subcontrato_nome || a.descricao_servico || '').localeCompare(String(b.subcontrato_nome || b.descricao_servico || ''))
+        )),
       }))
-      .sort((a, b) => a.fornecedor.localeCompare(b.fornecedor) || a.numeroContrato.localeCompare(b.numeroContrato));
+      .sort((a, b) => a.fornecedor.localeCompare(b.fornecedor));
   }, [contratos]);
 
   const gruposFiltrados = useMemo(() => {
@@ -157,8 +156,8 @@ export default function ContratosView({
 
           return [
             grupo.fornecedor,
-            grupo.numeroContrato,
-            grupo.nomeContrato,
+            contrato.contrato_usado,
+            contrato.nome_contrato,
             contrato.subcontrato_nome,
             contrato.descricao_servico,
             contrato.produto_protheus,
@@ -294,7 +293,7 @@ export default function ContratosView({
             </Select>
           </FormControl>
           <Typography variant="body2" color="text.secondary" sx={{ minWidth: { md: 220 } }}>
-            {gruposFiltrados.length} contratos encontrados
+            {gruposFiltrados.length} fornecedores encontrados
           </Typography>
         </Stack>
       </Paper>
@@ -319,11 +318,11 @@ export default function ContratosView({
                       {grupo.fornecedor}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      Contrato {grupo.numeroContrato}{grupo.nomeContrato ? ` | ${grupo.nomeContrato}` : ''}
+                      {grupo.itens.length} contratos cadastrados
                     </Typography>
                   </Box>
                   <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-                    <Chip size="small" color="primary" variant="outlined" label={`${grupo.itens.length} subcontratos`} />
+                    <Chip size="small" color="primary" variant="outlined" label={`${grupo.itens.length} contratos`} />
                     <Chip size="small" color={ativos > 0 ? 'success' : 'default'} label={`${ativos} ativos`} />
                     <Chip size="small" variant="outlined" label={currency(total)} />
                   </Stack>
@@ -334,7 +333,7 @@ export default function ContratosView({
                   <Table size="small">
                     <TableHead>
                       <TableRow>
-                        <TableCell>Subcontrato / item</TableCell>
+                        <TableCell>Contrato / item</TableCell>
                         <TableCell>Filial</TableCell>
                         <TableCell>Produto</TableCell>
                         <TableCell>Valor</TableCell>
@@ -349,9 +348,12 @@ export default function ContratosView({
                         <TableRow key={contrato.id} hover>
                           <TableCell>
                             <Typography variant="body2" fontWeight={800}>
-                              {contrato.subcontrato_nome || contrato.descricao_servico || 'Item recorrente'}
+                              {contrato.contrato_usado || 'Sem contrato'}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
+                              {contrato.subcontrato_nome || contrato.nome_contrato || contrato.descricao_servico || 'Item recorrente'}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                               {contrato.detalhe || contrato.centro_custo_usado || '-'}
                             </Typography>
                           </TableCell>
@@ -423,7 +425,7 @@ export default function ContratosView({
         <Paper variant="outlined" sx={{ p: 1.5 }}>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems="center" justifyContent="space-between">
             <Typography variant="body2" color="text.secondary">
-              Mostrando {inicioPagina}-{fimPagina} de {gruposFiltrados.length} contratos
+              Mostrando {inicioPagina}-{fimPagina} de {gruposFiltrados.length} fornecedores
             </Typography>
             <Pagination
               count={totalPaginas}
