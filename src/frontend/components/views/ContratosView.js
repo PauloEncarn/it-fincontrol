@@ -12,10 +12,14 @@ import {
   DialogTitle,
   Divider,
   Drawer,
+  FormControl,
   Grid,
   IconButton,
+  InputLabel,
   MenuItem,
+  Pagination,
   Paper,
+  Select,
   Stack,
   Table,
   TableBody,
@@ -80,11 +84,13 @@ const competenciaAtual = () => {
   const hoje = new Date();
   return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
 };
+const PAGE_SIZE = 25;
 
 export default function ContratosView({
   contratos,
   filiais,
   fornecedores,
+  onLoadFornecedores,
   lancamentos,
   selectedContrato,
   setSelectedContrato,
@@ -95,6 +101,10 @@ export default function ContratosView({
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(emptyContract);
   const [competencia, setCompetencia] = useState(competenciaAtual());
+  const [expandedGroup, setExpandedGroup] = useState(null);
+  const [busca, setBusca] = useState('');
+  const [statusFiltro, setStatusFiltro] = useState('todos');
+  const [pagina, setPagina] = useState(1);
 
   const lancamentosContrato = useMemo(() => (
     [...(lancamentos || [])].sort((a, b) => String(b.competencia || '').localeCompare(String(a.competencia || '')))
@@ -131,12 +141,53 @@ export default function ContratosView({
       .sort((a, b) => a.fornecedor.localeCompare(b.fornecedor) || a.numeroContrato.localeCompare(b.numeroContrato));
   }, [contratos]);
 
+  const gruposFiltrados = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+
+    return gruposContratos
+      .map((grupo) => {
+        const itens = grupo.itens.filter((contrato) => {
+          const bateStatus = statusFiltro === 'todos' || contrato.status === statusFiltro;
+          if (!bateStatus) return false;
+          if (!termo) return true;
+
+          return [
+            grupo.fornecedor,
+            grupo.numeroContrato,
+            grupo.nomeContrato,
+            contrato.subcontrato_nome,
+            contrato.descricao_servico,
+            contrato.produto_protheus,
+            contrato.servico_protheus,
+            contrato.cnpj_usado,
+            contrato.detalhe,
+          ].some((valor) => String(valor || '').toLowerCase().includes(termo));
+        });
+
+        return itens.length ? { ...grupo, itens } : null;
+      })
+      .filter(Boolean);
+  }, [busca, gruposContratos, statusFiltro]);
+
+  const totalPaginas = Math.max(1, Math.ceil(gruposFiltrados.length / PAGE_SIZE));
+  const gruposPagina = useMemo(() => {
+    const inicio = (pagina - 1) * PAGE_SIZE;
+    return gruposFiltrados.slice(inicio, inicio + PAGE_SIZE);
+  }, [gruposFiltrados, pagina]);
+
+  const resetListagem = () => {
+    setPagina(1);
+    setExpandedGroup(null);
+  };
+
   const abrirNovo = () => {
+    onLoadFornecedores?.();
     setForm({ ...emptyContract, data_inicio: new Date().toISOString().slice(0, 10) });
     setShowModal(true);
   };
 
   const abrirEdicao = (contrato) => {
+    onLoadFornecedores?.();
     setForm({
       ...emptyContract,
       ...contrato,
@@ -206,13 +257,54 @@ export default function ContratosView({
         </Stack>
       </Paper>
 
+      <Paper variant="outlined" sx={{ p: 2 }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', md: 'center' }}>
+          <TextField
+            size="small"
+            label="Buscar contrato"
+            placeholder="Fornecedor, contrato, item, produto ou CNPJ"
+            value={busca}
+            onChange={(e) => {
+              setBusca(e.target.value);
+              resetListagem();
+            }}
+            sx={{ flex: 1 }}
+          />
+          <FormControl size="small" sx={{ minWidth: { xs: '100%', md: 180 } }}>
+            <InputLabel>Status</InputLabel>
+            <Select
+              label="Status"
+              value={statusFiltro}
+              onChange={(e) => {
+                setStatusFiltro(e.target.value);
+                resetListagem();
+              }}
+            >
+              <MenuItem value="todos">Todos</MenuItem>
+              <MenuItem value="Ativo">Ativos</MenuItem>
+              <MenuItem value="Pausado">Pausados</MenuItem>
+              <MenuItem value="Cancelado">Cancelados</MenuItem>
+            </Select>
+          </FormControl>
+          <Typography variant="body2" color="text.secondary" sx={{ minWidth: { md: 220 } }}>
+            {gruposFiltrados.length} contratos encontrados
+          </Typography>
+        </Stack>
+      </Paper>
+
       <Stack spacing={1.25}>
-        {gruposContratos.map((grupo) => {
+        {gruposPagina.map((grupo) => {
           const total = grupo.itens.reduce((acc, item) => acc + Number(item.valor_base_previsto || 0), 0);
           const ativos = grupo.itens.filter((item) => item.status === 'Ativo').length;
+          const isExpanded = expandedGroup === grupo.key;
 
           return (
-            <Accordion key={grupo.key} disableGutters>
+            <Accordion
+              key={grupo.key}
+              disableGutters
+              expanded={isExpanded}
+              onChange={(_, expanded) => setExpandedGroup(expanded ? grupo.key : null)}
+            >
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                 <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ xs: 'flex-start', md: 'center' }} sx={{ width: '100%', minWidth: 0, pr: 1 }}>
                   <Box sx={{ flex: 1, minWidth: 0 }}>

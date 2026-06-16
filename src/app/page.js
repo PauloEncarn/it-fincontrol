@@ -58,6 +58,7 @@ function DashboardContent() {
   const [statusFiltro, setStatusFiltro] = useState([]);
   const [termoBusca, setTermoBusca] = useState('');
   const [selectedContrato, setSelectedContrato] = useState(null);
+  const [contratosPrecisaFornecedores, setContratosPrecisaFornecedores] = useState(false);
 
   // MODAIS
   const [showModal, setShowModal] = useState(false); 
@@ -75,6 +76,8 @@ function DashboardContent() {
   // Limpa a busca ao trocar de aba (Usabilidade)
   useEffect(() => {
     setTermoBusca('');
+    setContratosPrecisaFornecedores(false);
+    setSelectedContrato(null);
   }, [currentView]);
 
   const addToast = useCallback((type, message) => { const id = Date.now(); setToasts(prev => [...prev, { id, type, message }]); setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000); }, []);
@@ -96,7 +99,15 @@ function DashboardContent() {
       queryKey: ['fornecedores'], 
       queryFn: () => axios.get(`${API_URL}/fornecedores/`, authConfig).then(res => res.data), 
       staleTime: 1000 * 60 * 5, // 5 minutos
-      enabled: !!token 
+      enabled: !!token && (
+        currentView === 'notas' ||
+        currentView === 'dashboard' ||
+        currentView === 'solicitacoes' ||
+        currentView === 'fornecedores' ||
+        showModal ||
+        showModalSolicitacao ||
+        contratosPrecisaFornecedores
+      )
   });
   
   const { data: usuarios = [] } = useQuery({ queryKey: ['usuarios'], queryFn: () => axios.get(`${API_URL}/usuarios/`, authConfig).then(res => res.data), enabled: !!token && currentView === 'usuarios' });
@@ -503,6 +514,7 @@ function DashboardContent() {
                                 contratos={contratos}
                                 filiais={filiais}
                                 fornecedores={fornecedores}
+                                onLoadFornecedores={() => setContratosPrecisaFornecedores(true)}
                                 lancamentos={lancamentosContrato}
                                 selectedContrato={selectedContrato}
                                 setSelectedContrato={setSelectedContrato}
