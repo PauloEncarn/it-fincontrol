@@ -104,6 +104,7 @@ function DashboardContent() {
         currentView === 'dashboard' ||
         currentView === 'solicitacoes' ||
         currentView === 'fornecedores' ||
+        currentView === 'subcontratos' ||
         showModal ||
         showModalSolicitacao ||
         contratosPrecisaFornecedores
@@ -143,7 +144,7 @@ function DashboardContent() {
   const { data: contratos = [] } = useQuery({
       queryKey: ['contratos'],
       queryFn: () => axios.get(`${API_URL}/contratos/`, authConfig).then(res => res.data),
-      enabled: !!token && currentView === 'contratos'
+      enabled: !!token && (currentView === 'contratos' || currentView === 'subcontratos')
   });
 
   const { data: lancamentosContrato = [] } = useQuery({
@@ -439,6 +440,7 @@ function DashboardContent() {
       'dashboard': 'Página Inicial',
       'notas': 'Lançamentos',
       'contratos': 'Contratos',
+      'subcontratos': 'Subcontratos',
       'solicitacoes': 'Solicitações de Compra',
       'filiais': 'Gerenciar Filiais',
       'fornecedores': 'Gerenciar Fornecedores',
@@ -514,6 +516,23 @@ function DashboardContent() {
 
                         {currentView === 'contratos' && (
                             <ContratosView
+                                mode="contratos"
+                                contratos={contratos}
+                                filiais={filiais}
+                                fornecedores={fornecedores}
+                                onLoadFornecedores={() => setContratosPrecisaFornecedores(true)}
+                                lancamentos={lancamentosContrato}
+                                selectedContrato={selectedContrato}
+                                setSelectedContrato={setSelectedContrato}
+                                onSalvar={(contrato) => mutationContrato.mutate(contrato)}
+                                onGerarCompetencia={(contratoId, competencia) => mutationGerarCompetencia.mutate({ contratoId, competencia })}
+                                onEditarLancamento={abrirEdicaoLancamento}
+                            />
+                        )}
+
+                        {currentView === 'subcontratos' && (
+                            <ContratosView
+                                mode="subcontratos"
                                 contratos={contratos}
                                 filiais={filiais}
                                 fornecedores={fornecedores}
