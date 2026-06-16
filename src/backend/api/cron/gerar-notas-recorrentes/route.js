@@ -127,7 +127,8 @@ export async function GET(request) {
   const { data: contratos, error } = await supabase
     .from('contratos_mensais')
     .select('*')
-    .eq('status', 'Ativo');
+    .eq('status', 'Ativo')
+    .eq('tipo_contrato', 'Recorrente');
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -144,6 +145,11 @@ export async function GET(request) {
   };
 
   for (const contrato of contratos || []) {
+    if (!contrato.filial_id) {
+      resumo.ignorados += 1;
+      continue;
+    }
+
     for (const mes of mesesCandidatos) {
       if (!contractAllowsCompetencia(contrato, mes)) {
         resumo.ignorados += 1;

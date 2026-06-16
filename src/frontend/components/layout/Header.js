@@ -48,7 +48,7 @@ export default function Header({
     switch (currentView) {
       case 'dashboard': return { titulo: 'Página inicial', sub: 'Visão consolidada' };
       case 'notas': return { titulo: 'Notas fiscais', sub: 'Gestão operacional' };
-      case 'contratos': return { titulo: 'Contratos recorrentes', sub: 'Geradores de notas mensais' };
+      case 'contratos': return { titulo: 'Contratos', sub: 'Recorrentes e avulsos por fornecedor' };
       case 'solicitacoes': return { titulo: 'Solicitações de compra', sub: 'Acompanhamento de pedidos' };
       case 'fornecedores': return { titulo: 'Fornecedores', sub: 'Base de cadastro' };
       case 'filiais': return { titulo: 'Filiais', sub: 'Unidades' };

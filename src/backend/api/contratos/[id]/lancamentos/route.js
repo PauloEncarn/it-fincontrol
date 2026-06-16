@@ -57,6 +57,14 @@ export async function POST(request, context) {
     return NextResponse.json({ error: 'Contrato precisa estar ativo para gerar competência.' }, { status: 400 });
   }
 
+  if (contrato.tipo_contrato === 'Avulso') {
+    return NextResponse.json({ error: 'Contrato avulso não gera competência recorrente.' }, { status: 400 });
+  }
+
+  if (!contrato.filial_id) {
+    return NextResponse.json({ error: 'Informe a filial do contrato antes de gerar nota.' }, { status: 400 });
+  }
+
   const payload = {
     contrato_id: contrato.id,
     competencia,

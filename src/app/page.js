@@ -438,7 +438,7 @@ function DashboardContent() {
   const titulosRodape = {
       'dashboard': 'Página Inicial',
       'notas': 'Lançamentos',
-      'contratos': 'Contratos recorrentes',
+      'contratos': 'Contratos',
       'solicitacoes': 'Solicitações de Compra',
       'filiais': 'Gerenciar Filiais',
       'fornecedores': 'Gerenciar Fornecedores',

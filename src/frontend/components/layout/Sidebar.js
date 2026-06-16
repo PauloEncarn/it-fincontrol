@@ -24,7 +24,7 @@ const drawerWidth = 248;
 const menuItems = [
   { id: 'dashboard', label: 'Página inicial', icon: <DashboardOutlinedIcon /> },
   { id: 'notas', label: 'Notas fiscais', icon: <DescriptionOutlinedIcon /> },
-  { id: 'contratos', label: 'Contratos recorrentes', icon: <CalendarMonthOutlinedIcon /> },
+  { id: 'contratos', label: 'Contratos', icon: <CalendarMonthOutlinedIcon /> },
   { id: 'solicitacoes', label: 'Solicitações', icon: <ShoppingCartOutlinedIcon /> },
   { id: 'fornecedores', label: 'Fornecedores', icon: <GroupOutlinedIcon /> },
   { id: 'filiais', label: 'Filiais', icon: <ApartmentOutlinedIcon /> },
