@@ -101,14 +101,14 @@ export default function ModalLancamento({
 
           {!form.id && (
             <Grid size={{ xs: 12, md: 3 }}>
-              <TextField label="Repetir por meses" type="number" inputProps={{ min: 1, max: 60 }} value={form.repetir_por || 1} onChange={(e) => setForm({ ...form, repetir_por: e.target.value })} fullWidth />
+              <TextField label="Repetir por meses" type="number" slotProps={{ htmlInput: { min: 1, max: 60 } }} value={form.repetir_por || 1} onChange={(e) => setForm({ ...form, repetir_por: e.target.value })} fullWidth />
             </Grid>
           )}
           <Grid size={{ xs: 12, md: 3 }}>
-            <TextField label="Data envio TI" value={formatDateForInput(form.data_envio)} onChange={(e) => setDateField('data_envio', e.target.value)} fullWidth placeholder="dd/mm/aaaa" inputProps={{ inputMode: 'numeric', maxLength: 10 }} />
+            <TextField label="Data envio TI" value={formatDateForInput(form.data_envio)} onChange={(e) => setDateField('data_envio', e.target.value)} fullWidth placeholder="dd/mm/aaaa" slotProps={{ htmlInput: { inputMode: 'numeric', maxLength: 10 } }} />
           </Grid>
           <Grid size={{ xs: 12, md: 3 }}>
-            <TextField label="Vencimento" value={formatDateForInput(form.data_vencimento)} onChange={(e) => setDateField('data_vencimento', e.target.value)} fullWidth required placeholder="dd/mm/aaaa" inputProps={{ inputMode: 'numeric', maxLength: 10 }} />
+            <TextField label="Vencimento" value={formatDateForInput(form.data_vencimento)} onChange={(e) => setDateField('data_vencimento', e.target.value)} fullWidth required placeholder="dd/mm/aaaa" slotProps={{ htmlInput: { inputMode: 'numeric', maxLength: 10 } }} />
           </Grid>
 
           <Grid size={12}>

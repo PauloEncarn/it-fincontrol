@@ -91,6 +91,21 @@ const listValues = (value) => {
   return String(value || '').split(/[;|\n]/).map((item) => item.trim()).filter(Boolean);
 };
 
+const moneyOptionValue = (value) => {
+  const text = String(value ?? '').trim();
+  if (!text) return '';
+  const parsed = Number(text.replace(/\./g, '').replace(',', '.'));
+  return Number.isNaN(parsed) ? text : String(parsed);
+};
+
+const buildContratoDetalhe = (form) => [
+  form.contrato_usado && `Contrato: ${form.contrato_usado}`,
+  form.descricao_servico && `Serviço: ${form.descricao_servico}`,
+  form.produto_protheus && `Produto Protheus: ${form.produto_protheus}`,
+  form.centro_custo_usado && `Centro de custo: ${form.centro_custo_usado}`,
+  form.valor_base_previsto && `Valor previsto: ${currency(form.valor_base_previsto)}`,
+].filter(Boolean).join(' | ');
+
 export default function ContratosView({
   contratos,
   filiais,
@@ -118,6 +133,9 @@ export default function ContratosView({
     cnpjs: listValues(fornecedorSelecionado?.lista_cnpjs),
     contratos: listValues(fornecedorSelecionado?.lista_contratos),
     centros: listValues(fornecedorSelecionado?.lista_centro_custos),
+    servicos: listValues(fornecedorSelecionado?.lista_servicos),
+    produtos: listValues(fornecedorSelecionado?.lista_produtos_protheus),
+    valores: listValues(fornecedorSelecionado?.lista_valores),
   }), [fornecedorSelecionado]);
 
   const lancamentosContrato = useMemo(() => (
@@ -223,41 +241,65 @@ export default function ContratosView({
       cnpj_usado: fornecedor ? first(fornecedor.lista_cnpjs) : '',
       contrato_usado: fornecedor ? first(fornecedor.lista_contratos) : '',
       centro_custo_usado: fornecedor ? first(fornecedor.lista_centro_custos) : '',
-      descricao_servico: fornecedor?.padrao_descricao_servico || prev.descricao_servico,
-      servico_protheus: fornecedor?.padrao_servico_protheus || prev.servico_protheus,
+      descricao_servico: fornecedor ? first(fornecedor.lista_servicos) : '',
+      produto_protheus: fornecedor ? first(fornecedor.lista_produtos_protheus) : '',
+      valor_base_previsto: fornecedor ? moneyOptionValue(first(fornecedor.lista_valores)) : '',
     }));
   };
 
   const handleSalvar = () => {
-    onSalvar(form);
+    onSalvar({ ...form, detalhe: buildContratoDetalhe(form) });
     setShowModal(false);
   };
 
   const renderListField = (label, field, options) => {
-    if (!options.length) {
-      return (
-        <TextField
-          label={label}
-          value={form[field] || ''}
-          onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-          fullWidth
-        />
-      );
-    }
+    const currentValue = form[field] || '';
+    const currentOutsideList = currentValue && !options.includes(currentValue);
 
     return (
       <TextField
         select
         label={label}
-        value={form[field] || ''}
+        value={currentValue}
         onChange={(e) => setForm({ ...form, [field]: e.target.value })}
         fullWidth
-        helperText="Opções cadastradas no fornecedor"
+        helperText={options.length ? 'Opções cadastradas no fornecedor' : 'Cadastre as opções no fornecedor'}
         required={field === 'cnpj_usado'}
       >
-        <MenuItem value="">Selecione...</MenuItem>
+        <MenuItem value="">{options.length ? 'Selecione...' : 'Sem opções cadastradas'}</MenuItem>
+        {currentOutsideList && (
+          <MenuItem value={currentValue}>{currentValue} (fora da lista)</MenuItem>
+        )}
         {options.map((opcao) => (
           <MenuItem key={opcao} value={opcao}>{opcao}</MenuItem>
+        ))}
+      </TextField>
+    );
+  };
+
+  const renderValorField = () => {
+    const opcoes = opcoesSelecionadas.valores.map((valor) => ({
+      label: valor,
+      value: moneyOptionValue(valor),
+    }));
+    const currentValue = form.valor_base_previsto || '';
+    const currentOutsideList = currentValue && !opcoes.some((opcao) => opcao.value === currentValue);
+
+    return (
+      <TextField
+        select
+        label="Valor previsto"
+        value={currentValue}
+        onChange={(e) => setForm({ ...form, valor_base_previsto: e.target.value })}
+        fullWidth
+        helperText={opcoes.length ? 'Valores cadastrados no fornecedor' : 'Cadastre os valores no fornecedor'}
+      >
+        <MenuItem value="">{opcoes.length ? 'Selecione...' : 'Sem valores cadastrados'}</MenuItem>
+        {currentOutsideList && (
+          <MenuItem value={currentValue}>{currency(currentValue)} (fora da lista)</MenuItem>
+        )}
+        {opcoes.map((opcao) => (
+          <MenuItem key={opcao.label} value={opcao.value}>{opcao.label}</MenuItem>
         ))}
       </TextField>
     );
@@ -391,7 +433,7 @@ export default function ContratosView({
                             </Typography>
                             <Chip size="small" variant="outlined" label={contrato.tipo_contrato || 'Recorrente'} sx={{ mt: 0.5, mb: 0.5, height: 20, fontSize: 11 }} />
                             <Typography variant="caption" color="text.secondary">
-                              {contrato.subcontrato_nome || contrato.nome_contrato || contrato.descricao_servico || 'Contrato'}
+                              {contrato.nome_contrato || contrato.descricao_servico || 'Contrato'}
                             </Typography>
                             <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                               {contrato.detalhe || contrato.centro_custo_usado || '-'}
@@ -564,7 +606,7 @@ export default function ContratosView({
         {selectedContrato && (
           <Stack spacing={2} sx={{ p: 2.5 }}>
             <Box>
-              <Typography variant="h6" fontWeight={800}>{selectedContrato.subcontrato_nome || selectedContrato.descricao_servico || 'Contrato'}</Typography>
+              <Typography variant="h6" fontWeight={800}>{selectedContrato.nome_contrato || selectedContrato.descricao_servico || 'Contrato'}</Typography>
               <Typography variant="body2" color="text.secondary">
                 {selectedContrato.fornecedor?.nome_empresa || '-'} | Contrato {selectedContrato.contrato_usado || '-'}
               </Typography>
@@ -654,33 +696,44 @@ export default function ContratosView({
               </TextField>
             </Grid>
             <Grid size={{ xs: 12, md: 4 }}>
-              <TextField label="Nome do contrato" value={form.nome_contrato || ''} onChange={(e) => setForm({ ...form, nome_contrato: e.target.value })} fullWidth />
-            </Grid>
-            <Grid size={{ xs: 12, md: 4 }}>
               {renderListField('Contrato usado', 'contrato_usado', opcoesSelecionadas.contratos)}
             </Grid>
             <Grid size={{ xs: 12, md: 4 }}>
-              <TextField label="Item / serviço" value={form.subcontrato_nome || ''} onChange={(e) => setForm({ ...form, subcontrato_nome: e.target.value })} fullWidth />
+              {renderListField('Serviço', 'descricao_servico', opcoesSelecionadas.servicos)}
             </Grid>
             <Grid size={{ xs: 12, md: 4 }}>
-              <TextField label="Produto Protheus" value={form.produto_protheus || ''} onChange={(e) => setForm({ ...form, produto_protheus: e.target.value })} fullWidth />
+              {renderListField('Produto Protheus', 'produto_protheus', opcoesSelecionadas.produtos)}
             </Grid>
             <Grid size={{ xs: 12, md: 4 }}>
               {renderListField('Centro de custo', 'centro_custo_usado', opcoesSelecionadas.centros)}
             </Grid>
             <Grid size={{ xs: 12, md: 4 }}>
-              <TextField label="Valor base previsto" type="number" value={form.valor_base_previsto || ''} onChange={(e) => setForm({ ...form, valor_base_previsto: e.target.value })} fullWidth />
+              {renderValorField()}
             </Grid>
             <Grid size={{ xs: 12, md: 4 }}>
-              <TextField label="Dia padrão de vencimento" type="number" inputProps={{ min: 1, max: 31 }} value={form.dia_vencimento || 1} onChange={(e) => setForm({ ...form, dia_vencimento: e.target.value })} fullWidth />
+              <TextField
+                label="Data de início"
+                type="date"
+                value={form.data_inicio || ''}
+                onChange={(e) => setForm({ ...form, data_inicio: e.target.value })}
+                fullWidth
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                label="Dia padrão de vencimento"
+                type="number"
+                value={form.dia_vencimento || 1}
+                onChange={(e) => setForm({ ...form, dia_vencimento: e.target.value })}
+                fullWidth
+                slotProps={{ htmlInput: { min: 1, max: 31 } }}
+              />
             </Grid>
             <Grid size={{ xs: 12, md: 4 }}>
               <TextField select label="Status" value={form.status || 'Ativo'} onChange={(e) => setForm({ ...form, status: e.target.value })} fullWidth>
                 {['Ativo', 'Pausado', 'Cancelado'].map((status) => <MenuItem key={status} value={status}>{status}</MenuItem>)}
               </TextField>
-            </Grid>
-            <Grid size={{ xs: 12, md: 4 }}>
-              <TextField label="Data início" type="date" value={form.data_inicio || ''} onChange={(e) => setForm({ ...form, data_inicio: e.target.value })} fullWidth InputLabelProps={{ shrink: true }} />
             </Grid>
             <Grid size={{ xs: 12, md: 4 }}>
               <TextField select label="Fluxo" value={form.fluxo_lancamento || 'manual'} onChange={(e) => setForm({ ...form, fluxo_lancamento: e.target.value })} fullWidth>
@@ -689,29 +742,19 @@ export default function ContratosView({
                   ['fluig', 'Fluig'],
                   ['gopa', 'GOPA'],
                   ['email', 'E-mail'],
+                  ['job_mensal', 'Job mensal'],
                 ].map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
               </TextField>
             </Grid>
-            <Grid size={{ xs: 12, md: 4 }}>
-              <TextField label="Responsável interno" value={form.responsavel_interno || ''} onChange={(e) => setForm({ ...form, responsavel_interno: e.target.value })} fullWidth />
-            </Grid>
-            <Grid size={{ xs: 12, md: 4 }}>
-              <TextField label="E-mail destino" value={form.email_destino || ''} onChange={(e) => setForm({ ...form, email_destino: e.target.value })} fullWidth />
-            </Grid>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <TextField label="Descrição / serviço" value={form.descricao_servico || ''} onChange={(e) => setForm({ ...form, descricao_servico: e.target.value })} fullWidth />
-            </Grid>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <TextField label="Serviço Protheus" value={form.servico_protheus || ''} onChange={(e) => setForm({ ...form, servico_protheus: e.target.value })} fullWidth />
-            </Grid>
             <Grid size={12}>
-              <TextField label="Detalhe do contrato" value={form.detalhe || ''} onChange={(e) => setForm({ ...form, detalhe: e.target.value })} multiline minRows={2} fullWidth />
-            </Grid>
-            <Grid size={12}>
-              <TextField label="Regra de lançamento" value={form.regra_lancamento || ''} onChange={(e) => setForm({ ...form, regra_lancamento: e.target.value })} multiline minRows={2} fullWidth />
-            </Grid>
-            <Grid size={12}>
-              <TextField label="Observação" value={form.observacao || ''} onChange={(e) => setForm({ ...form, observacao: e.target.value })} multiline minRows={3} fullWidth />
+              <Paper variant="outlined" sx={{ p: 1.5, bgcolor: 'background.default' }}>
+                <Typography variant="caption" color="text.secondary" fontWeight={800}>
+                  Resumo do contrato
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 0.75 }}>
+                  {buildContratoDetalhe(form) || 'Selecione as informações do contrato para montar o resumo.'}
+                </Typography>
+              </Paper>
             </Grid>
           </Grid>
         </DialogContent>

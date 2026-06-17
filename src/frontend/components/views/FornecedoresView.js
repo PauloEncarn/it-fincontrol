@@ -7,7 +7,6 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  Divider,
   Grid,
   IconButton,
   InputAdornment,
@@ -35,6 +34,9 @@ const emptyForm = {
   lista_cnpjs: '',
   lista_contratos: '',
   lista_centro_custos: '',
+  lista_servicos: '',
+  lista_produtos_protheus: '',
+  lista_valores: '',
   padrao_descricao_servico: '',
   padrao_servico_protheus: '',
 };
@@ -58,6 +60,28 @@ function ListCell({ value, maxChips = 3 }) {
         <Chip key={item} size="small" variant="outlined" label={item} />
       ))}
       {itens.length > maxChips && <Chip size="small" label={`+${itens.length - maxChips}`} />}
+    </Stack>
+  );
+}
+
+function CatalogoResumo({ fornecedor }) {
+  const grupos = [
+    ['Centros', fornecedor.lista_centro_custos],
+    ['Serviços', fornecedor.lista_servicos],
+    ['Produtos', fornecedor.lista_produtos_protheus],
+    ['Valores', fornecedor.lista_valores],
+  ];
+
+  return (
+    <Stack spacing={0.75} sx={{ minWidth: 220 }}>
+      {grupos.map(([label, value]) => (
+        <Box key={label}>
+          <Typography variant="caption" color="text.secondary" fontWeight={800}>
+            {label}
+          </Typography>
+          <ListCell value={value} maxChips={2} />
+        </Box>
+      ))}
     </Stack>
   );
 }
@@ -92,6 +116,9 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
       lista_cnpjs: listText(item.lista_cnpjs),
       lista_contratos: listText(item.lista_contratos),
       lista_centro_custos: listText(item.lista_centro_custos),
+      lista_servicos: listText(item.lista_servicos),
+      lista_produtos_protheus: listText(item.lista_produtos_protheus),
+      lista_valores: listText(item.lista_valores),
     });
     setShowModal(true);
   };
@@ -103,6 +130,9 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
       lista_cnpjs: listValues(form.lista_cnpjs),
       lista_contratos: listValues(form.lista_contratos),
       lista_centro_custos: listValues(form.lista_centro_custos),
+      lista_servicos: listValues(form.lista_servicos),
+      lista_produtos_protheus: listValues(form.lista_produtos_protheus),
+      lista_valores: listValues(form.lista_valores),
     });
     setShowModal(false);
   };
@@ -130,7 +160,7 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
                 setTermo(e.target.value);
                 setPagina(1);
               }}
-              InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
+              slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> } }}
             />
             <Button variant="contained" startIcon={<AddIcon />} onClick={abrirNovo}>
               Novo fornecedor
@@ -143,10 +173,10 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Empresa</TableCell>
+              <TableCell>Nome fantasia</TableCell>
               <TableCell>CNPJs</TableCell>
               <TableCell>Contratos</TableCell>
-              <TableCell>Centros de custo</TableCell>
+              <TableCell>Catálogos do fornecedor</TableCell>
               <TableCell align="right">Ações</TableCell>
             </TableRow>
           </TableHead>
@@ -160,8 +190,8 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
                 <TableCell>
                   <ListCell value={fornecedor.lista_contratos} maxChips={2} />
                 </TableCell>
-                <TableCell sx={{ maxWidth: 220 }}>
-                  <ListCell value={fornecedor.lista_centro_custos} />
+                <TableCell>
+                  <CatalogoResumo fornecedor={fornecedor} />
                 </TableCell>
                 <TableCell align="right">
                   <IconButton color="primary" onClick={() => abrirEdicao(fornecedor)} aria-label="Editar fornecedor">
@@ -205,8 +235,16 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
         <DialogTitle>{form.id ? 'Editar fornecedor' : 'Novo fornecedor'}</DialogTitle>
         <DialogContent>
           <Stack spacing={2.5} sx={{ pt: 1 }}>
-            <TextField label="Nome da empresa" value={form.nome_empresa} onChange={(e) => setForm({ ...form, nome_empresa: e.target.value })} autoFocus fullWidth />
+            <TextField label="Nome fantasia" value={form.nome_empresa} onChange={(e) => setForm({ ...form, nome_empresa: e.target.value })} autoFocus fullWidth />
 
+            <Box>
+              <Typography variant="subtitle2" fontWeight={900} color="primary" sx={{ mb: 1 }}>
+                Identificação e contratos
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Essas listas alimentam os campos selecionáveis no cadastro de contrato.
+              </Typography>
+            </Box>
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, md: 6 }}>
                 <TextField label="Lista de CNPJs" value={form.lista_cnpjs || ''} onChange={(e) => setForm({ ...form, lista_cnpjs: e.target.value })} multiline minRows={3} fullWidth helperText="Um por linha, ou separe por ;" />
@@ -214,24 +252,31 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
               <Grid size={{ xs: 12, md: 6 }}>
                 <TextField label="Lista de contratos" value={form.lista_contratos || ''} onChange={(e) => setForm({ ...form, lista_contratos: e.target.value })} multiline minRows={3} fullWidth helperText="Um por linha, ou separe por ;" />
               </Grid>
+            </Grid>
+
+            <Box>
+              <Typography variant="subtitle2" fontWeight={900} color="primary" sx={{ mb: 1 }}>
+                Catálogos para contratos
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Cadastre aqui o que poderá ser escolhido em cada contrato desse fornecedor.
+              </Typography>
+            </Box>
+            <Grid container spacing={2}>
               <Grid size={12}>
                 <TextField label="Lista de centros de custo" value={form.lista_centro_custos || ''} onChange={(e) => setForm({ ...form, lista_centro_custos: e.target.value })} multiline minRows={2} fullWidth helperText="Um por linha, ou separe por ;" />
               </Grid>
-            </Grid>
-
-            <Divider />
-
-            <Typography variant="subtitle2" color="primary" fontWeight={800}>
-              Preenchimento automático
-            </Typography>
-            <Grid container spacing={2}>
               <Grid size={{ xs: 12, md: 6 }}>
-                <TextField label="Descrição padrão" value={form.padrao_descricao_servico || ''} onChange={(e) => setForm({ ...form, padrao_descricao_servico: e.target.value })} fullWidth />
+                <TextField label="Lista de serviços" value={form.lista_servicos || ''} onChange={(e) => setForm({ ...form, lista_servicos: e.target.value })} multiline minRows={3} fullWidth helperText="Um por linha, ou separe por ;" />
               </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
-                <TextField label="Serviço Protheus" value={form.padrao_servico_protheus || ''} onChange={(e) => setForm({ ...form, padrao_servico_protheus: e.target.value })} fullWidth />
+                <TextField label="Lista de produtos Protheus" value={form.lista_produtos_protheus || ''} onChange={(e) => setForm({ ...form, lista_produtos_protheus: e.target.value })} multiline minRows={3} fullWidth helperText="Um por linha, ou separe por ;" />
+              </Grid>
+              <Grid size={12}>
+                <TextField label="Lista de valores possíveis" value={form.lista_valores || ''} onChange={(e) => setForm({ ...form, lista_valores: e.target.value })} multiline minRows={2} fullWidth helperText="Um por linha, ou separe por ;" />
               </Grid>
             </Grid>
+
           </Stack>
         </DialogContent>
         <DialogActions>

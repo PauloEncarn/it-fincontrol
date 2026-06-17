@@ -147,6 +147,7 @@ export default function LoginScreen({ onLogin, addToast }) {
                   value={formData.username}
                   onChange={handleChange}
                   autoFocus={!isRegistering}
+                  autoComplete="username"
                   required
                   fullWidth
                 />
@@ -156,6 +157,7 @@ export default function LoginScreen({ onLogin, addToast }) {
                   value={formData.password}
                   onChange={handleChange}
                   type="password"
+                  autoComplete={isRegistering ? 'new-password' : 'current-password'}
                   required
                   fullWidth
                 />

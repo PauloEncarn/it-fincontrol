@@ -16,6 +16,15 @@ export const listValues = (value) => {
   return String(value).split(/[;|\n]/).map((item) => item.trim()).filter(Boolean);
 };
 
+const normalizeMoneyText = (value) => {
+  const text = String(value ?? '').trim();
+  if (!text) return '';
+  const normalized = text.replace(/\./g, '').replace(',', '.');
+  const number = Number(normalized);
+  if (Number.isNaN(number)) return text;
+  return String(number);
+};
+
 export const payloadFromBody = (body) => ({
   fornecedor_id: numberOrNull(body.fornecedor_id),
   filial_id: numberOrNull(body.filial_id),
@@ -49,7 +58,7 @@ export async function validateFornecedorLists(supabase, payload) {
 
   const { data: fornecedor, error } = await supabase
     .from('fornecedores')
-    .select('id, lista_cnpjs, lista_contratos, lista_centro_custos')
+    .select('id, lista_cnpjs, lista_contratos, lista_centro_custos, lista_servicos, lista_produtos_protheus, lista_valores')
     .eq('id', payload.fornecedor_id)
     .single();
 
@@ -65,6 +74,9 @@ export async function validateFornecedorLists(supabase, payload) {
     ['CNPJ', payload.cnpj_usado, cnpjs],
     ['Contrato', payload.contrato_usado, listValues(fornecedor.lista_contratos)],
     ['Centro de custo', payload.centro_custo_usado, listValues(fornecedor.lista_centro_custos)],
+    ['Serviço', payload.descricao_servico, listValues(fornecedor.lista_servicos)],
+    ['Produto Protheus', payload.produto_protheus, listValues(fornecedor.lista_produtos_protheus)],
+    ['Valor previsto', payload.valor_base_previsto ? normalizeMoneyText(payload.valor_base_previsto) : '', listValues(fornecedor.lista_valores).map(normalizeMoneyText)],
   ];
 
   for (const [label, selected, allowed] of checks) {

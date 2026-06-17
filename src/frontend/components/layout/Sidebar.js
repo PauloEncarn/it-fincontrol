@@ -79,7 +79,7 @@ function DrawerContent({ currentView, setActiveView, onClose, onLogout }) {
               </ListItemIcon>
               <ListItemText
                 primary={item.label}
-                primaryTypographyProps={{ fontSize: 14, fontWeight: selected ? 600 : 400 }}
+                slotProps={{ primary: { fontSize: 14, fontWeight: selected ? 600 : 400 } }}
               />
             </ListItemButton>
           );
@@ -93,7 +93,7 @@ function DrawerContent({ currentView, setActiveView, onClose, onLogout }) {
           <ListItemIcon sx={{ minWidth: 36, color: 'error.main' }}>
             <LogoutOutlinedIcon />
           </ListItemIcon>
-          <ListItemText primary="Sair" primaryTypographyProps={{ fontSize: 14, fontWeight: 600 }} />
+          <ListItemText primary="Sair" slotProps={{ primary: { fontSize: 14, fontWeight: 600 } }} />
         </ListItemButton>
       </Box>
     </Box>

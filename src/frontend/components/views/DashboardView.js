@@ -258,22 +258,22 @@ export default function DashboardView({ notas, filiais }) {
 
         <Box sx={{ p: 2.5 }}>
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6} lg={2}>
+            <Grid size={{ xs: 12, sm: 6, lg: 2 }}>
               <KpiCard title="Notas do mês" value={dadosNotas.length} detail={formatCurrency(valorMes)} icon={<ReceiptLongOutlinedIcon />} />
             </Grid>
-            <Grid item xs={12} sm={6} lg={2}>
+            <Grid size={{ xs: 12, sm: 6, lg: 2 }}>
               <KpiCard title="Aberto" value={formatCurrency(totalAberto)} detail={`${abertas.length} notas em aberto`} icon={<PaidOutlinedIcon />} tone="warning" />
             </Grid>
-            <Grid item xs={12} sm={6} lg={2}>
+            <Grid size={{ xs: 12, sm: 6, lg: 2 }}>
               <KpiCard title="Críticas" value={vencendoCriticas.length} detail="Vencidas ou até 10 dias" icon={<ErrorOutlineOutlinedIcon />} tone="error" />
             </Grid>
-            <Grid item xs={12} sm={6} lg={2}>
+            <Grid size={{ xs: 12, sm: 6, lg: 2 }}>
               <KpiCard title="Contingência" value={contingencias.length} detail="Problemas ou sem saldo" icon={<ReportProblemOutlinedIcon />} tone="error" />
             </Grid>
-            <Grid item xs={12} sm={6} lg={2}>
+            <Grid size={{ xs: 12, sm: 6, lg: 2 }}>
               <KpiCard title="GOPA" value={aguardandoGopa.length} detail="Aguardando confirmação" icon={<AccountTreeOutlinedIcon />} tone="secondary" />
             </Grid>
-            <Grid item xs={12} sm={6} lg={2}>
+            <Grid size={{ xs: 12, sm: 6, lg: 2 }}>
               <KpiCard title="Concluídas" value={`${percentualConcluido}%`} detail={`${concluidas.length} notas finalizadas`} icon={<AssignmentTurnedInOutlinedIcon />} tone="success" />
             </Grid>
           </Grid>
@@ -281,7 +281,7 @@ export default function DashboardView({ notas, filiais }) {
       </Paper>
 
       <Grid container spacing={2}>
-        <Grid item xs={12} lg={7}>
+        <Grid size={{ xs: 12, lg: 7 }}>
           <Paper variant="outlined" sx={{ p: 2, height: '100%' }}>
             <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
               <SectionTitle title="Críticas agora" subtitle="Vencidas ou com até 10 dias para pagamento" />
@@ -303,7 +303,7 @@ export default function DashboardView({ notas, filiais }) {
           </Paper>
         </Grid>
 
-        <Grid item xs={12} lg={5}>
+        <Grid size={{ xs: 12, lg: 5 }}>
           <Paper variant="outlined" sx={{ p: 2, height: '100%' }}>
             <SectionTitle title="Próximas ações" subtitle="Fila objetiva para destravar o mês" />
             <Stack spacing={1.25} sx={{ mt: 2 }}>
@@ -325,7 +325,7 @@ export default function DashboardView({ notas, filiais }) {
       </Grid>
 
       <Grid container spacing={2}>
-        <Grid item xs={12} lg={6}>
+        <Grid size={{ xs: 12, lg: 6 }}>
           <Paper variant="outlined" sx={{ p: 2 }}>
             <SectionTitle title="Fornecedores em atenção" subtitle="Prioridade por vencimento, contingência e ausência de anexos" />
             <Stack spacing={1.25} sx={{ mt: 2 }}>
@@ -356,7 +356,7 @@ export default function DashboardView({ notas, filiais }) {
           </Paper>
         </Grid>
 
-        <Grid item xs={12} lg={6}>
+        <Grid size={{ xs: 12, lg: 6 }}>
           <Paper variant="outlined" sx={{ p: 2 }}>
             <SectionTitle title="Pendências de documentos" subtitle="Notas sem nota fiscal ou boleto anexado" />
             <Stack spacing={1} sx={{ mt: 2 }}>

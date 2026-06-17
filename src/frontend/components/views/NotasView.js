@@ -435,7 +435,7 @@ export default function NotasView({
           }}
           fullWidth
           placeholder={options.mask === 'date' ? 'dd/mm/aaaa' : undefined}
-          inputProps={options.mask === 'date' ? { inputMode: 'numeric', maxLength: 10 } : undefined}
+          slotProps={options.mask === 'date' ? { htmlInput: { inputMode: 'numeric', maxLength: 10 } } : undefined}
         />
       );
     }
@@ -901,31 +901,31 @@ export default function NotasView({
 
         <AccordionDetails sx={{ bgcolor: '#faf9f8', borderTop: '1px solid', borderColor: 'divider' }}>
           <Grid container spacing={1.25} sx={{ mb: 1.5 }}>
-            <Grid item xs={6} md={2.4}>
+            <Grid size={{ xs: 6, md: 2.4 }}>
               <Paper variant="outlined" sx={{ p: 1.25 }}>
                 <Typography variant="caption" color="text.secondary" fontWeight={800}>Abertas</Typography>
                 <Typography variant="h6" fontWeight={900}>{resumo.abertas.length}</Typography>
               </Paper>
             </Grid>
-            <Grid item xs={6} md={2.4}>
+            <Grid size={{ xs: 6, md: 2.4 }}>
               <Paper variant="outlined" sx={{ p: 1.25 }}>
                 <Typography variant="caption" color="text.secondary" fontWeight={800}>Críticas</Typography>
                 <Typography variant="h6" fontWeight={900} color={resumo.criticas.length ? 'error.main' : 'success.main'}>{resumo.criticas.length}</Typography>
               </Paper>
             </Grid>
-            <Grid item xs={6} md={2.4}>
+            <Grid size={{ xs: 6, md: 2.4 }}>
               <Paper variant="outlined" sx={{ p: 1.25 }}>
                 <Typography variant="caption" color="text.secondary" fontWeight={800}>Sem docs</Typography>
                 <Typography variant="h6" fontWeight={900} color={resumo.semAnexo.length ? 'warning.main' : 'success.main'}>{resumo.semAnexo.length}</Typography>
               </Paper>
             </Grid>
-            <Grid item xs={6} md={2.4}>
+            <Grid size={{ xs: 6, md: 2.4 }}>
               <Paper variant="outlined" sx={{ p: 1.25 }}>
                 <Typography variant="caption" color="text.secondary" fontWeight={800}>Contingência</Typography>
                 <Typography variant="h6" fontWeight={900} color={resumo.contingencias.length ? 'error.main' : 'success.main'}>{resumo.contingencias.length}</Typography>
               </Paper>
             </Grid>
-            <Grid item xs={6} md={2.4}>
+            <Grid size={{ xs: 6, md: 2.4 }}>
               <Paper variant="outlined" sx={{ p: 1.25 }}>
                 <Typography variant="caption" color="text.secondary" fontWeight={800}>Concluídas</Typography>
                 <Typography variant="h6" fontWeight={900} color="success.main">{resumo.concluidas.length}</Typography>
@@ -1034,7 +1034,7 @@ export default function NotasView({
               label="Competência"
               value={competencia.toISOString().slice(0, 7)}
               onChange={handleDateChange}
-              InputProps={{ startAdornment: <CalendarMonthOutlinedIcon color="action" sx={{ mr: 1 }} /> }}
+              slotProps={{ input: { startAdornment: <CalendarMonthOutlinedIcon color="action" sx={{ mr: 1 }} /> } }}
             />
             <ToggleButtonGroup
               exclusive

@@ -67,7 +67,7 @@ export default function UsuariosView({ usuarios, onCriarUsuario, onToggleStatus,
               placeholder="Buscar usuário"
               value={termo}
               onChange={(e) => setTermo(e.target.value)}
-              InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
+              slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> } }}
             />
             <Button variant="contained" startIcon={<AddIcon />} onClick={() => setShowModal(true)}>
               Novo usuário
@@ -136,7 +136,7 @@ export default function UsuariosView({ usuarios, onCriarUsuario, onToggleStatus,
               <TextField label="Usuário" value={formUser.username} onChange={(e) => setFormUser({ ...formUser, username: e.target.value })} fullWidth />
             </Grid>
             <Grid size={12}>
-              <TextField label="Senha" type="password" value={formUser.password} onChange={(e) => setFormUser({ ...formUser, password: e.target.value })} fullWidth />
+              <TextField label="Senha" type="password" autoComplete="new-password" value={formUser.password} onChange={(e) => setFormUser({ ...formUser, password: e.target.value })} fullWidth />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField label="Setor" value={formUser.setor} onChange={(e) => setFormUser({ ...formUser, setor: e.target.value })} fullWidth />

@@ -129,12 +129,14 @@ export default function Header({
             onChange={(event) => setTermoBusca(event.target.value)}
             placeholder="Pesquisar nesta lista"
             sx={{ width: { xs: 1, md: 340 }, display: { xs: 'none', sm: 'block' } }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" />
-                </InputAdornment>
-              ),
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              },
             }}
           />
         )}
@@ -201,19 +203,20 @@ export default function Header({
                 {notificationItems.map((notificacao) => (
                   <ListItemButton
                     key={notificacao.key || `${notificacao.id}-${notificacao.title}`}
-                    alignItems="flex-start"
                     onClick={() => {
                       setNotificationAnchor(null);
                       onNotificationClick?.(notificacao);
                     }}
-                    sx={{ gap: 1, py: 1.25 }}
+                    sx={{ alignItems: 'flex-start', gap: 1, py: 1.25 }}
                   >
                     <Box sx={{ pt: 0.35 }}>{getNotificationIcon(notificacao.severity)}</Box>
                     <ListItemText
                       primary={notificacao.title}
                       secondary={notificacao.description}
-                      primaryTypographyProps={{ fontWeight: 800, variant: 'body2' }}
-                      secondaryTypographyProps={{ variant: 'caption' }}
+                      slotProps={{
+                        primary: { fontWeight: 800, variant: 'body2' },
+                        secondary: { variant: 'caption' },
+                      }}
                     />
                   </ListItemButton>
                 ))}

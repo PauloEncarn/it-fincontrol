@@ -70,7 +70,7 @@ export default function FiliaisView({ filiais, onSalvar, onExcluir }) {
               placeholder="Buscar filial"
               value={termo}
               onChange={(e) => setTermo(e.target.value)}
-              InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
+              slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> } }}
             />
             <Button variant="contained" startIcon={<AddIcon />} onClick={abrirNovo}>
               Nova filial

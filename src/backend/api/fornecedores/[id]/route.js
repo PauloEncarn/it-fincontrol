@@ -20,6 +20,9 @@ const payloadFromBody = (body) => ({
   lista_cnpjs: toList(body.lista_cnpjs),
   lista_contratos: toList(body.lista_contratos),
   lista_centro_custos: toList(body.lista_centro_custos),
+  lista_servicos: toList(body.lista_servicos),
+  lista_produtos_protheus: toList(body.lista_produtos_protheus),
+  lista_valores: toList(body.lista_valores),
 });
 
 export async function PUT(request, context) {
