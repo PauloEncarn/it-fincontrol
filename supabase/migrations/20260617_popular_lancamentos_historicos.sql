@@ -12,31 +12,7 @@ create index if not exists idx_lancamentos_contrato_competencia
   on public.lancamentos (contrato_id, competencia)
   where contrato_id is not null and competencia is not null;
 
-create temporary table tmp_lancamentos_historicos (
-  fornecedor_nome text not null,
-  contrato_usado text not null,
-  contrato_original text,
-  contrato_novo text,
-  filial_codigo text,
-  centro_custo_usado text,
-  descricao_servico text,
-  servico_protheus text,
-  numero_nota text not null,
-  valor numeric(14, 2) not null,
-  data_vencimento date not null,
-  data_envio date,
-  competencia text not null,
-  numero_medicao text,
-  numero_pedido text,
-  solicitacao_fluig text,
-  status_sharepoint text,
-  observacao text,
-  observacao_protheus text,
-  recebimento text,
-  recibo_provisorio text
-);
-
-insert into tmp_lancamentos_historicos (
+with tmp_lancamentos_historicos (
   fornecedor_nome,
   contrato_usado,
   contrato_original,
@@ -58,9 +34,9 @@ insert into tmp_lancamentos_historicos (
   observacao_protheus,
   recebimento,
   recibo_provisorio
-)
+) as (
 values
-  ('G7 TECNOLOGIA', '201177', '200659', '201177', '010101', '20301', 'DBA ORACLE E SUPORTE SIMPLIVITY', '13010021 - SERVICO DE MANUTENCAO DE SOFTWARE', '4145', 2499.49, '2025-08-14', '2025-08-05', '2025-08', '012392', '511188', '7227', 'CONCLUÍDA', null, 'G7 TECNOLOGIA: DBA ORACLE E SUPORTE SIMPLIVITY | CPF/CNPJ: ? | NF: 4145 | Valor R$: 2499,49 | Vencimento: 14/08/2025', 'E-MAIL', '1976'),
+  ('G7 TECNOLOGIA'::text, '201177'::text, '200659'::text, '201177'::text, '010101'::text, '20301'::text, 'DBA ORACLE E SUPORTE SIMPLIVITY'::text, '13010021 - SERVICO DE MANUTENCAO DE SOFTWARE'::text, '4145'::text, 2499.49::numeric(14, 2), '2025-08-14'::date, '2025-08-05'::date, '2025-08'::text, '012392'::text, '511188'::text, '7227'::text, 'CONCLUÍDA'::text, null::text, 'G7 TECNOLOGIA: DBA ORACLE E SUPORTE SIMPLIVITY | CPF/CNPJ: ? | NF: 4145 | Valor R$: 2499,49 | Vencimento: 14/08/2025'::text, 'E-MAIL'::text, '1976'::text),
   ('LOCAWEB', '201184', null, '201184', '010101', '20301', 'MENSALIDADE', '13010007 - SERVICO DE TELEFONIA', '11057971', 228.00, '2025-08-10', '2025-08-04', '2025-08', '012365', '511111', '7130', 'CONCLUÍDA', null, 'LOCAWEB: MENSALIDADE | CPF/CNPJ: ? | NF: 11057971 | Valor R$: 228,00 | Vencimento: 10/08/2025', 'SITE', '33301727'),
   ('LOCAWEB', '201184', null, '201184', '010101', '20301', 'MENSALIDADE', '13010007 - SERVICO DE TELEFONIA', '11057639', 219.65, '2025-08-10', '2025-08-04', '2025-08', '012369', '511114', '7131', 'CONCLUÍDA', null, 'LOCAWEB: MENSALIDADE | CPF/CNPJ: ? | NF: 11057639 | Valor R$: 219,65 | Vencimento: 10/08/2025', 'SITE', '33301395'),
   ('MERCANET', '201232', '200557', '201232', '010101', '30106', 'CONTRATO MERCANET SAAS REF. PROMOTORES', '13010009 - SERVICO DE MANUTENCAO DE SOFTWARE', '19003', 6115.00, '2025-08-20', '2025-08-07', '2025-08', '012427', '511664', '7779', 'CONCLUÍDA', null, 'MERCANET: CONTRATO MERCANET SAAS REF. PROMOTORES | CPF/CNPJ: ? | NF: 19003 | Valor R$: 6115,00 | Vencimento: 20/08/2025', 'E-MAIL', null),
@@ -753,9 +729,10 @@ values
   ('DSX IT SOLUTIONS', '201625', null, '201625', '010101', '20301', null, '13010021 - SERVICO DE MANUTENCAO DE SOFTWARE', '000000447', 500.00, '2026-06-15', '2026-06-02', '2026-06', '014837', '525908', '26636', 'CONCLUÍDA', null, 'DSX IT SOLUTIONS:  | CPF/CNPJ: ? | NF: 000000447 | Valor R$: 500,00 | Vencimento: 15/06/2026', null, null),
   ('VIVO / TELEFONICA', '201182', '200425', '201182', '010101', '20301', 'TELEFONIA', '13010007 - SERVICO DE TELEFONIA', '001368264', 30.94, '2026-06-03', '2026-05-27', '2026-06', '014805', '525640', '26047', 'CONCLUÍDA', null, 'VIVO (CARPER RIBEIRÃO DAS NEVES): TELEFONIA | CPF/CNPJ: ? | NF: 001368264 | Valor R$: 30,94 | Vencimento: 03/06/2026', null, null),
   ('INGRAM MICRO', '201180', null, '201180', '010101', '20301', 'OFFICE 365 E1', '13010021 - SERVICO DE MANUTENCAO DE SOFTWARE', '000266156', 1750.84, '2026-07-06', '2026-06-16', '2026-07', '014921', '526548', '27808', 'CONCLUÍDA', null, 'INGRAM: OFFICE 365 E1 | CPF/CNPJ: ? | NF: 000266156 | Valor R$: 1750,84 | Vencimento: 06/07/2026', null, null),
-  ('TOTVS', '201183', '200573', '201183', '010101', '20301', 'SUP TECNICO, MANUT E OUTROS SERV. TECNOL. INFORMAT', '13010021 - SERVICO DE MANUTENCAO DE SOFTWARE', '004496730', 1034.66, '2026-07-14', '2026-06-16', '2026-07', '014924', '526551', '27861', 'CONCLUÍDA', null, 'TOTVS: SUP TECNICO, MANUT E OUTROS SERV. TECNOL. INFORMAT | CPF/CNPJ: ? | NF: 004496730 | Valor R$: 1034,66 | Vencimento: 14/07/2026', null, null);
+  ('TOTVS', '201183', '200573', '201183', '010101', '20301', 'SUP TECNICO, MANUT E OUTROS SERV. TECNOL. INFORMAT', '13010021 - SERVICO DE MANUTENCAO DE SOFTWARE', '004496730', 1034.66, '2026-07-14', '2026-06-16', '2026-07', '014924', '526551', '27861', 'CONCLUÍDA', null, 'TOTVS: SUP TECNICO, MANUT E OUTROS SERV. TECNOL. INFORMAT | CPF/CNPJ: ? | NF: 004496730 | Valor R$: 1034,66 | Vencimento: 14/07/2026', null, null)
+),
 
-with resolvidos as (
+resolvidos as (
   select
     tmp.*,
     f.id as fornecedor_id,
@@ -872,5 +849,3 @@ where r.contrato_id is not null
       and l.data_vencimento = r.data_vencimento
       and abs(coalesce(l.valor, 0) - r.valor) < 0.01
   );
-
-drop table if exists tmp_lancamentos_historicos;

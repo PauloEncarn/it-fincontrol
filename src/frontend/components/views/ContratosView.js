@@ -34,6 +34,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
 import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
+import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
 import PauseCircleOutlinedIcon from '@mui/icons-material/PauseCircleOutlined';
@@ -115,6 +116,7 @@ export default function ContratosView({
   selectedContrato,
   setSelectedContrato,
   onSalvar,
+  onExcluir,
   onGerarCompetencia,
   onEditarLancamento,
 }) {
@@ -484,6 +486,11 @@ export default function ContratosView({
                             <Tooltip title="Editar">
                               <IconButton onClick={() => abrirEdicao(contrato)}>
                                 <EditOutlinedIcon />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Excluir contrato">
+                              <IconButton color="error" onClick={() => onExcluir?.(contrato)}>
+                                <DeleteOutlinedIcon />
                               </IconButton>
                             </Tooltip>
                           </TableCell>

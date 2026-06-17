@@ -6,12 +6,18 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+const normalizeCodigoFilial = (codigo) => {
+  const digits = String(codigo || '').replace(/\D/g, '');
+  return digits ? digits.padStart(6, '0') : '';
+};
+
 export async function PUT(request, context) {
   try {
     const params = await context.params;
     const id = params.id;
     
     const body = await request.json();
+    if ('codigo' in body) body.codigo = normalizeCodigoFilial(body.codigo);
     const { error } = await supabase.from('filiais').update(body).eq('id', id);
 
     if (error) throw error;

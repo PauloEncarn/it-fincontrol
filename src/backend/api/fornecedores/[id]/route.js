@@ -46,14 +46,27 @@ export async function DELETE(request, context) {
     const params = await context.params;
     const id = params.id;
 
+    const [{ data: contratosVinculados }, { data: lancamentosVinculados }] = await Promise.all([
+      supabase.from('contratos_mensais').select('id').eq('fornecedor_id', id).limit(1),
+      supabase.from('lancamentos').select('id').eq('fornecedor_id', id).limit(1),
+    ]);
+
+    if (contratosVinculados?.length || lancamentosVinculados?.length) {
+      return NextResponse.json(
+        {
+          error: 'Não é possível excluir: Este fornecedor possui contratos e/ou lançamentos vinculados.',
+        },
+        { status: 400 }
+      );
+    }
+
     const { error } = await supabase.from('fornecedores').delete().eq('id', id);
 
     if (error) {
-      // Código 23503 é violação de Foreign Key (tem notas vinculadas)
       if (error.code === '23503') {
         return NextResponse.json(
-          { error: 'Não é possível excluir: Este fornecedor possui lançamentos vinculados.' }, 
-          { status: 400 } // Retorna 400 (Bad Request) em vez de 500
+          { error: 'Não é possível excluir: Este fornecedor possui registros vinculados.' },
+          { status: 400 }
         );
       }
       throw error;
@@ -61,7 +74,7 @@ export async function DELETE(request, context) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Erro Delete Fornecedor:", error);
+    console.error('Erro Delete Fornecedor:', error);
     return NextResponse.json({ error: error.message || 'Erro ao excluir' }, { status: 500 });
   }
 }

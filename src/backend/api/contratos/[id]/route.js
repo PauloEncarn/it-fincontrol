@@ -34,14 +34,43 @@ export async function PUT(request, context) {
 }
 
 export async function DELETE(request, context) {
-  const params = await context.params;
-  const id = params.id;
+  try {
+    const params = await context.params;
+    const id = params.id;
 
-  const { error } = await supabase
-    .from('contratos_mensais')
-    .delete()
-    .eq('id', id);
+    const { data: lancamentosVinculados, error: errorCheck } = await supabase
+      .from('lancamentos')
+      .select('id')
+      .eq('contrato_id', id)
+      .limit(1);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ success: true });
+    if (errorCheck) throw errorCheck;
+
+    if (lancamentosVinculados?.length) {
+      return NextResponse.json(
+        { error: 'Não é possível excluir: Este contrato possui lançamentos vinculados.' },
+        { status: 400 }
+      );
+    }
+
+    const { error } = await supabase
+      .from('contratos_mensais')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      if (error.code === '23503') {
+        return NextResponse.json(
+          { error: 'Não é possível excluir: Este contrato está vinculado a registros relacionados.' },
+          { status: 400 }
+        );
+      }
+      throw error;
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Erro Delete Contrato:', error);
+    return NextResponse.json({ error: error.message || 'Erro ao excluir contrato.' }, { status: 500 });
+  }
 }

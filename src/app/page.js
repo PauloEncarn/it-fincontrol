@@ -210,6 +210,16 @@ function DashboardContent() {
       onError: (err) => addToast('error', 'Erro ao salvar contrato: ' + (err.response?.data?.error || err.message))
   });
 
+  const mutationDeleteContrato = useMutation({
+      mutationFn: (id) => axios.delete(`${API_URL}/contratos/${id}`, authConfig),
+      onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ['contratos'] });
+          queryClient.invalidateQueries({ queryKey: ['contrato_lancamentos'] });
+          addToast('success', 'Contrato excluído!');
+      },
+      onError: (err) => addToast('error', err.response?.data?.error || 'Erro ao excluir contrato.')
+  });
+
   const mutationGerarCompetencia = useMutation({
       mutationFn: ({ contratoId, competencia }) => axios.post(`${API_URL}/contratos/${contratoId}/lancamentos`, { competencia }, authConfig),
       onSuccess: () => {
@@ -522,6 +532,11 @@ function DashboardContent() {
                                 selectedContrato={selectedContrato}
                                 setSelectedContrato={setSelectedContrato}
                                 onSalvar={(contrato) => mutationContrato.mutate(contrato)}
+                                onExcluir={(contrato) => openConfirm(
+                                    'Excluir contrato',
+                                    `Deseja excluir o contrato ${contrato.contrato_usado || contrato.nome_contrato || 'selecionado'}?`,
+                                    () => mutationDeleteContrato.mutate(contrato.id)
+                                )}
                                 onGerarCompetencia={(contratoId, competencia) => mutationGerarCompetencia.mutate({ contratoId, competencia })}
                                 onEditarLancamento={abrirEdicaoLancamento}
                             />
