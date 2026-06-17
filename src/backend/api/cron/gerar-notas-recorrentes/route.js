@@ -59,14 +59,16 @@ function authorized(request) {
 }
 
 async function createLancamentoForContrato(contrato, competencia, vencimento) {
-  const { data: existente, error: errExistente } = await supabase
+  const { data: existentes, error: errExistente } = await supabase
     .from('lancamentos')
     .select('id')
     .eq('contrato_id', contrato.id)
     .eq('competencia', competencia)
-    .maybeSingle();
+    .order('id', { ascending: false })
+    .limit(1);
 
   if (errExistente) throw errExistente;
+  const existente = existentes?.[0];
   if (existente) return { status: 'exists', id: existente.id };
 
   const payload = {

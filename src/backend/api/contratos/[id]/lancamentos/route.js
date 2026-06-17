@@ -84,14 +84,16 @@ export async function POST(request, context) {
     observacao: [contrato.subcontrato_nome, contrato.detalhe].filter(Boolean).join(' | ') || null,
   };
 
-  const { data: existente, error: errExistente } = await supabase
+  const { data: existentes, error: errExistente } = await supabase
     .from('lancamentos')
     .select('*')
     .eq('contrato_id', contrato.id)
     .eq('competencia', competencia)
-    .maybeSingle();
+    .order('id', { ascending: false })
+    .limit(1);
 
   if (errExistente) return NextResponse.json({ error: errExistente.message }, { status: 500 });
+  const existente = existentes?.[0];
   if (existente) return NextResponse.json(existente);
 
   const { data, error } = await supabase
