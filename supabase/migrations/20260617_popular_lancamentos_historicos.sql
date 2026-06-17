@@ -34,7 +34,7 @@ create temporary table tmp_lancamentos_historicos (
   observacao_protheus text,
   recebimento text,
   recibo_provisorio text
-) on commit drop;
+);
 
 insert into tmp_lancamentos_historicos (
   fornecedor_nome,
