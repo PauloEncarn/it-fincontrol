@@ -177,10 +177,10 @@ export default function Header({
               <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
                 <Box>
                   <Typography variant="subtitle1" fontWeight={900}>
-                    NotificaÃ§Ãµes
+                    Notificações
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    AÃ§Ãµes pontuais e retornos recentes
+                    Ações pontuais e retornos recentes
                   </Typography>
                 </Box>
                 <Stack direction="row" spacing={0.75}>
@@ -193,7 +193,7 @@ export default function Header({
             {unreadCount === 0 ? (
               <Box sx={{ p: 2.5 }}>
                 <Typography variant="body2" color="text.secondary">
-                  Nenhuma aÃ§Ã£o pendente no momento.
+                  Nenhuma ação pendente no momento.
                 </Typography>
               </Box>
             ) : (

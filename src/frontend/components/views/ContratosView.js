@@ -399,9 +399,9 @@ export default function ContratosView({
                         <TableCell>Produto</TableCell>
                         <TableCell>Valor</TableCell>
                         <TableCell>Vencimento</TableCell>
-                        <TableCell>PrÃ³xima</TableCell>
+                        <TableCell>Próxima</TableCell>
                         <TableCell>Status</TableCell>
-                        <TableCell align="right">AÃ§Ãµes</TableCell>
+                        <TableCell align="right">Ações</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -428,13 +428,9 @@ export default function ContratosView({
                             <Chip size="small" color={statusColor[contrato.status] || 'default'} label={contrato.status} sx={{ fontWeight: 700 }} />
                           </TableCell>
                           <TableCell align="right">
-                            {!contrato.subcontrato_nome && (
-                              <Tooltip title="Adicionar subcontrato">
-                                <IconButton color="primary" onClick={() => abrirNovoSubcontrato(contrato)}>
-                                  <AddIcon />
-                                </IconButton>
-                              </Tooltip>
-                            )}
+                            <Button size="small" variant="outlined" startIcon={<AddIcon />} onClick={() => abrirNovoSubcontrato(contrato)} sx={{ mr: 0.5, whiteSpace: 'nowrap' }}>
+                              Subcontrato
+                            </Button>
                             <Tooltip title="Linha do tempo">
                               <IconButton color="primary" onClick={() => setSelectedContrato(contrato)}>
                                 <HistoryOutlinedIcon />
