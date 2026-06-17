@@ -42,42 +42,31 @@ const listValues = (value) => {
 };
 
 const displayText = (value) => listValues(value).join('; ');
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 10;
 
 function ListCell({ value }) {
   const itens = listValues(value);
   if (!itens.length) return '-';
 
   return (
-    <Stack
-      direction="row"
-      spacing={0.5}
-      useFlexGap
-      flexWrap="wrap"
-      title={itens.join('; ')}
-      sx={{ width: '100%', minWidth: 0 }}
-    >
+    <Stack spacing={0.5} sx={{ width: '100%', minWidth: 0 }}>
       {itens.map((item) => (
-        <Chip
+        <Typography
           key={item}
-          size="small"
-          variant="outlined"
-          label={item}
+          variant="body2"
+          title={item}
           sx={{
-            maxWidth: '100%',
-            minWidth: 0,
-            height: 'auto',
-            alignItems: 'flex-start',
-            '& .MuiChip-label': {
-              display: 'block',
-              overflow: 'visible',
-              overflowWrap: 'anywhere',
-              py: 0.4,
-              textOverflow: 'clip',
-              whiteSpace: 'normal',
-            },
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            lineHeight: 1.45,
+            overflowWrap: 'anywhere',
+            pb: 0.5,
+            whiteSpace: 'normal',
+            '&:last-of-type': { borderBottom: 0, pb: 0 },
           }}
-        />
+        >
+          {item}
+        </Typography>
       ))}
     </Stack>
   );
@@ -94,7 +83,7 @@ function CatalogoBloco({ label, value }) {
         </Typography>
         <Chip size="small" variant="outlined" label={`${total} itens`} sx={{ height: 20, fontSize: 11 }} />
       </Stack>
-      <Box sx={{ maxHeight: 138, overflowY: 'auto', overflowX: 'hidden', pr: 0.5 }}>
+      <Box sx={{ maxHeight: 220, overflowY: 'auto', overflowX: 'hidden', pr: 0.5 }}>
         <ListCell value={value} />
       </Box>
     </Paper>
@@ -334,10 +323,10 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
           const valores = listValues(fornecedor.lista_valores);
 
           return (
-            <Grid key={fornecedor.id} size={{ xs: 12, xl: 6 }}>
+            <Grid key={fornecedor.id} size={12}>
               <Paper variant="outlined" sx={{ p: 2, height: '100%' }}>
                 <Stack spacing={1.5}>
-                  <Stack direction="row" spacing={1.5} alignItems="flex-start" justifyContent="space-between">
+                  <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', md: 'flex-start' }} justifyContent="space-between">
                     <Box sx={{ minWidth: 0 }}>
                       <Typography variant="h6" fontWeight={900} noWrap title={fornecedor.nome_empresa}>
                         {fornecedor.nome_empresa}
@@ -348,7 +337,7 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
                         <Chip size="small" variant="outlined" label={`${servicos.length + produtos.length} itens`} />
                       </Stack>
                     </Box>
-                    <Stack direction="row" spacing={0.5}>
+                    <Stack direction="row" spacing={0.5} justifyContent={{ xs: 'flex-end', md: 'flex-start' }}>
                       <IconButton color="primary" onClick={() => abrirEdicao(fornecedor)} aria-label="Editar fornecedor">
                         <EditOutlinedIcon />
                       </IconButton>
@@ -361,22 +350,22 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
                   <Divider />
 
                   <Grid container spacing={1.25}>
-                    <Grid size={{ xs: 12, md: 6 }}>
+                    <Grid size={{ xs: 12, lg: 4 }}>
                       <CatalogoBloco label="CNPJs" value={cnpjs} />
                     </Grid>
-                    <Grid size={{ xs: 12, md: 6 }}>
+                    <Grid size={{ xs: 12, lg: 4 }}>
                       <CatalogoBloco label="Contratos" value={contratos} />
                     </Grid>
-                    <Grid size={{ xs: 12, md: 6 }}>
+                    <Grid size={{ xs: 12, lg: 4 }}>
                       <CatalogoBloco label="Centros de custo" value={centros} />
                     </Grid>
-                    <Grid size={{ xs: 12, md: 6 }}>
+                    <Grid size={{ xs: 12, lg: 4 }}>
                       <CatalogoBloco label="Serviços" value={servicos} />
                     </Grid>
-                    <Grid size={{ xs: 12, md: 6 }}>
+                    <Grid size={{ xs: 12, lg: 4 }}>
                       <CatalogoBloco label="Produtos Protheus" value={produtos} />
                     </Grid>
-                    <Grid size={{ xs: 12, md: 6 }}>
+                    <Grid size={{ xs: 12, lg: 4 }}>
                       <CatalogoBloco label="Valores possíveis" value={valores} />
                     </Grid>
                   </Grid>
