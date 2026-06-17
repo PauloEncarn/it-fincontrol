@@ -66,11 +66,15 @@ function ListCell({ value }) {
           sx={{
             maxWidth: '100%',
             minWidth: 0,
+            height: 'auto',
+            alignItems: 'flex-start',
             '& .MuiChip-label': {
               display: 'block',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
+              overflow: 'visible',
+              overflowWrap: 'anywhere',
+              py: 0.4,
+              textOverflow: 'clip',
+              whiteSpace: 'normal',
             },
           }}
         />
@@ -178,11 +182,15 @@ function EditableListField({ label, value, onChange, placeholder = 'Novo item' }
               sx={{
                 maxWidth: '100%',
                 minWidth: 0,
+                height: 'auto',
+                alignItems: 'flex-start',
                 '& .MuiChip-label': {
                   display: 'block',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
+                  overflow: 'visible',
+                  overflowWrap: 'anywhere',
+                  py: 0.4,
+                  textOverflow: 'clip',
+                  whiteSpace: 'normal',
                 },
               }}
             />
