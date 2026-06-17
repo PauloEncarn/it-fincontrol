@@ -50,24 +50,40 @@ function ListCell({ value, maxChips = 3 }) {
   if (!itens.length) return '-';
 
   return (
-    <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap" title={itens.join('; ')}>
+    <Stack
+      direction="row"
+      spacing={0.5}
+      useFlexGap
+      flexWrap="wrap"
+      title={itens.join('; ')}
+      sx={{ width: '100%', minWidth: 0, overflow: 'hidden' }}
+    >
       {itens.slice(0, maxChips).map((item) => (
         <Chip
           key={item}
           size="small"
           variant="outlined"
           label={item}
-          sx={{ maxWidth: '100%', '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }}
+          sx={{
+            maxWidth: '100%',
+            minWidth: 0,
+            '& .MuiChip-label': {
+              display: 'block',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            },
+          }}
         />
       ))}
-      {itens.length > maxChips && <Chip size="small" label={`+${itens.length - maxChips}`} />}
+      {itens.length > maxChips && <Chip size="small" color="default" label={`+${itens.length - maxChips}`} />}
     </Stack>
   );
 }
 
 function CatalogoBloco({ label, value, maxChips = 3 }) {
   return (
-    <Paper variant="outlined" sx={{ p: 1.25, height: '100%', bgcolor: 'background.default' }}>
+    <Paper variant="outlined" sx={{ p: 1.25, height: '100%', minWidth: 0, overflow: 'hidden', bgcolor: 'background.default' }}>
       <Typography variant="caption" color="text.secondary" fontWeight={900} sx={{ display: 'block', mb: 0.75 }}>
         {label}
       </Typography>
@@ -232,7 +248,7 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
 
                   <Grid container spacing={1.25}>
                     <Grid size={{ xs: 12, md: 6 }}>
-                      <CatalogoBloco label="CNPJs" value={cnpjs} />
+                      <CatalogoBloco label="CNPJs" value={cnpjs} maxChips={2} />
                     </Grid>
                     <Grid size={{ xs: 12, md: 6 }}>
                       <CatalogoBloco label="Contratos" value={contratos} />
