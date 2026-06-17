@@ -95,7 +95,33 @@ const listValues = (value) => {
 const moneyOptionValue = (value) => {
   const text = String(value ?? '').trim();
   if (!text) return '';
-  const parsed = Number(text.replace(/\./g, '').replace(',', '.'));
+
+  const cleaned = text.replace(/[^\d,.-]/g, '');
+  if (!cleaned) return '';
+
+  const hasComma = cleaned.includes(',');
+  const hasDot = cleaned.includes('.');
+  let normalized = cleaned;
+
+  if (hasComma && hasDot) {
+    const lastComma = cleaned.lastIndexOf(',');
+    const lastDot = cleaned.lastIndexOf('.');
+    const decimalSeparator = lastComma > lastDot ? ',' : '.';
+    const thousandSeparator = decimalSeparator === ',' ? '.' : ',';
+    normalized = cleaned
+      .replace(new RegExp(`\\${thousandSeparator}`, 'g'), '')
+      .replace(decimalSeparator, '.');
+  } else if (hasComma) {
+    normalized = cleaned.replace(/\./g, '').replace(',', '.');
+  } else if (hasDot) {
+    const parts = cleaned.split('.');
+    const decimalPart = parts[parts.length - 1];
+    normalized = decimalPart.length <= 2
+      ? cleaned.replace(/,/g, '')
+      : cleaned.replace(/\./g, '');
+  }
+
+  const parsed = Number(normalized);
   return Number.isNaN(parsed) ? text : String(parsed);
 };
 
