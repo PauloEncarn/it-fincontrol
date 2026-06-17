@@ -3,6 +3,7 @@ import {
   Box,
   Button,
   Chip,
+  Divider,
   Dialog,
   DialogActions,
   DialogContent,
@@ -13,12 +14,6 @@ import {
   Pagination,
   Paper,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Typography,
 } from '@mui/material';
@@ -57,32 +52,27 @@ function ListCell({ value, maxChips = 3 }) {
   return (
     <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap" title={itens.join('; ')}>
       {itens.slice(0, maxChips).map((item) => (
-        <Chip key={item} size="small" variant="outlined" label={item} />
+        <Chip
+          key={item}
+          size="small"
+          variant="outlined"
+          label={item}
+          sx={{ maxWidth: '100%', '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }}
+        />
       ))}
       {itens.length > maxChips && <Chip size="small" label={`+${itens.length - maxChips}`} />}
     </Stack>
   );
 }
 
-function CatalogoResumo({ fornecedor }) {
-  const grupos = [
-    ['Centros', fornecedor.lista_centro_custos],
-    ['Serviços', fornecedor.lista_servicos],
-    ['Produtos', fornecedor.lista_produtos_protheus],
-    ['Valores', fornecedor.lista_valores],
-  ];
-
+function CatalogoBloco({ label, value, maxChips = 3 }) {
   return (
-    <Stack spacing={0.75} sx={{ minWidth: 220 }}>
-      {grupos.map(([label, value]) => (
-        <Box key={label}>
-          <Typography variant="caption" color="text.secondary" fontWeight={800}>
-            {label}
-          </Typography>
-          <ListCell value={value} maxChips={2} />
-        </Box>
-      ))}
-    </Stack>
+    <Paper variant="outlined" sx={{ p: 1.25, height: '100%', bgcolor: 'background.default' }}>
+      <Typography variant="caption" color="text.secondary" fontWeight={900} sx={{ display: 'block', mb: 0.75 }}>
+        {label}
+      </Typography>
+      <ListCell value={value} maxChips={maxChips} />
+    </Paper>
   );
 }
 
@@ -92,9 +82,23 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
   const [form, setForm] = useState(emptyForm);
   const [pagina, setPagina] = useState(1);
 
-  const dadosFiltrados = fornecedores.filter((fornecedor) =>
-    `${fornecedor.nome_empresa} ${displayText(fornecedor.lista_cnpjs)}`.toLowerCase().includes(termo.toLowerCase())
-  );
+  const dadosFiltrados = useMemo(() => {
+    const busca = termo.trim().toLowerCase();
+    if (!busca) return fornecedores;
+
+    return fornecedores.filter((fornecedor) => [
+      fornecedor.nome_empresa,
+      displayText(fornecedor.lista_cnpjs),
+      displayText(fornecedor.lista_contratos),
+      displayText(fornecedor.lista_centro_custos),
+      displayText(fornecedor.lista_servicos),
+      displayText(fornecedor.lista_produtos_protheus),
+      displayText(fornecedor.lista_valores),
+    ].join(' ').toLowerCase().includes(busca));
+  }, [fornecedores, termo]);
+
+  const totalCnpjs = fornecedores.reduce((acc, fornecedor) => acc + listValues(fornecedor.lista_cnpjs).length, 0);
+  const totalContratos = fornecedores.reduce((acc, fornecedor) => acc + listValues(fornecedor.lista_contratos).length, 0);
   const totalPaginas = Math.max(1, Math.ceil(dadosFiltrados.length / PAGE_SIZE));
   const paginaAtual = Math.min(pagina, totalPaginas);
   const dadosPagina = useMemo(() => {
@@ -169,50 +173,95 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
         </Stack>
       </Paper>
 
-      <TableContainer component={Paper} variant="outlined">
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Nome fantasia</TableCell>
-              <TableCell>CNPJs</TableCell>
-              <TableCell>Contratos</TableCell>
-              <TableCell>Catálogos do fornecedor</TableCell>
-              <TableCell align="right">Ações</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {dadosPagina.map((fornecedor) => (
-              <TableRow key={fornecedor.id} hover>
-                <TableCell sx={{ fontWeight: 700 }}>{fornecedor.nome_empresa}</TableCell>
-                <TableCell sx={{ maxWidth: 260 }}>
-                  <ListCell value={fornecedor.lista_cnpjs} />
-                </TableCell>
-                <TableCell>
-                  <ListCell value={fornecedor.lista_contratos} maxChips={2} />
-                </TableCell>
-                <TableCell>
-                  <CatalogoResumo fornecedor={fornecedor} />
-                </TableCell>
-                <TableCell align="right">
-                  <IconButton color="primary" onClick={() => abrirEdicao(fornecedor)} aria-label="Editar fornecedor">
-                    <EditOutlinedIcon />
-                  </IconButton>
-                  <IconButton color="error" onClick={() => onExcluir(fornecedor)} aria-label="Excluir fornecedor">
-                    <DeleteOutlinedIcon />
-                  </IconButton>
-                </TableCell>
-              </TableRow>
-            ))}
-            {dadosFiltrados.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 6, color: 'text.secondary' }}>
-                  Nenhum fornecedor encontrado.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <Grid container spacing={1.5}>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <Paper variant="outlined" sx={{ p: 1.5, height: '100%' }}>
+            <Typography variant="caption" color="text.secondary" fontWeight={900}>Fornecedores</Typography>
+            <Typography variant="h5" fontWeight={900}>{fornecedores.length}</Typography>
+          </Paper>
+        </Grid>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <Paper variant="outlined" sx={{ p: 1.5, height: '100%' }}>
+            <Typography variant="caption" color="text.secondary" fontWeight={900}>CNPJs cadastrados</Typography>
+            <Typography variant="h5" fontWeight={900}>{totalCnpjs}</Typography>
+          </Paper>
+        </Grid>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <Paper variant="outlined" sx={{ p: 1.5, height: '100%' }}>
+            <Typography variant="caption" color="text.secondary" fontWeight={900}>Contratos disponíveis</Typography>
+            <Typography variant="h5" fontWeight={900}>{totalContratos}</Typography>
+          </Paper>
+        </Grid>
+      </Grid>
+
+      <Grid container spacing={1.5}>
+        {dadosPagina.map((fornecedor) => {
+          const cnpjs = listValues(fornecedor.lista_cnpjs);
+          const contratos = listValues(fornecedor.lista_contratos);
+          const centros = listValues(fornecedor.lista_centro_custos);
+          const servicos = listValues(fornecedor.lista_servicos);
+          const produtos = listValues(fornecedor.lista_produtos_protheus);
+          const valores = listValues(fornecedor.lista_valores);
+
+          return (
+            <Grid key={fornecedor.id} size={{ xs: 12, xl: 6 }}>
+              <Paper variant="outlined" sx={{ p: 2, height: '100%' }}>
+                <Stack spacing={1.5}>
+                  <Stack direction="row" spacing={1.5} alignItems="flex-start" justifyContent="space-between">
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="h6" fontWeight={900} noWrap title={fornecedor.nome_empresa}>
+                        {fornecedor.nome_empresa}
+                      </Typography>
+                      <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mt: 0.75 }}>
+                        <Chip size="small" color="primary" variant="outlined" label={`${cnpjs.length} CNPJs`} />
+                        <Chip size="small" variant="outlined" label={`${contratos.length} contratos`} />
+                        <Chip size="small" variant="outlined" label={`${servicos.length + produtos.length} itens`} />
+                      </Stack>
+                    </Box>
+                    <Stack direction="row" spacing={0.5}>
+                      <IconButton color="primary" onClick={() => abrirEdicao(fornecedor)} aria-label="Editar fornecedor">
+                        <EditOutlinedIcon />
+                      </IconButton>
+                      <IconButton color="error" onClick={() => onExcluir(fornecedor)} aria-label="Excluir fornecedor">
+                        <DeleteOutlinedIcon />
+                      </IconButton>
+                    </Stack>
+                  </Stack>
+
+                  <Divider />
+
+                  <Grid container spacing={1.25}>
+                    <Grid size={{ xs: 12, md: 6 }}>
+                      <CatalogoBloco label="CNPJs" value={cnpjs} />
+                    </Grid>
+                    <Grid size={{ xs: 12, md: 6 }}>
+                      <CatalogoBloco label="Contratos" value={contratos} />
+                    </Grid>
+                    <Grid size={{ xs: 12, md: 6 }}>
+                      <CatalogoBloco label="Centros de custo" value={centros} maxChips={2} />
+                    </Grid>
+                    <Grid size={{ xs: 12, md: 6 }}>
+                      <CatalogoBloco label="Serviços" value={servicos} maxChips={2} />
+                    </Grid>
+                    <Grid size={{ xs: 12, md: 6 }}>
+                      <CatalogoBloco label="Produtos Protheus" value={produtos} maxChips={2} />
+                    </Grid>
+                    <Grid size={{ xs: 12, md: 6 }}>
+                      <CatalogoBloco label="Valores possíveis" value={valores} maxChips={2} />
+                    </Grid>
+                  </Grid>
+                </Stack>
+              </Paper>
+            </Grid>
+          );
+        })}
+      </Grid>
+
+      {dadosFiltrados.length === 0 && (
+        <Paper variant="outlined" sx={{ py: 6, textAlign: 'center', color: 'text.secondary' }}>
+          Nenhum fornecedor encontrado.
+        </Paper>
+      )}
 
       {dadosFiltrados.length > PAGE_SIZE && (
         <Paper variant="outlined" sx={{ p: 1.5 }}>
