@@ -114,9 +114,14 @@ function EditableListField({ label, value, onChange, placeholder = 'Novo item' }
 
   return (
     <Stack spacing={1} sx={{ width: '100%', minWidth: 0 }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+        <Typography variant="caption" color="text.secondary" fontWeight={800}>
+          {label}
+        </Typography>
+        <Chip size="small" variant="outlined" label={`${itens.length} itens`} />
+      </Stack>
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ width: '100%', minWidth: 0 }}>
         <TextField
-          label={label}
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={(e) => {
@@ -147,7 +152,17 @@ function EditableListField({ label, value, onChange, placeholder = 'Novo item' }
         </Button>
       </Stack>
 
-      <Paper variant="outlined" sx={{ p: 1, minHeight: 48, bgcolor: 'background.default', overflow: 'hidden' }}>
+      <Paper
+        variant="outlined"
+        sx={{
+          p: 1,
+          minHeight: 48,
+          maxHeight: 132,
+          bgcolor: 'background.default',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+        }}
+      >
         <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ width: '100%', minWidth: 0 }}>
           {itens.map((item) => (
             <Chip
