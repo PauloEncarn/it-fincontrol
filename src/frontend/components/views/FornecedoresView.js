@@ -44,7 +44,7 @@ const listValues = (value) => {
 const displayText = (value) => listValues(value).join('; ');
 const PAGE_SIZE = 25;
 
-function ListCell({ value, maxChips = 3 }) {
+function ListCell({ value }) {
   const itens = listValues(value);
   if (!itens.length) return '-';
 
@@ -55,9 +55,9 @@ function ListCell({ value, maxChips = 3 }) {
       useFlexGap
       flexWrap="wrap"
       title={itens.join('; ')}
-      sx={{ width: '100%', minWidth: 0, overflow: 'hidden' }}
+      sx={{ width: '100%', minWidth: 0 }}
     >
-      {itens.slice(0, maxChips).map((item) => (
+      {itens.map((item) => (
         <Chip
           key={item}
           size="small"
@@ -75,18 +75,24 @@ function ListCell({ value, maxChips = 3 }) {
           }}
         />
       ))}
-      {itens.length > maxChips && <Chip size="small" color="default" label={`+${itens.length - maxChips}`} />}
     </Stack>
   );
 }
 
-function CatalogoBloco({ label, value, maxChips = 3 }) {
+function CatalogoBloco({ label, value }) {
+  const total = listValues(value).length;
+
   return (
-    <Paper variant="outlined" sx={{ p: 1.25, height: '100%', minWidth: 0, overflow: 'hidden', bgcolor: 'background.default' }}>
-      <Typography variant="caption" color="text.secondary" fontWeight={900} sx={{ display: 'block', mb: 0.75 }}>
-        {label}
-      </Typography>
-      <ListCell value={value} maxChips={maxChips} />
+    <Paper variant="outlined" sx={{ p: 1.25, height: '100%', minWidth: 0, bgcolor: 'background.default' }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1} sx={{ mb: 0.75 }}>
+        <Typography variant="caption" color="text.secondary" fontWeight={900}>
+          {label}
+        </Typography>
+        <Chip size="small" variant="outlined" label={`${total} itens`} sx={{ height: 20, fontSize: 11 }} />
+      </Stack>
+      <Box sx={{ maxHeight: 138, overflowY: 'auto', overflowX: 'hidden', pr: 0.5 }}>
+        <ListCell value={value} />
+      </Box>
     </Paper>
   );
 }
@@ -348,22 +354,22 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
 
                   <Grid container spacing={1.25}>
                     <Grid size={{ xs: 12, md: 6 }}>
-                      <CatalogoBloco label="CNPJs" value={cnpjs} maxChips={2} />
+                      <CatalogoBloco label="CNPJs" value={cnpjs} />
                     </Grid>
                     <Grid size={{ xs: 12, md: 6 }}>
                       <CatalogoBloco label="Contratos" value={contratos} />
                     </Grid>
                     <Grid size={{ xs: 12, md: 6 }}>
-                      <CatalogoBloco label="Centros de custo" value={centros} maxChips={2} />
+                      <CatalogoBloco label="Centros de custo" value={centros} />
                     </Grid>
                     <Grid size={{ xs: 12, md: 6 }}>
-                      <CatalogoBloco label="Serviços" value={servicos} maxChips={2} />
+                      <CatalogoBloco label="Serviços" value={servicos} />
                     </Grid>
                     <Grid size={{ xs: 12, md: 6 }}>
-                      <CatalogoBloco label="Produtos Protheus" value={produtos} maxChips={2} />
+                      <CatalogoBloco label="Produtos Protheus" value={produtos} />
                     </Grid>
                     <Grid size={{ xs: 12, md: 6 }}>
-                      <CatalogoBloco label="Valores possíveis" value={valores} maxChips={2} />
+                      <CatalogoBloco label="Valores possíveis" value={valores} />
                     </Grid>
                   </Grid>
                 </Stack>
