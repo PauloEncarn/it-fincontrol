@@ -26,12 +26,12 @@ import SearchIcon from '@mui/icons-material/Search';
 const emptyForm = {
   id: null,
   nome_empresa: '',
-  lista_cnpjs: '',
-  lista_contratos: '',
-  lista_centro_custos: '',
-  lista_servicos: '',
-  lista_produtos_protheus: '',
-  lista_valores: '',
+  lista_cnpjs: [],
+  lista_contratos: [],
+  lista_centro_custos: [],
+  lista_servicos: [],
+  lista_produtos_protheus: [],
+  lista_valores: [],
   padrao_descricao_servico: '',
   padrao_servico_protheus: '',
 };
@@ -41,7 +41,6 @@ const listValues = (value) => {
   return String(value || '').split(/[;|\n]/).map((item) => item.trim()).filter(Boolean);
 };
 
-const listText = (value) => listValues(value).join('\n');
 const displayText = (value) => listValues(value).join('; ');
 const PAGE_SIZE = 25;
 
@@ -92,6 +91,72 @@ function CatalogoBloco({ label, value, maxChips = 3 }) {
   );
 }
 
+function EditableListField({ label, value, onChange, placeholder = 'Novo item' }) {
+  const [inputValue, setInputValue] = useState('');
+  const itens = listValues(value);
+
+  const addValues = (rawValue) => {
+    const novos = listValues(rawValue);
+    if (!novos.length) return;
+
+    const atualizados = [...itens];
+    novos.forEach((item) => {
+      if (!atualizados.includes(item)) atualizados.push(item);
+    });
+
+    onChange(atualizados);
+    setInputValue('');
+  };
+
+  const removeValue = (itemToRemove) => {
+    onChange(itens.filter((item) => item !== itemToRemove));
+  };
+
+  return (
+    <Stack spacing={1}>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+        <TextField
+          label={label}
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              addValues(inputValue);
+            }
+          }}
+          onPaste={(e) => {
+            const pastedText = e.clipboardData.getData('text');
+            if (listValues(pastedText).length > 1) {
+              e.preventDefault();
+              addValues(pastedText);
+            }
+          }}
+          placeholder={placeholder}
+          size="small"
+          fullWidth
+        />
+        <Button variant="outlined" startIcon={<AddIcon />} onClick={() => addValues(inputValue)} sx={{ minWidth: { sm: 120 } }}>
+          Adicionar
+        </Button>
+      </Stack>
+
+      <Paper variant="outlined" sx={{ p: 1, minHeight: 48, bgcolor: 'background.default' }}>
+        <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+          {itens.map((item) => (
+            <Chip key={item} label={item} onDelete={() => removeValue(item)} />
+          ))}
+          {!itens.length && (
+            <Typography variant="body2" color="text.secondary">
+              Nenhum item cadastrado.
+            </Typography>
+          )}
+        </Stack>
+      </Paper>
+    </Stack>
+  );
+}
+
 export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) {
   const [showModal, setShowModal] = useState(false);
   const [termo, setTermo] = useState('');
@@ -133,12 +198,12 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
     setForm({
       ...emptyForm,
       ...item,
-      lista_cnpjs: listText(item.lista_cnpjs),
-      lista_contratos: listText(item.lista_contratos),
-      lista_centro_custos: listText(item.lista_centro_custos),
-      lista_servicos: listText(item.lista_servicos),
-      lista_produtos_protheus: listText(item.lista_produtos_protheus),
-      lista_valores: listText(item.lista_valores),
+      lista_cnpjs: listValues(item.lista_cnpjs),
+      lista_contratos: listValues(item.lista_contratos),
+      lista_centro_custos: listValues(item.lista_centro_custos),
+      lista_servicos: listValues(item.lista_servicos),
+      lista_produtos_protheus: listValues(item.lista_produtos_protheus),
+      lista_valores: listValues(item.lista_valores),
     });
     setShowModal(true);
   };
@@ -312,10 +377,10 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
             </Box>
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, md: 6 }}>
-                <TextField label="Lista de CNPJs" value={form.lista_cnpjs || ''} onChange={(e) => setForm({ ...form, lista_cnpjs: e.target.value })} multiline minRows={3} fullWidth helperText="Um por linha, ou separe por ;" />
+                <EditableListField label="Lista de CNPJs" value={form.lista_cnpjs} onChange={(lista_cnpjs) => setForm({ ...form, lista_cnpjs })} placeholder="Digite um CNPJ" />
               </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
-                <TextField label="Lista de contratos" value={form.lista_contratos || ''} onChange={(e) => setForm({ ...form, lista_contratos: e.target.value })} multiline minRows={3} fullWidth helperText="Um por linha, ou separe por ;" />
+                <EditableListField label="Lista de contratos" value={form.lista_contratos} onChange={(lista_contratos) => setForm({ ...form, lista_contratos })} placeholder="Digite o contrato" />
               </Grid>
             </Grid>
 
@@ -329,16 +394,16 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
             </Box>
             <Grid container spacing={2}>
               <Grid size={12}>
-                <TextField label="Lista de centros de custo" value={form.lista_centro_custos || ''} onChange={(e) => setForm({ ...form, lista_centro_custos: e.target.value })} multiline minRows={2} fullWidth helperText="Um por linha, ou separe por ;" />
+                <EditableListField label="Lista de centros de custo" value={form.lista_centro_custos} onChange={(lista_centro_custos) => setForm({ ...form, lista_centro_custos })} placeholder="Digite o centro de custo" />
               </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
-                <TextField label="Lista de serviços" value={form.lista_servicos || ''} onChange={(e) => setForm({ ...form, lista_servicos: e.target.value })} multiline minRows={3} fullWidth helperText="Um por linha, ou separe por ;" />
+                <EditableListField label="Lista de serviços" value={form.lista_servicos} onChange={(lista_servicos) => setForm({ ...form, lista_servicos })} placeholder="Digite o serviço" />
               </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
-                <TextField label="Lista de produtos Protheus" value={form.lista_produtos_protheus || ''} onChange={(e) => setForm({ ...form, lista_produtos_protheus: e.target.value })} multiline minRows={3} fullWidth helperText="Um por linha, ou separe por ;" />
+                <EditableListField label="Lista de produtos Protheus" value={form.lista_produtos_protheus} onChange={(lista_produtos_protheus) => setForm({ ...form, lista_produtos_protheus })} placeholder="Digite o produto" />
               </Grid>
               <Grid size={12}>
-                <TextField label="Lista de valores possíveis" value={form.lista_valores || ''} onChange={(e) => setForm({ ...form, lista_valores: e.target.value })} multiline minRows={2} fullWidth helperText="Um por linha, ou separe por ;" />
+                <EditableListField label="Lista de valores possíveis" value={form.lista_valores} onChange={(lista_valores) => setForm({ ...form, lista_valores })} placeholder="Digite o valor" />
               </Grid>
             </Grid>
 

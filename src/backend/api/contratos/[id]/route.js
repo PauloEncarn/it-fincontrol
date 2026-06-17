@@ -17,7 +17,17 @@ export async function PUT(request, context) {
     return NextResponse.json({ error: 'Fornecedor e data de início são obrigatórios.' }, { status: 400 });
   }
 
-  const validationError = await validateFornecedorLists(supabase, payload);
+  const { data: existingContrato, error: existingError } = await supabase
+    .from('contratos_mensais')
+    .select('cnpj_usado, contrato_usado, centro_custo_usado, descricao_servico, produto_protheus, valor_base_previsto')
+    .eq('id', id)
+    .single();
+
+  if (existingError) {
+    return NextResponse.json({ error: existingError.message }, { status: 500 });
+  }
+
+  const validationError = await validateFornecedorLists(supabase, payload, existingContrato);
   if (validationError) {
     return NextResponse.json({ error: validationError }, { status: 400 });
   }

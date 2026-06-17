@@ -52,7 +52,7 @@ export const payloadFromBody = (body) => ({
   updated_at: new Date().toISOString(),
 });
 
-export async function validateFornecedorLists(supabase, payload) {
+export async function validateFornecedorLists(supabase, payload, existingContrato = null) {
   if (!payload.fornecedor_id) return 'Fornecedor é obrigatório.';
   if (!['Recorrente', 'Avulso'].includes(payload.tipo_contrato)) return 'Tipo de contrato inválido.';
 
@@ -70,13 +70,21 @@ export async function validateFornecedorLists(supabase, payload) {
     return 'Selecione um CNPJ cadastrado no fornecedor.';
   }
 
+  const withExisting = (field, values, normalize = (item) => item) => {
+    const currentValue = existingContrato?.[field];
+    if (currentValue === null || currentValue === undefined || currentValue === '') return values;
+
+    const normalizedCurrent = normalize(String(currentValue).trim());
+    return values.includes(normalizedCurrent) ? values : [...values, normalizedCurrent];
+  };
+
   const checks = [
-    ['CNPJ', payload.cnpj_usado, cnpjs],
-    ['Contrato', payload.contrato_usado, listValues(fornecedor.lista_contratos)],
-    ['Centro de custo', payload.centro_custo_usado, listValues(fornecedor.lista_centro_custos)],
-    ['Serviço', payload.descricao_servico, listValues(fornecedor.lista_servicos)],
-    ['Produto Protheus', payload.produto_protheus, listValues(fornecedor.lista_produtos_protheus)],
-    ['Valor previsto', payload.valor_base_previsto ? normalizeMoneyText(payload.valor_base_previsto) : '', listValues(fornecedor.lista_valores).map(normalizeMoneyText)],
+    ['CNPJ', payload.cnpj_usado, withExisting('cnpj_usado', cnpjs)],
+    ['Contrato', payload.contrato_usado, withExisting('contrato_usado', listValues(fornecedor.lista_contratos))],
+    ['Centro de custo', payload.centro_custo_usado, withExisting('centro_custo_usado', listValues(fornecedor.lista_centro_custos))],
+    ['Serviço', payload.descricao_servico, withExisting('descricao_servico', listValues(fornecedor.lista_servicos))],
+    ['Produto Protheus', payload.produto_protheus, withExisting('produto_protheus', listValues(fornecedor.lista_produtos_protheus))],
+    ['Valor previsto', payload.valor_base_previsto ? normalizeMoneyText(payload.valor_base_previsto) : '', withExisting('valor_base_previsto', listValues(fornecedor.lista_valores).map(normalizeMoneyText), normalizeMoneyText)],
   ];
 
   for (const [label, selected, allowed] of checks) {
