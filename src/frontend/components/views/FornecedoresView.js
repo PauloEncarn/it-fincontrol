@@ -113,8 +113,8 @@ function EditableListField({ label, value, onChange, placeholder = 'Novo item' }
   };
 
   return (
-    <Stack spacing={1}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+    <Stack spacing={1} sx={{ width: '100%', minWidth: 0 }}>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ width: '100%', minWidth: 0 }}>
         <TextField
           label={label}
           value={inputValue}
@@ -135,16 +135,36 @@ function EditableListField({ label, value, onChange, placeholder = 'Novo item' }
           placeholder={placeholder}
           size="small"
           fullWidth
+          sx={{ flex: 1, minWidth: 0 }}
         />
-        <Button variant="outlined" startIcon={<AddIcon />} onClick={() => addValues(inputValue)} sx={{ minWidth: { sm: 120 } }}>
+        <Button
+          variant="outlined"
+          startIcon={<AddIcon />}
+          onClick={() => addValues(inputValue)}
+          sx={{ flexShrink: 0, minWidth: { xs: '100%', sm: 124 } }}
+        >
           Adicionar
         </Button>
       </Stack>
 
-      <Paper variant="outlined" sx={{ p: 1, minHeight: 48, bgcolor: 'background.default' }}>
-        <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+      <Paper variant="outlined" sx={{ p: 1, minHeight: 48, bgcolor: 'background.default', overflow: 'hidden' }}>
+        <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ width: '100%', minWidth: 0 }}>
           {itens.map((item) => (
-            <Chip key={item} label={item} onDelete={() => removeValue(item)} />
+            <Chip
+              key={item}
+              label={item}
+              onDelete={() => removeValue(item)}
+              sx={{
+                maxWidth: '100%',
+                minWidth: 0,
+                '& .MuiChip-label': {
+                  display: 'block',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                },
+              }}
+            />
           ))}
           {!itens.length && (
             <Typography variant="body2" color="text.secondary">
@@ -363,7 +383,7 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
 
       <Dialog open={showModal} onClose={() => setShowModal(false)} fullWidth maxWidth="md">
         <DialogTitle>{form.id ? 'Editar fornecedor' : 'Novo fornecedor'}</DialogTitle>
-        <DialogContent>
+        <DialogContent dividers>
           <Stack spacing={2.5} sx={{ pt: 1 }}>
             <TextField label="Nome fantasia" value={form.nome_empresa} onChange={(e) => setForm({ ...form, nome_empresa: e.target.value })} autoFocus fullWidth />
 
@@ -376,10 +396,10 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
               </Typography>
             </Box>
             <Grid container spacing={2}>
-              <Grid size={{ xs: 12, md: 6 }}>
+              <Grid size={12}>
                 <EditableListField label="Lista de CNPJs" value={form.lista_cnpjs} onChange={(lista_cnpjs) => setForm({ ...form, lista_cnpjs })} placeholder="Digite um CNPJ" />
               </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
+              <Grid size={12}>
                 <EditableListField label="Lista de contratos" value={form.lista_contratos} onChange={(lista_contratos) => setForm({ ...form, lista_contratos })} placeholder="Digite o contrato" />
               </Grid>
             </Grid>
@@ -396,10 +416,10 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
               <Grid size={12}>
                 <EditableListField label="Lista de centros de custo" value={form.lista_centro_custos} onChange={(lista_centro_custos) => setForm({ ...form, lista_centro_custos })} placeholder="Digite o centro de custo" />
               </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
+              <Grid size={12}>
                 <EditableListField label="Lista de serviços" value={form.lista_servicos} onChange={(lista_servicos) => setForm({ ...form, lista_servicos })} placeholder="Digite o serviço" />
               </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
+              <Grid size={12}>
                 <EditableListField label="Lista de produtos Protheus" value={form.lista_produtos_protheus} onChange={(lista_produtos_protheus) => setForm({ ...form, lista_produtos_protheus })} placeholder="Digite o produto" />
               </Grid>
               <Grid size={12}>
