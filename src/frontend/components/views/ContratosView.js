@@ -670,7 +670,7 @@ export default function ContratosView({
         }}
       >
         {selectedContrato && (
-          <Stack spacing={2} sx={{ p: { xs: 2, md: 2.5 }, minWidth: 0 }}>
+          <Stack spacing={2} sx={{ p: { xs: 2, md: 2.5 }, minWidth: 0, height: '100%', overflowY: 'auto' }}>
             <Box sx={{ minWidth: 0 }}>
               <Typography variant="overline" color="text.secondary" fontWeight={900}>
                 Linha do tempo do contrato
@@ -691,8 +691,8 @@ export default function ContratosView({
             </Box>
             <Divider />
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }}>
-              <TextField size="small" type="month" label="Competência" value={competencia} onChange={(e) => setCompetencia(e.target.value)} InputLabelProps={{ shrink: true }} fullWidth />
-              <Button variant="contained" disabled={selectedContrato.status !== 'Ativo' || selectedContrato.tipo_contrato === 'Avulso'} onClick={() => onGerarCompetencia(selectedContrato.id, competencia)} sx={{ minWidth: 132 }}>Gerar nota</Button>
+              <TextField size="small" type="month" label="Competência" value={competencia} onChange={(e) => setCompetencia(e.target.value)} InputLabelProps={{ shrink: true }} sx={{ flex: 1, minWidth: { xs: '100%', sm: 180 } }} />
+              <Button variant="contained" disabled={selectedContrato.status !== 'Ativo' || selectedContrato.tipo_contrato === 'Avulso'} onClick={() => onGerarCompetencia(selectedContrato.id, competencia)} sx={{ minWidth: 132, flexShrink: 0, whiteSpace: 'nowrap' }}>Gerar nota</Button>
             </Stack>
 
             <Stack spacing={1.25}>
@@ -743,7 +743,7 @@ export default function ContratosView({
                       </Box>
                       <Stack spacing={1} alignItems={{ xs: 'stretch', sm: 'flex-end' }}>
                         <Chip size="small" color={lancamentoColor(lancamento.status_pagamento)} label={lancamento.status_pagamento || 'Sem status'} sx={{ maxWidth: { xs: '100%', sm: 220 }, '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }} />
-                        <Button size="small" variant="outlined" onClick={() => onEditarLancamento(lancamento)}>Editar nota</Button>
+                        <Button size="small" variant="outlined" onClick={() => onEditarLancamento(lancamento)} sx={{ whiteSpace: 'nowrap', minWidth: 104 }}>Editar nota</Button>
                       </Stack>
                     </Stack>
                   </Paper>
