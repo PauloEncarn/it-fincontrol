@@ -657,28 +657,51 @@ export default function ContratosView({
         </Table>
       </TableContainer>
 
-      <Drawer anchor="right" open={Boolean(selectedContrato)} onClose={() => setSelectedContrato(null)} PaperProps={{ sx: { width: { xs: '100%', md: 560 } } }}>
+      <Drawer
+        anchor="right"
+        open={Boolean(selectedContrato)}
+        onClose={() => setSelectedContrato(null)}
+        PaperProps={{
+          sx: {
+            width: { xs: '100%', sm: 560, md: 680 },
+            maxWidth: '100vw',
+            overflowX: 'hidden',
+          },
+        }}
+      >
         {selectedContrato && (
-          <Stack spacing={2} sx={{ p: 2.5 }}>
-            <Box>
+          <Stack spacing={2} sx={{ p: { xs: 2, md: 2.5 }, minWidth: 0 }}>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="overline" color="text.secondary" fontWeight={900}>
+                Linha do tempo do contrato
+              </Typography>
               <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mb: 0.75 }}>
                 <Chip size="small" variant="outlined" label={`ID ${selectedContrato.id}`} />
                 <Chip size="small" variant="outlined" label={selectedContrato.tipo_contrato || 'Recorrente'} />
+                <Chip size="small" color={statusColor[selectedContrato.status] || 'default'} label={selectedContrato.status || 'Sem status'} />
               </Stack>
-              <Typography variant="h6" fontWeight={800}>{contratoItemLabel(selectedContrato)}</Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="h6" fontWeight={900} sx={{ overflowWrap: 'anywhere', lineHeight: 1.25 }}>
+                {contratoItemLabel(selectedContrato)}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
                 {selectedContrato.fornecedor?.nome_empresa || '-'} | Contrato {selectedContrato.contrato_usado || '-'}
               </Typography>
-              <Typography variant="body2" color="text.secondary">{filialLabel(selectedContrato.filial)} | {currency(selectedContrato.valor_base_previsto)}</Typography>
-              <Typography variant="body2" color="text.secondary">{selectedContrato.descricao_servico || '-'}</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>{filialLabel(selectedContrato.filial)} | {currency(selectedContrato.valor_base_previsto)}</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>{selectedContrato.descricao_servico || '-'}</Typography>
             </Box>
             <Divider />
-            <Stack direction="row" spacing={1}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }}>
               <TextField size="small" type="month" label="Competência" value={competencia} onChange={(e) => setCompetencia(e.target.value)} InputLabelProps={{ shrink: true }} fullWidth />
-              <Button variant="contained" disabled={selectedContrato.status !== 'Ativo' || selectedContrato.tipo_contrato === 'Avulso'} onClick={() => onGerarCompetencia(selectedContrato.id, competencia)}>Gerar nota</Button>
+              <Button variant="contained" disabled={selectedContrato.status !== 'Ativo' || selectedContrato.tipo_contrato === 'Avulso'} onClick={() => onGerarCompetencia(selectedContrato.id, competencia)} sx={{ minWidth: 132 }}>Gerar nota</Button>
             </Stack>
 
             <Stack spacing={1.25}>
+              <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" sx={{ minWidth: 0 }}>
+                <Typography variant="subtitle2" fontWeight={900}>
+                  Notas vinculadas
+                </Typography>
+                <Chip size="small" variant="outlined" label={lancamentosContrato.length} />
+              </Stack>
               {lancamentosContrato.map((lancamento) => {
                 const variacao = Number(lancamento.valor || 0) - Number(lancamento.valor_previsto || selectedContrato.valor_base_previsto || 0);
                 const temVariacao = Math.abs(variacao) > 0;
@@ -693,34 +716,34 @@ export default function ContratosView({
                       bgcolor: temVariacao ? (variacao > 0 ? '#fff5f5' : '#f0fdf4') : 'background.paper',
                     }}
                   >
-                    <Stack direction="row" justifyContent="space-between" spacing={1.5} alignItems="center">
-                      <Box sx={{ minWidth: 0 }}>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }}>
+                      <Box sx={{ minWidth: 0, flex: 1 }}>
                         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
                           <Typography fontWeight={800}>{lancamento.competencia || '-'}</Typography>
                           {temVariacao && (
                             <Chip size="small" color={variacao > 0 ? 'error' : 'success'} label="Valor alterado" sx={{ fontWeight: 700 }} />
                           )}
                         </Stack>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', overflowWrap: 'anywhere' }}>
                           NF {lancamento.numero_nota || '-'} | Venc. {lancamento.data_vencimento || '-'}
                         </Typography>
-                        <Typography variant="body2">
+                        <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
                           Real {currency(lancamento.valor)} | Previsto {currency(lancamento.valor_previsto || selectedContrato.valor_base_previsto)}
                         </Typography>
                         {temVariacao && (
-                          <Typography variant="caption" color={variacao > 0 ? 'error.main' : 'success.main'}>
+                          <Typography variant="caption" color={variacao > 0 ? 'error.main' : 'success.main'} sx={{ display: 'block' }}>
                             Variação {currency(variacao)}
                           </Typography>
                         )}
                         {lancamento.observacao && (
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, whiteSpace: 'pre-line', overflowWrap: 'anywhere' }}>
                             Obs.: {lancamento.observacao}
                           </Typography>
                         )}
                       </Box>
-                      <Stack spacing={1} alignItems="flex-end">
-                        <Chip size="small" color={lancamentoColor(lancamento.status_pagamento)} label={lancamento.status_pagamento || 'Sem status'} />
-                        <Button size="small" onClick={() => onEditarLancamento(lancamento)}>Editar nota</Button>
+                      <Stack spacing={1} alignItems={{ xs: 'stretch', sm: 'flex-end' }}>
+                        <Chip size="small" color={lancamentoColor(lancamento.status_pagamento)} label={lancamento.status_pagamento || 'Sem status'} sx={{ maxWidth: { xs: '100%', sm: 220 }, '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }} />
+                        <Button size="small" variant="outlined" onClick={() => onEditarLancamento(lancamento)}>Editar nota</Button>
                       </Stack>
                     </Stack>
                   </Paper>
