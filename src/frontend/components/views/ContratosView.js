@@ -127,11 +127,24 @@ const moneyOptionValue = (value) => {
 
 const buildContratoDetalhe = (form) => [
   form.contrato_usado && `Contrato: ${form.contrato_usado}`,
+  form.subcontrato_nome && `Item: ${form.subcontrato_nome}`,
   form.descricao_servico && `Serviço: ${form.descricao_servico}`,
   form.produto_protheus && `Produto Protheus: ${form.produto_protheus}`,
   form.centro_custo_usado && `Centro de custo: ${form.centro_custo_usado}`,
   form.valor_base_previsto && `Valor previsto: ${currency(form.valor_base_previsto)}`,
 ].filter(Boolean).join(' | ');
+
+const contratoItemLabel = (contrato) => (
+  contrato.subcontrato_nome ||
+  contrato.nome_contrato ||
+  contrato.descricao_servico ||
+  contrato.produto_protheus ||
+  'Item do contrato'
+);
+
+const filialLabel = (filial) => (
+  filial ? [filial.codigo, filial.nome_fantasia].filter(Boolean).join(' - ') : 'Filial não informada'
+);
 
 export default function ContratosView({
   contratos,
@@ -194,6 +207,7 @@ export default function ContratosView({
         ...grupo,
         itens: grupo.itens.sort((a, b) => (
           String(a.contrato_usado || '').localeCompare(String(b.contrato_usado || '')) ||
+          String(a.filial?.nome_fantasia || '').localeCompare(String(b.filial?.nome_fantasia || '')) ||
           String(a.subcontrato_nome || a.descricao_servico || '').localeCompare(String(b.subcontrato_nome || b.descricao_servico || ''))
         )),
       }))
@@ -216,6 +230,8 @@ export default function ContratosView({
             contrato.nome_contrato,
             contrato.subcontrato_nome,
             contrato.descricao_servico,
+            contrato.filial?.codigo,
+            contrato.filial?.nome_fantasia,
             contrato.produto_protheus,
             contrato.servico_protheus,
             contrato.detalhe,
@@ -456,18 +472,24 @@ export default function ContratosView({
                       {grupo.itens.map((contrato) => (
                         <TableRow key={contrato.id} hover>
                           <TableCell>
-                            <Typography variant="body2" fontWeight={800}>
-                              {contrato.contrato_usado || 'Sem contrato'}
+                            <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap" sx={{ mb: 0.5 }}>
+                              <Chip size="small" variant="outlined" label={`ID ${contrato.id}`} sx={{ height: 20, fontSize: 11 }} />
+                              <Chip size="small" variant="outlined" label={contrato.tipo_contrato || 'Recorrente'} sx={{ height: 20, fontSize: 11 }} />
+                            </Stack>
+                            <Typography variant="body2" fontWeight={800} sx={{ overflowWrap: 'anywhere' }}>
+                              Contrato {contrato.contrato_usado || '-'}
                             </Typography>
-                            <Chip size="small" variant="outlined" label={contrato.tipo_contrato || 'Recorrente'} sx={{ mt: 0.5, mb: 0.5, height: 20, fontSize: 11 }} />
                             <Typography variant="caption" color="text.secondary">
-                              {contrato.nome_contrato || contrato.descricao_servico || 'Contrato'}
+                              {contratoItemLabel(contrato)}
                             </Typography>
                             <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                              {contrato.detalhe || contrato.centro_custo_usado || '-'}
+                              {contrato.descricao_servico || '-'}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                              {contrato.centro_custo_usado || '-'}
                             </Typography>
                           </TableCell>
-                          <TableCell>{contrato.filial?.nome_fantasia || '-'}</TableCell>
+                          <TableCell>{filialLabel(contrato.filial)}</TableCell>
                           <TableCell>{contrato.produto_protheus || contrato.servico_protheus || '-'}</TableCell>
                           <TableCell>{currency(contrato.valor_base_previsto)}</TableCell>
                           <TableCell>Dia {contrato.dia_vencimento}</TableCell>
@@ -639,11 +661,16 @@ export default function ContratosView({
         {selectedContrato && (
           <Stack spacing={2} sx={{ p: 2.5 }}>
             <Box>
-              <Typography variant="h6" fontWeight={800}>{selectedContrato.nome_contrato || selectedContrato.descricao_servico || 'Contrato'}</Typography>
+              <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mb: 0.75 }}>
+                <Chip size="small" variant="outlined" label={`ID ${selectedContrato.id}`} />
+                <Chip size="small" variant="outlined" label={selectedContrato.tipo_contrato || 'Recorrente'} />
+              </Stack>
+              <Typography variant="h6" fontWeight={800}>{contratoItemLabel(selectedContrato)}</Typography>
               <Typography variant="body2" color="text.secondary">
                 {selectedContrato.fornecedor?.nome_empresa || '-'} | Contrato {selectedContrato.contrato_usado || '-'}
               </Typography>
-              <Typography variant="body2" color="text.secondary">{selectedContrato.filial?.nome_fantasia || '-'} | {currency(selectedContrato.valor_base_previsto)}</Typography>
+              <Typography variant="body2" color="text.secondary">{filialLabel(selectedContrato.filial)} | {currency(selectedContrato.valor_base_previsto)}</Typography>
+              <Typography variant="body2" color="text.secondary">{selectedContrato.descricao_servico || '-'}</Typography>
             </Box>
             <Divider />
             <Stack direction="row" spacing={1}>
@@ -730,6 +757,15 @@ export default function ContratosView({
             </Grid>
             <Grid size={{ xs: 12, md: 4 }}>
               {renderListField('Contrato usado', 'contrato_usado', opcoesSelecionadas.contratos)}
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                label="Identificador do item"
+                value={form.subcontrato_nome || ''}
+                onChange={(e) => setForm({ ...form, subcontrato_nome: e.target.value })}
+                fullWidth
+                helperText="Diferencie contratos com o mesmo número"
+              />
             </Grid>
             <Grid size={{ xs: 12, md: 4 }}>
               {renderListField('Serviço', 'descricao_servico', opcoesSelecionadas.servicos)}

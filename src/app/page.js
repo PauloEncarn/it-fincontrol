@@ -40,7 +40,7 @@ const ModalSolicitacao = dynamic(() => import('@/frontend/components/modals/Moda
 });
 // ---------------------------------------------------
 
-const initialFormLancamento = { id: null, competencia: '', filial_id: '', fornecedor_id: '', cnpj_usado: '', contrato_usado: '', centro_custo_usado: '', numero_nota: '', serie: 'U', valor: '', valor_previsto: '', data_envio: '', data_vencimento: '', descricao_servico: '', servico_protheus: '', numero_medicao: '', numero_pedido: '', solicitacao_fluig: '', observacao: '', etapa: 'pendente', status_pagamento: 'Pendente Nota', arquivo_nota: '', arquivo_boleto: '', repetir_por: '1' };
+const initialFormLancamento = { id: null, contrato_id: null, competencia: '', filial_id: '', fornecedor_id: '', cnpj_usado: '', contrato_usado: '', centro_custo_usado: '', numero_nota: '', serie: 'U', valor: '', valor_previsto: '', data_envio: '', data_vencimento: '', descricao_servico: '', servico_protheus: '', numero_medicao: '', numero_pedido: '', solicitacao_fluig: '', observacao: '', etapa: 'pendente', status_pagamento: 'Pendente Nota', arquivo_nota: '', arquivo_boleto: '', repetir_por: '1' };
 const initialFormSolicitacao = { id: null, filial_id: '', fornecedor_id: '', solicitante: '', cnpj: '', condicao_pagamento: '', valor: '', numero_sc: '', numero_pedido: '', servico: '', servico_protheus: '', centro_custo: '', numero_nota: '', fluig_id: '', data_vencimento: '', status: 'Em Andamento', observacao: '' };
 
 function DashboardContent() {
@@ -65,7 +65,7 @@ function DashboardContent() {
   const [showModalSolicitacao, setShowModalSolicitacao] = useState(false);
   const [form, setForm] = useState(initialFormLancamento);
   const [formSolicitacao, setFormSolicitacao] = useState(initialFormSolicitacao);
-  const [opcoesFornecedor, setOpcoesFornecedor] = useState({ cnpjs: [], contratos: [], ccs: [] });
+  const [opcoesFornecedor, setOpcoesFornecedor] = useState({ cnpjs: [], contratos: [], contratosCadastrados: [], ccs: [] });
   const [sendingEmail, setSendingEmail] = useState(false);
   
   const authConfig = useMemo(() => ({ headers: { Authorization: `Bearer ${token}` } }), [token]);
@@ -143,7 +143,7 @@ function DashboardContent() {
   const { data: contratos = [] } = useQuery({
       queryKey: ['contratos'],
       queryFn: () => axios.get(`${API_URL}/contratos/`, authConfig).then(res => res.data),
-      enabled: !!token && currentView === 'contratos'
+      enabled: !!token && (currentView === 'contratos' || showModal)
   });
 
   const { data: lancamentosContrato = [] } = useQuery({
@@ -265,7 +265,77 @@ function DashboardContent() {
     return text.includes('/') ? null : text;
   };
 
-  const handleFornecedorChange = useCallback((id) => { const forn = fornecedores.find(f => f.id == id); if (forn) { const opcoes = { cnpjs: splitOptions(forn.lista_cnpjs), contratos: splitOptions(forn.lista_contratos), ccs: splitOptions(forn.lista_centro_custos) }; setOpcoesFornecedor(opcoes); setForm(p => ({ ...p, fornecedor_id: id, cnpj_usado: p.cnpj_usado || opcoes.cnpjs[0] || '', contrato_usado: p.contrato_usado || opcoes.contratos[0] || '', centro_custo_usado: p.centro_custo_usado || opcoes.ccs[0] || '', descricao_servico: p.descricao_servico || forn.padrao_descricao_servico || '', servico_protheus: p.servico_protheus || forn.padrao_servico_protheus || '' })); } else { setOpcoesFornecedor({ cnpjs: [], contratos: [], ccs: [] }); setForm(p => ({...p, fornecedor_id: id, cnpj_usado: '', contrato_usado: '', centro_custo_usado: ''})); } }, [fornecedores]);
+  const contratoCadastradoLabel = useCallback((contrato) => [
+    `Contrato ${contrato.contrato_usado || '-'}`,
+    contrato.filial ? [contrato.filial.codigo, contrato.filial.nome_fantasia].filter(Boolean).join(' - ') : null,
+    contrato.subcontrato_nome,
+    contrato.descricao_servico,
+    contrato.produto_protheus,
+    contrato.centro_custo_usado,
+  ].filter(Boolean).join(' | '), []);
+
+  const buildOpcoesFornecedor = useCallback((fornecedorId) => {
+    const forn = fornecedores.find(f => f.id == fornecedorId);
+    if (!forn) return { cnpjs: [], contratos: [], contratosCadastrados: [], ccs: [] };
+
+    return {
+      cnpjs: splitOptions(forn.lista_cnpjs),
+      contratos: splitOptions(forn.lista_contratos),
+      contratosCadastrados: contratos
+        .filter((contrato) => contrato.fornecedor_id == fornecedorId)
+        .map((contrato) => ({ ...contrato, label: contratoCadastradoLabel(contrato) })),
+      ccs: splitOptions(forn.lista_centro_custos),
+    };
+  }, [contratoCadastradoLabel, contratos, fornecedores]);
+
+  useEffect(() => {
+    if (!form.fornecedor_id) return;
+    setOpcoesFornecedor(buildOpcoesFornecedor(form.fornecedor_id));
+  }, [buildOpcoesFornecedor, form.fornecedor_id]);
+
+  const handleFornecedorChange = useCallback((id) => {
+    const forn = fornecedores.find(f => f.id == id);
+    const opcoes = buildOpcoesFornecedor(id);
+    setOpcoesFornecedor(opcoes);
+
+    if (forn) {
+      setForm(p => ({
+        ...p,
+        fornecedor_id: id,
+        contrato_id: null,
+        cnpj_usado: opcoes.cnpjs[0] || '',
+        contrato_usado: opcoes.contratos[0] || '',
+        centro_custo_usado: opcoes.ccs[0] || '',
+        descricao_servico: forn.padrao_descricao_servico || '',
+        servico_protheus: forn.padrao_servico_protheus || ''
+      }));
+    } else {
+      setForm(p => ({...p, fornecedor_id: id, contrato_id: null, cnpj_usado: '', contrato_usado: '', centro_custo_usado: ''}));
+    }
+  }, [buildOpcoesFornecedor, fornecedores]);
+
+  const handleContratoLancamentoChange = useCallback((contratoId) => {
+    const contrato = contratos.find((item) => String(item.id) === String(contratoId));
+
+    if (!contrato) {
+      setForm((prev) => ({ ...prev, contrato_id: null }));
+      return;
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      contrato_id: contrato.id,
+      fornecedor_id: contrato.fornecedor_id || prev.fornecedor_id,
+      filial_id: contrato.filial_id || prev.filial_id,
+      cnpj_usado: contrato.cnpj_usado || prev.cnpj_usado,
+      contrato_usado: contrato.contrato_usado || prev.contrato_usado,
+      centro_custo_usado: contrato.centro_custo_usado || prev.centro_custo_usado,
+      descricao_servico: contrato.descricao_servico || prev.descricao_servico,
+      servico_protheus: contrato.servico_protheus || contrato.produto_protheus || prev.servico_protheus,
+      valor_previsto: contrato.valor_base_previsto ?? prev.valor_previsto,
+      valor: prev.valor || contrato.valor_base_previsto || '',
+    }));
+  }, [contratos]);
   
   const handleFornecedorSolicitacaoChange = useCallback((id) => { const forn = fornecedores.find(f => f.id == id); if (forn) { setFormSolicitacao(prev => ({ ...prev, fornecedor_id: id, cnpj: splitOptions(forn.lista_cnpjs)[0] || '', centro_custo: splitOptions(forn.lista_centro_custos)[0] || '', servico: forn.padrao_descricao_servico || '', servico_protheus: forn.padrao_servico_protheus || '' })); } else { setFormSolicitacao(prev => ({ ...prev, fornecedor_id: id, cnpj: '', centro_custo: '' })); } }, [fornecedores]);
   
@@ -310,6 +380,10 @@ function DashboardContent() {
   const salvarLancamento = async () => {
     if (!form.filial_id || !form.fornecedor_id || !form.valor) {
       return addToast('error', 'Preencha os campos obrigatórios!');
+    }
+
+    if (opcoesFornecedor.contratosCadastrados.length > 0 && !form.contrato_id) {
+      return addToast('error', 'Selecione o contrato cadastrado correto para vincular a nota.');
     }
 
     const payload = prepararPayloadLancamento(form);
@@ -565,7 +639,7 @@ function DashboardContent() {
         </Box>
         
         {/* Modais são renderizados condicionalmente ou via Portal, mas o Dynamic Import cuida do carregamento do JS */}
-        {showModal && <ModalLancamento isOpen={showModal} onClose={() => setShowModal(false)} form={form} setForm={setForm} filiais={filiais} fornecedores={fornecedores} opcoesFornecedor={opcoesFornecedor} onFornecedorChange={handleFornecedorChange} onSalvar={salvarLancamento} onSalvarEEnviar={salvarEEnviar} sendingEmail={sendingEmail} addToast={addToast} isGopa={isGopaFunc({filial_id: form.filial_id})} />}
+        {showModal && <ModalLancamento isOpen={showModal} onClose={() => setShowModal(false)} form={form} setForm={setForm} filiais={filiais} fornecedores={fornecedores} opcoesFornecedor={opcoesFornecedor} onFornecedorChange={handleFornecedorChange} onContratoChange={handleContratoLancamentoChange} onSalvar={salvarLancamento} onSalvarEEnviar={salvarEEnviar} sendingEmail={sendingEmail} addToast={addToast} isGopa={isGopaFunc({filial_id: form.filial_id})} />}
         {showModalSolicitacao && <ModalSolicitacao isOpen={showModalSolicitacao} onClose={() => setShowModalSolicitacao(false)} form={formSolicitacao} setForm={setFormSolicitacao} filiais={filiais} fornecedores={fornecedores} onSalvar={() => mutationSolicitacao.mutate(formSolicitacao)} onFornecedorChange={handleFornecedorSolicitacaoChange} />}
     </Box>
   );

@@ -81,7 +81,11 @@ export async function POST(request, context) {
     etapa: 'pendente',
     status_pagamento: statusInicial,
     repetir_por: 1,
-    observacao: [contrato.subcontrato_nome, contrato.detalhe].filter(Boolean).join(' | ') || null,
+    observacao: [
+      `Contrato interno ID ${contrato.id}`,
+      contrato.subcontrato_nome,
+      contrato.detalhe,
+    ].filter(Boolean).join(' | ') || null,
   };
 
   const { data: existentes, error: errExistente } = await supabase

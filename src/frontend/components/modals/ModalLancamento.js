@@ -38,6 +38,7 @@ export default function ModalLancamento({
   fornecedores,
   opcoesFornecedor,
   onFornecedorChange,
+  onContratoChange,
   onSalvar,
   addToast,
   isGopa,
@@ -81,10 +82,26 @@ export default function ModalLancamento({
             </TextField>
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
-            <TextField select label="Contrato" value={form.contrato_usado || ''} onChange={(e) => setForm({ ...form, contrato_usado: e.target.value })} fullWidth>
-              <MenuItem value="">Selecione...</MenuItem>
-              {opcoesFornecedor.contratos.map((opcao) => <MenuItem key={opcao} value={opcao}>{opcao}</MenuItem>)}
-            </TextField>
+            {opcoesFornecedor.contratosCadastrados?.length ? (
+              <TextField
+                select
+                label="Contrato cadastrado"
+                value={form.contrato_id || ''}
+                onChange={(e) => onContratoChange?.(e.target.value)}
+                fullWidth
+                helperText="Selecione o item correto pelo contrato, filial e serviço"
+              >
+                <MenuItem value="">Selecione...</MenuItem>
+                {opcoesFornecedor.contratosCadastrados.map((contrato) => (
+                  <MenuItem key={contrato.id} value={contrato.id}>{contrato.label}</MenuItem>
+                ))}
+              </TextField>
+            ) : (
+              <TextField select label="Contrato" value={form.contrato_usado || ''} onChange={(e) => setForm({ ...form, contrato_id: null, contrato_usado: e.target.value })} fullWidth helperText="Cadastre contratos na tela de Contratos para vincular a nota">
+                <MenuItem value="">Selecione...</MenuItem>
+                {opcoesFornecedor.contratos.map((opcao) => <MenuItem key={opcao} value={opcao}>{opcao}</MenuItem>)}
+              </TextField>
+            )}
           </Grid>
 
           <Grid size={12}><Divider /></Grid>

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { payloadFromBody, validateFornecedorLists } from '../helpers';
+import { payloadFromBody, validateContratoUnico, validateFornecedorLists } from '../helpers';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -30,6 +30,11 @@ export async function PUT(request, context) {
   const validationError = await validateFornecedorLists(supabase, payload, existingContrato);
   if (validationError) {
     return NextResponse.json({ error: validationError }, { status: 400 });
+  }
+
+  const uniqueError = await validateContratoUnico(supabase, payload, id);
+  if (uniqueError) {
+    return NextResponse.json({ error: uniqueError }, { status: 400 });
   }
 
   const { data, error } = await supabase

@@ -16,6 +16,16 @@ export const listValues = (value) => {
   return String(value).split(/[;|\n]/).map((item) => item.trim()).filter(Boolean);
 };
 
+const normalizeKeyPart = (value) => String(value ?? '').trim().toLowerCase();
+
+const sameContratoIdentity = (a, b) => (
+  normalizeKeyPart(a.filial_id) === normalizeKeyPart(b.filial_id) &&
+  normalizeKeyPart(a.descricao_servico) === normalizeKeyPart(b.descricao_servico) &&
+  normalizeKeyPart(a.produto_protheus) === normalizeKeyPart(b.produto_protheus) &&
+  normalizeKeyPart(a.centro_custo_usado) === normalizeKeyPart(b.centro_custo_usado) &&
+  normalizeKeyPart(a.subcontrato_nome) === normalizeKeyPart(b.subcontrato_nome)
+);
+
 const normalizeMoneyText = (value) => {
   const text = String(value ?? '').trim();
   if (!text) return '';
@@ -120,4 +130,24 @@ export async function validateFornecedorLists(supabase, payload, existingContrat
   }
 
   return null;
+}
+
+export async function validateContratoUnico(supabase, payload, currentId = null) {
+  if (!payload.fornecedor_id || !payload.contrato_usado) return null;
+
+  let query = supabase
+    .from('contratos_mensais')
+    .select('id, filial_id, contrato_usado, subcontrato_nome, descricao_servico, produto_protheus, centro_custo_usado')
+    .eq('fornecedor_id', payload.fornecedor_id)
+    .eq('contrato_usado', payload.contrato_usado);
+
+  if (currentId) query = query.neq('id', currentId);
+
+  const { data, error } = await query;
+  if (error) return error.message;
+
+  const duplicado = (data || []).find((contrato) => sameContratoIdentity(contrato, payload));
+  if (!duplicado) return null;
+
+  return 'Ja existe um contrato cadastrado para este fornecedor com o mesmo numero, filial, servico, produto, centro de custo e item.';
 }
