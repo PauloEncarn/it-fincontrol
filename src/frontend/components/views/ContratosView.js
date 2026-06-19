@@ -11,7 +11,6 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
-  Drawer,
   FormControl,
   Grid,
   IconButton,
@@ -673,26 +672,27 @@ export default function ContratosView({
         </Table>
       </TableContainer>
 
-      <Drawer
-        anchor="right"
-        open={Boolean(selectedContrato)}
-        onClose={() => setSelectedContrato(null)}
-        ModalProps={{ keepMounted: true }}
-        PaperProps={{
-          sx: {
+      {selectedContrato && (
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: (theme) => theme.zIndex.drawer + 3,
             width: { xs: 'min(94vw, 420px)', sm: 520, md: 560 },
             maxWidth: 'calc(100vw - 16px)',
             minWidth: 0,
-            height: '100%',
             display: 'flex',
             flexDirection: 'column',
-            boxSizing: 'border-box',
             overflow: 'hidden',
-          },
-        }}
-      >
-        {selectedContrato && (
-          <Box sx={{ width: '100%', maxWidth: '100%', minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxSizing: 'border-box', bgcolor: 'background.default' }}>
+            boxSizing: 'border-box',
+            bgcolor: 'background.default',
+            borderLeft: '1px solid',
+            borderColor: 'divider',
+            boxShadow: '-12px 0 28px rgba(0,0,0,0.18)',
+          }}
+        >
             <Box sx={{ minWidth: 0, position: 'relative', p: { xs: 2, md: 2.5 }, pb: 1.5, pr: 6, bgcolor: 'background.paper', borderBottom: '1px solid', borderColor: 'divider' }}>
               <Tooltip title="Fechar">
                 <IconButton size="small" onClick={() => setSelectedContrato(null)} sx={{ position: 'absolute', top: 0, right: 0 }}>
@@ -783,9 +783,8 @@ export default function ContratosView({
                 <Typography variant="body2" color="text.secondary">Nenhuma nota gerada para este contrato.</Typography>
               )}
             </Stack>
-          </Box>
-        )}
-      </Drawer>
+        </Box>
+      )}
 
       <Dialog open={showModal} onClose={() => setShowModal(false)} fullWidth maxWidth="md">
         <DialogTitle>{form.id ? 'Editar contrato' : 'Novo contrato'}</DialogTitle>
