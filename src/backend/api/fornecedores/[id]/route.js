@@ -16,7 +16,9 @@ const toList = (value) => {
 };
 
 const payloadFromBody = (body) => ({
-  ...body,
+  nome_empresa: String(body.nome_empresa || '').trim(),
+  padrao_descricao_servico: String(body.padrao_descricao_servico || '').trim() || null,
+  padrao_servico_protheus: String(body.padrao_servico_protheus || '').trim() || null,
   lista_cnpjs: toList(body.lista_cnpjs),
   lista_contratos: toList(body.lista_contratos),
   lista_centro_custos: toList(body.lista_centro_custos),

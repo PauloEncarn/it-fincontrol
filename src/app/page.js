@@ -332,8 +332,8 @@ function DashboardContent() {
       centro_custo_usado: contrato.centro_custo_usado || prev.centro_custo_usado,
       descricao_servico: contrato.descricao_servico || prev.descricao_servico,
       servico_protheus: contrato.servico_protheus || contrato.produto_protheus || prev.servico_protheus,
-      valor_previsto: contrato.valor_base_previsto ?? prev.valor_previsto,
-      valor: prev.valor || contrato.valor_base_previsto || '',
+      valor_previsto: contrato.valor_fixo === false ? (contrato.ultimo_lancamento?.valor ?? '') : (contrato.valor_base_previsto ?? prev.valor_previsto),
+      valor: prev.valor || (contrato.valor_fixo === false ? (contrato.ultimo_lancamento?.valor ?? '') : (contrato.valor_base_previsto || '')),
     }));
   }, [contratos]);
   

@@ -31,7 +31,6 @@ const emptyForm = {
   lista_centro_custos: [],
   lista_servicos: [],
   lista_produtos_protheus: [],
-  lista_valores: [],
   padrao_descricao_servico: '',
   padrao_servico_protheus: '',
 };
@@ -212,7 +211,6 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
       displayText(fornecedor.lista_centro_custos),
       displayText(fornecedor.lista_servicos),
       displayText(fornecedor.lista_produtos_protheus),
-      displayText(fornecedor.lista_valores),
     ].join(' ').toLowerCase().includes(busca));
   }, [fornecedores, termo]);
 
@@ -241,7 +239,6 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
       lista_centro_custos: listValues(item.lista_centro_custos),
       lista_servicos: listValues(item.lista_servicos),
       lista_produtos_protheus: listValues(item.lista_produtos_protheus),
-      lista_valores: listValues(item.lista_valores),
     });
     setShowModal(true);
   };
@@ -255,7 +252,6 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
       lista_centro_custos: listValues(form.lista_centro_custos),
       lista_servicos: listValues(form.lista_servicos),
       lista_produtos_protheus: listValues(form.lista_produtos_protheus),
-      lista_valores: listValues(form.lista_valores),
     });
     setShowModal(false);
   };
@@ -320,7 +316,6 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
           const centros = listValues(fornecedor.lista_centro_custos);
           const servicos = listValues(fornecedor.lista_servicos);
           const produtos = listValues(fornecedor.lista_produtos_protheus);
-          const valores = listValues(fornecedor.lista_valores);
 
           return (
             <Grid key={fornecedor.id} size={12}>
@@ -364,9 +359,6 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
                     </Grid>
                     <Grid size={{ xs: 12, lg: 4 }}>
                       <CatalogoBloco label="Produtos Protheus" value={produtos} />
-                    </Grid>
-                    <Grid size={{ xs: 12, lg: 4 }}>
-                      <CatalogoBloco label="Valores possíveis" value={valores} />
                     </Grid>
                   </Grid>
                 </Stack>
@@ -439,9 +431,6 @@ export default function FornecedoresView({ fornecedores, onSalvar, onExcluir }) 
               </Grid>
               <Grid size={12}>
                 <EditableListField label="Lista de produtos Protheus" value={form.lista_produtos_protheus} onChange={(lista_produtos_protheus) => setForm({ ...form, lista_produtos_protheus })} placeholder="Digite o produto" />
-              </Grid>
-              <Grid size={12}>
-                <EditableListField label="Lista de valores possíveis" value={form.lista_valores} onChange={(lista_valores) => setForm({ ...form, lista_valores })} placeholder="Digite o valor" />
               </Grid>
             </Grid>
 

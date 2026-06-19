@@ -71,6 +71,21 @@ async function createLancamentoForContrato(contrato, competencia, vencimento) {
   const existente = existentes?.[0];
   if (existente) return { status: 'exists', id: existente.id };
 
+  let valorInicial = contrato.valor_base_previsto ?? null;
+  if (contrato.valor_fixo === false) {
+    const { data: ultimos, error: errUltimo } = await supabase
+      .from('lancamentos')
+      .select('valor')
+      .eq('contrato_id', contrato.id)
+      .not('valor', 'is', null)
+      .order('competencia', { ascending: false })
+      .order('id', { ascending: false })
+      .limit(1);
+
+    if (errUltimo) throw errUltimo;
+    valorInicial = ultimos?.[0]?.valor ?? null;
+  }
+
   const payload = {
     contrato_id: contrato.id,
     competencia,
@@ -81,8 +96,8 @@ async function createLancamentoForContrato(contrato, competencia, vencimento) {
     centro_custo_usado: contrato.centro_custo_usado,
     descricao_servico: contrato.descricao_servico,
     servico_protheus: contrato.produto_protheus || contrato.servico_protheus,
-    valor_previsto: contrato.valor_base_previsto,
-    valor: contrato.valor_base_previsto,
+    valor_previsto: valorInicial,
+    valor: valorInicial,
     data_vencimento: vencimento,
     etapa: 'pendente',
     status_pagamento: 'Pendente Fatura',

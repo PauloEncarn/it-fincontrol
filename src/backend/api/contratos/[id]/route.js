@@ -19,7 +19,7 @@ export async function PUT(request, context) {
 
   const { data: existingContrato, error: existingError } = await supabase
     .from('contratos_mensais')
-    .select('cnpj_usado, contrato_usado, centro_custo_usado, descricao_servico, produto_protheus, valor_base_previsto')
+    .select('cnpj_usado, contrato_usado, centro_custo_usado, descricao_servico, produto_protheus, valor_base_previsto, valor_fixo')
     .eq('id', id)
     .single();
 

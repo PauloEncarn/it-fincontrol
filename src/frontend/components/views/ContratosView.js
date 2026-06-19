@@ -12,6 +12,7 @@ import {
   DialogTitle,
   Divider,
   FormControl,
+  FormControlLabel,
   Grid,
   IconButton,
   InputLabel,
@@ -20,6 +21,7 @@ import {
   Paper,
   Select,
   Stack,
+  Switch,
   Table,
   TableBody,
   TableCell,
@@ -60,6 +62,7 @@ const emptyContract = {
   email_destino: '',
   responsavel_interno: '',
   regra_lancamento: '',
+  valor_fixo: true,
   valor_base_previsto: '',
   dia_vencimento: 1,
   status: 'Ativo',
@@ -92,46 +95,13 @@ const listValues = (value) => {
   return String(value || '').split(/[;|\n]/).map((item) => item.trim()).filter(Boolean);
 };
 
-const moneyOptionValue = (value) => {
-  const text = String(value ?? '').trim();
-  if (!text) return '';
-
-  const cleaned = text.replace(/[^\d,.-]/g, '');
-  if (!cleaned) return '';
-
-  const hasComma = cleaned.includes(',');
-  const hasDot = cleaned.includes('.');
-  let normalized = cleaned;
-
-  if (hasComma && hasDot) {
-    const lastComma = cleaned.lastIndexOf(',');
-    const lastDot = cleaned.lastIndexOf('.');
-    const decimalSeparator = lastComma > lastDot ? ',' : '.';
-    const thousandSeparator = decimalSeparator === ',' ? '.' : ',';
-    normalized = cleaned
-      .replace(new RegExp(`\\${thousandSeparator}`, 'g'), '')
-      .replace(decimalSeparator, '.');
-  } else if (hasComma) {
-    normalized = cleaned.replace(/\./g, '').replace(',', '.');
-  } else if (hasDot) {
-    const parts = cleaned.split('.');
-    const decimalPart = parts[parts.length - 1];
-    normalized = decimalPart.length <= 2
-      ? cleaned.replace(/,/g, '')
-      : cleaned.replace(/\./g, '');
-  }
-
-  const parsed = Number(normalized);
-  return Number.isNaN(parsed) ? text : String(parsed);
-};
-
 const buildContratoDetalhe = (form) => [
   form.contrato_usado && `Contrato: ${form.contrato_usado}`,
   form.subcontrato_nome && `Item: ${form.subcontrato_nome}`,
   form.descricao_servico && `Serviço: ${form.descricao_servico}`,
   form.produto_protheus && `Produto Protheus: ${form.produto_protheus}`,
   form.centro_custo_usado && `Centro de custo: ${form.centro_custo_usado}`,
-  form.valor_base_previsto && `Valor previsto: ${currency(form.valor_base_previsto)}`,
+  form.valor_fixo === false ? 'Valor variavel: usa a ultima nota do contrato' : form.valor_base_previsto && `Valor fixo: ${currency(form.valor_base_previsto)}`,
 ].filter(Boolean).join(' | ');
 
 const contratoItemLabel = (contrato) => (
@@ -144,6 +114,10 @@ const contratoItemLabel = (contrato) => (
 
 const filialLabel = (filial) => (
   filial ? [filial.codigo, filial.nome_fantasia].filter(Boolean).join(' - ') : 'Filial não informada'
+);
+
+const contratoValorLabel = (contrato) => (
+  contrato?.valor_fixo === false ? 'Variavel' : currency(contrato?.valor_base_previsto)
 );
 
 const clampTextSx = {
@@ -189,7 +163,6 @@ export default function ContratosView({
     centros: listValues(fornecedorSelecionado?.lista_centro_custos),
     servicos: listValues(fornecedorSelecionado?.lista_servicos),
     produtos: listValues(fornecedorSelecionado?.lista_produtos_protheus),
-    valores: listValues(fornecedorSelecionado?.lista_valores),
   }), [fornecedorSelecionado]);
 
   const lancamentosContrato = useMemo(() => (
@@ -300,7 +273,6 @@ export default function ContratosView({
       centro_custo_usado: fornecedor ? first(fornecedor.lista_centro_custos) : '',
       descricao_servico: fornecedor ? first(fornecedor.lista_servicos) : '',
       produto_protheus: fornecedor ? first(fornecedor.lista_produtos_protheus) : '',
-      valor_base_previsto: fornecedor ? moneyOptionValue(first(fornecedor.lista_valores)) : '',
     }));
   };
 
@@ -335,30 +307,18 @@ export default function ContratosView({
   };
 
   const renderValorField = () => {
-    const opcoes = opcoesSelecionadas.valores.map((valor) => ({
-      label: valor,
-      value: moneyOptionValue(valor),
-    }));
     const currentValue = form.valor_base_previsto || '';
-    const currentOutsideList = currentValue && !opcoes.some((opcao) => opcao.value === currentValue);
 
     return (
       <TextField
-        select
-        label="Valor previsto"
+        type="number"
+        label="Valor fixo"
         value={currentValue}
         onChange={(e) => setForm({ ...form, valor_base_previsto: e.target.value })}
         fullWidth
-        helperText={opcoes.length ? 'Valores cadastrados no fornecedor' : 'Cadastre os valores no fornecedor'}
-      >
-        <MenuItem value="">{opcoes.length ? 'Selecione...' : 'Sem valores cadastrados'}</MenuItem>
-        {currentOutsideList && (
-          <MenuItem value={currentValue}>{currency(currentValue)} (fora da lista)</MenuItem>
-        )}
-        {opcoes.map((opcao) => (
-          <MenuItem key={opcao.label} value={opcao.value}>{opcao.label}</MenuItem>
-        ))}
-      </TextField>
+        helperText="Usado como valor previsto e valor inicial das notas recorrentes"
+        slotProps={{ htmlInput: { min: 0, step: '0.01' } }}
+      />
     );
   };
 
@@ -504,7 +464,7 @@ export default function ContratosView({
                           </TableCell>
                           <TableCell sx={clampTextSx} title={filialLabel(contrato.filial)}>{filialLabel(contrato.filial)}</TableCell>
                           <TableCell sx={clampTextSx} title={contrato.produto_protheus || contrato.servico_protheus || '-'}>{contrato.produto_protheus || contrato.servico_protheus || '-'}</TableCell>
-                          <TableCell>{currency(contrato.valor_base_previsto)}</TableCell>
+                          <TableCell>{contratoValorLabel(contrato)}</TableCell>
                           <TableCell>Dia {contrato.dia_vencimento}</TableCell>
                           <TableCell>{contrato.proxima_competencia || '-'}</TableCell>
                           <TableCell>
@@ -612,7 +572,7 @@ export default function ContratosView({
               <TableRow key={contrato.id} hover>
                 <TableCell sx={{ fontWeight: 700 }}>{contrato.fornecedor?.nome_empresa || '-'}</TableCell>
                 <TableCell>{contrato.filial?.nome_fantasia || '-'}</TableCell>
-                <TableCell>{currency(contrato.valor_base_previsto)}</TableCell>
+                <TableCell>{contratoValorLabel(contrato)}</TableCell>
                 <TableCell>Dia {contrato.dia_vencimento}</TableCell>
                 <TableCell>{contrato.ultimo_lancamento?.competencia || '-'}</TableCell>
                 <TableCell>{contrato.proxima_competencia || '-'}</TableCell>
@@ -713,7 +673,7 @@ export default function ContratosView({
               <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
                 {selectedContrato.fornecedor?.nome_empresa || '-'} | Contrato {selectedContrato.contrato_usado || '-'}
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{filialLabel(selectedContrato.filial)} | {currency(selectedContrato.valor_base_previsto)}</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{filialLabel(selectedContrato.filial)} | {contratoValorLabel(selectedContrato)}</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{selectedContrato.descricao_servico || '-'}</Typography>
             </Box>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }} sx={{ flexShrink: 0, px: { xs: 2, md: 2.5 }, py: 1.5, bgcolor: 'background.paper', borderBottom: '1px solid', borderColor: 'divider' }}>
@@ -729,8 +689,10 @@ export default function ContratosView({
                 <Chip size="small" variant="outlined" label={lancamentosContrato.length} />
               </Stack>
               {lancamentosContrato.map((lancamento) => {
-                const variacao = Number(lancamento.valor || 0) - Number(lancamento.valor_previsto || selectedContrato.valor_base_previsto || 0);
-                const temVariacao = Math.abs(variacao) > 0;
+                const valorReferencia = lancamento.valor_previsto ?? (selectedContrato.valor_fixo === false ? null : selectedContrato.valor_base_previsto);
+                const temReferencia = valorReferencia !== null && valorReferencia !== undefined && valorReferencia !== '';
+                const variacao = temReferencia ? Number(lancamento.valor || 0) - Number(valorReferencia || 0) : 0;
+                const temVariacao = temReferencia && Math.abs(variacao) > 0;
 
                 return (
                   <Paper
@@ -757,7 +719,7 @@ export default function ContratosView({
                           NF {lancamento.numero_nota || '-'} | Venc. {lancamento.data_vencimento || '-'}
                         </Typography>
                         <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
-                          Real {currency(lancamento.valor)} | Previsto {currency(lancamento.valor_previsto || selectedContrato.valor_base_previsto)}
+                          Real {lancamento.valor === null || lancamento.valor === undefined ? '-' : currency(lancamento.valor)} | Previsto {temReferencia ? currency(valorReferencia) : '-'}
                         </Typography>
                         {temVariacao && (
                           <Typography variant="caption" color={variacao > 0 ? 'error.main' : 'success.main'} sx={{ display: 'block' }}>
@@ -843,8 +805,24 @@ export default function ContratosView({
               {renderListField('Centro de custo', 'centro_custo_usado', opcoesSelecionadas.centros)}
             </Grid>
             <Grid size={{ xs: 12, md: 4 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={form.valor_fixo !== false}
+                    onChange={(e) => setForm({ ...form, valor_fixo: e.target.checked, valor_base_previsto: e.target.checked ? form.valor_base_previsto : '' })}
+                  />
+                }
+                label="Valor fixo"
+              />
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                Desligado: usa a ultima nota do contrato.
+              </Typography>
+            </Grid>
+            {form.valor_fixo !== false && (
+            <Grid size={{ xs: 12, md: 4 }}>
               {renderValorField()}
             </Grid>
+            )}
             <Grid size={{ xs: 12, md: 4 }}>
               <TextField
                 label="Data de início"

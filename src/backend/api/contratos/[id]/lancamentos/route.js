@@ -21,6 +21,24 @@ const vencimentoParaCompetencia = (competencia, dia) => {
 
 const statusInicial = 'Pendente Fatura';
 
+async function valorInicialParaContrato(contrato) {
+  if (contrato.valor_fixo !== false) {
+    return contrato.valor_base_previsto ?? null;
+  }
+
+  const { data, error } = await supabase
+    .from('lancamentos')
+    .select('valor')
+    .eq('contrato_id', contrato.id)
+    .not('valor', 'is', null)
+    .order('competencia', { ascending: false })
+    .order('id', { ascending: false })
+    .limit(1);
+
+  if (error) throw error;
+  return data?.[0]?.valor ?? null;
+}
+
 export async function GET(request, context) {
   const params = await context.params;
   const id = params.id;
@@ -65,6 +83,13 @@ export async function POST(request, context) {
     return NextResponse.json({ error: 'Informe a filial do contrato antes de gerar nota.' }, { status: 400 });
   }
 
+  let valorInicial = null;
+  try {
+    valorInicial = await valorInicialParaContrato(contrato);
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
   const payload = {
     contrato_id: contrato.id,
     competencia,
@@ -75,8 +100,8 @@ export async function POST(request, context) {
     centro_custo_usado: contrato.centro_custo_usado,
     descricao_servico: contrato.descricao_servico,
     servico_protheus: contrato.produto_protheus || contrato.servico_protheus,
-    valor_previsto: contrato.valor_base_previsto,
-    valor: contrato.valor_base_previsto,
+    valor_previsto: valorInicial,
+    valor: valorInicial,
     data_vencimento: vencimentoParaCompetencia(competencia, contrato.dia_vencimento),
     etapa: 'pendente',
     status_pagamento: statusInicial,

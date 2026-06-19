@@ -19,6 +19,7 @@ export const listValues = (value) => {
 const normalizeKeyPart = (value) => String(value ?? '').trim().toLowerCase();
 
 const sameContratoIdentity = (a, b) => (
+  normalizeKeyPart(a.cnpj_usado) === normalizeKeyPart(b.cnpj_usado) &&
   normalizeKeyPart(a.filial_id) === normalizeKeyPart(b.filial_id) &&
   normalizeKeyPart(a.descricao_servico) === normalizeKeyPart(b.descricao_servico) &&
   normalizeKeyPart(a.produto_protheus) === normalizeKeyPart(b.produto_protheus) &&
@@ -77,7 +78,8 @@ export const payloadFromBody = (body) => ({
   email_destino: textOrNull(body.email_destino),
   responsavel_interno: textOrNull(body.responsavel_interno),
   regra_lancamento: textOrNull(body.regra_lancamento),
-  valor_base_previsto: numberOrNull(body.valor_base_previsto) || 0,
+  valor_fixo: body.valor_fixo === false || body.valor_fixo === 'false' ? false : true,
+  valor_base_previsto: body.valor_fixo === false || body.valor_fixo === 'false' ? 0 : (numberOrNull(body.valor_base_previsto) || 0),
   dia_vencimento: numberOrNull(body.dia_vencimento) || 1,
   tolerancia_percentual: numberOrNull(body.tolerancia_percentual) ?? 5,
   status: textOrNull(body.status) || 'Ativo',
@@ -93,7 +95,7 @@ export async function validateFornecedorLists(supabase, payload, existingContrat
 
   const { data: fornecedor, error } = await supabase
     .from('fornecedores')
-    .select('id, lista_cnpjs, lista_contratos, lista_centro_custos, lista_servicos, lista_produtos_protheus, lista_valores')
+    .select('id, lista_cnpjs, lista_contratos, lista_centro_custos, lista_servicos, lista_produtos_protheus')
     .eq('id', payload.fornecedor_id)
     .single();
 
@@ -119,7 +121,6 @@ export async function validateFornecedorLists(supabase, payload, existingContrat
     ['Centro de custo', payload.centro_custo_usado, withExisting('centro_custo_usado', listValues(fornecedor.lista_centro_custos))],
     ['Serviço', payload.descricao_servico, withExisting('descricao_servico', listValues(fornecedor.lista_servicos))],
     ['Produto Protheus', payload.produto_protheus, withExisting('produto_protheus', listValues(fornecedor.lista_produtos_protheus))],
-    ['Valor previsto', payload.valor_base_previsto ? normalizeMoneyText(payload.valor_base_previsto) : '', withExisting('valor_base_previsto', listValues(fornecedor.lista_valores).map(normalizeMoneyText), normalizeMoneyText)],
   ];
 
   for (const [label, selected, allowed] of checks) {
@@ -137,7 +138,7 @@ export async function validateContratoUnico(supabase, payload, currentId = null)
 
   let query = supabase
     .from('contratos_mensais')
-    .select('id, filial_id, contrato_usado, subcontrato_nome, descricao_servico, produto_protheus, centro_custo_usado')
+    .select('id, filial_id, cnpj_usado, contrato_usado, subcontrato_nome, descricao_servico, produto_protheus, centro_custo_usado')
     .eq('fornecedor_id', payload.fornecedor_id)
     .eq('contrato_usado', payload.contrato_usado);
 
@@ -149,5 +150,5 @@ export async function validateContratoUnico(supabase, payload, currentId = null)
   const duplicado = (data || []).find((contrato) => sameContratoIdentity(contrato, payload));
   if (!duplicado) return null;
 
-  return 'Ja existe um contrato cadastrado para este fornecedor com o mesmo numero, filial, servico, produto, centro de custo e item.';
+  return 'Ja existe um contrato cadastrado para este fornecedor com o mesmo numero, CNPJ, filial, servico, produto, centro de custo e identificador do item.';
 }
