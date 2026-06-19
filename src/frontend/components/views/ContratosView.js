@@ -34,6 +34,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
 import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
+import CloseIcon from '@mui/icons-material/Close';
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
@@ -145,6 +146,19 @@ const contratoItemLabel = (contrato) => (
 const filialLabel = (filial) => (
   filial ? [filial.codigo, filial.nome_fantasia].filter(Boolean).join(' - ') : 'Filial não informada'
 );
+
+const clampTextSx = {
+  minWidth: 0,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+};
+
+const wrapTextSx = {
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+  wordBreak: 'break-word',
+};
 
 export default function ContratosView({
   contratos,
@@ -454,17 +468,17 @@ export default function ContratosView({
                 </Stack>
               </AccordionSummary>
               <AccordionDetails sx={{ pt: 0 }}>
-                <TableContainer component={Paper} variant="outlined">
-                  <Table size="small">
+                <TableContainer component={Paper} variant="outlined" sx={{ overflowX: 'auto' }}>
+                  <Table size="small" sx={{ minWidth: 980, tableLayout: 'fixed' }}>
                     <TableHead>
                       <TableRow>
-                        <TableCell>Contrato</TableCell>
-                        <TableCell>Filial</TableCell>
-                        <TableCell>Produto</TableCell>
-                        <TableCell>Valor</TableCell>
-                        <TableCell>Vencimento</TableCell>
+                        <TableCell sx={{ width: 300 }}>Contrato</TableCell>
+                        <TableCell sx={{ width: 180 }}>Filial</TableCell>
+                        <TableCell sx={{ width: 150 }}>Produto</TableCell>
+                        <TableCell sx={{ width: 110 }}>Valor</TableCell>
+                        <TableCell sx={{ width: 100 }}>Vencimento</TableCell>
                         <TableCell>Próxima</TableCell>
-                        <TableCell>Status</TableCell>
+                        <TableCell sx={{ width: 110 }}>Status</TableCell>
                         <TableCell align="right">Ações</TableCell>
                       </TableRow>
                     </TableHead>
@@ -489,15 +503,16 @@ export default function ContratosView({
                               {contrato.centro_custo_usado || '-'}
                             </Typography>
                           </TableCell>
-                          <TableCell>{filialLabel(contrato.filial)}</TableCell>
-                          <TableCell>{contrato.produto_protheus || contrato.servico_protheus || '-'}</TableCell>
+                          <TableCell sx={clampTextSx} title={filialLabel(contrato.filial)}>{filialLabel(contrato.filial)}</TableCell>
+                          <TableCell sx={clampTextSx} title={contrato.produto_protheus || contrato.servico_protheus || '-'}>{contrato.produto_protheus || contrato.servico_protheus || '-'}</TableCell>
                           <TableCell>{currency(contrato.valor_base_previsto)}</TableCell>
                           <TableCell>Dia {contrato.dia_vencimento}</TableCell>
                           <TableCell>{contrato.proxima_competencia || '-'}</TableCell>
                           <TableCell>
                             <Chip size="small" color={statusColor[contrato.status] || 'default'} label={contrato.status} sx={{ fontWeight: 700 }} />
                           </TableCell>
-                          <TableCell align="right">
+                          <TableCell align="right" sx={{ verticalAlign: 'top' }}>
+                            <Stack direction="row" spacing={0.25} justifyContent="flex-end" flexWrap="wrap" useFlexGap sx={{ width: 1 }}>
                             <Tooltip title="Linha do tempo">
                               <IconButton color="primary" onClick={() => setSelectedContrato(contrato)}>
                                 <HistoryOutlinedIcon />
@@ -541,6 +556,7 @@ export default function ContratosView({
                                 <DeleteOutlinedIcon />
                               </IconButton>
                             </Tooltip>
+                            </Stack>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -661,19 +677,28 @@ export default function ContratosView({
         anchor="right"
         open={Boolean(selectedContrato)}
         onClose={() => setSelectedContrato(null)}
+        ModalProps={{ keepMounted: true }}
         PaperProps={{
           sx: {
-            width: { xs: '92vw', sm: 520, md: 560 },
+            width: { xs: 'min(94vw, 420px)', sm: 520, md: 560 },
             maxWidth: 'calc(100vw - 16px)',
             minWidth: 0,
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
             boxSizing: 'border-box',
-            overflowX: 'hidden',
+            overflow: 'hidden',
           },
         }}
       >
         {selectedContrato && (
-          <Stack spacing={2} sx={{ p: { xs: 2, md: 2.5 }, width: '100%', maxWidth: '100%', minWidth: 0, height: '100%', overflowX: 'hidden', overflowY: 'auto', boxSizing: 'border-box' }}>
-            <Box sx={{ minWidth: 0 }}>
+          <Box sx={{ width: '100%', maxWidth: '100%', minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxSizing: 'border-box', bgcolor: 'background.default' }}>
+            <Box sx={{ minWidth: 0, position: 'relative', p: { xs: 2, md: 2.5 }, pb: 1.5, pr: 6, bgcolor: 'background.paper', borderBottom: '1px solid', borderColor: 'divider' }}>
+              <Tooltip title="Fechar">
+                <IconButton size="small" onClick={() => setSelectedContrato(null)} sx={{ position: 'absolute', top: 0, right: 0 }}>
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
               <Typography variant="overline" color="text.secondary" fontWeight={900}>
                 Linha do tempo do contrato
               </Typography>
@@ -691,13 +716,12 @@ export default function ContratosView({
               <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{filialLabel(selectedContrato.filial)} | {currency(selectedContrato.valor_base_previsto)}</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{selectedContrato.descricao_servico || '-'}</Typography>
             </Box>
-            <Divider />
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }} sx={{ px: { xs: 2, md: 2.5 }, py: 1.5, bgcolor: 'background.paper', borderBottom: '1px solid', borderColor: 'divider' }}>
               <TextField size="small" type="month" label="Competência" value={competencia} onChange={(e) => setCompetencia(e.target.value)} InputLabelProps={{ shrink: true }} sx={{ flex: 1, minWidth: { xs: '100%', sm: 180 }, maxWidth: '100%' }} />
               <Button variant="contained" disabled={selectedContrato.status !== 'Ativo' || selectedContrato.tipo_contrato === 'Avulso'} onClick={() => onGerarCompetencia(selectedContrato.id, competencia)} sx={{ minWidth: 132, flexShrink: 0, whiteSpace: 'nowrap' }}>Gerar nota</Button>
             </Stack>
 
-            <Stack spacing={1.25} sx={{ minWidth: 0, maxWidth: '100%' }}>
+            <Stack spacing={1.25} sx={{ flex: 1, minWidth: 0, maxWidth: '100%', overflowX: 'hidden', overflowY: 'auto', p: { xs: 2, md: 2.5 } }}>
               <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" sx={{ minWidth: 0 }}>
                 <Typography variant="subtitle2" fontWeight={900}>
                   Notas vinculadas
@@ -722,7 +746,7 @@ export default function ContratosView({
                       bgcolor: temVariacao ? (variacao > 0 ? '#fff5f5' : '#f0fdf4') : 'background.paper',
                     }}
                   >
-                    <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }} sx={{ minWidth: 0, maxWidth: '100%' }}>
+                    <Stack spacing={1.25} sx={{ minWidth: 0, maxWidth: '100%' }}>
                       <Box sx={{ minWidth: 0, flex: 1 }}>
                         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
                           <Typography fontWeight={800}>{lancamento.competencia || '-'}</Typography>
@@ -747,8 +771,8 @@ export default function ContratosView({
                           </Typography>
                         )}
                       </Box>
-                      <Stack spacing={1} alignItems={{ xs: 'stretch', sm: 'flex-end' }} sx={{ minWidth: 0, maxWidth: { xs: '100%', sm: 220 }, flexShrink: 0 }}>
-                        <Chip size="small" color={lancamentoColor(lancamento.status_pagamento)} label={lancamento.status_pagamento || 'Sem status'} sx={{ width: '100%', maxWidth: { xs: '100%', sm: 220 }, '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }} />
+                      <Stack direction="row" spacing={1} alignItems="center" justifyContent="flex-end" flexWrap="wrap" useFlexGap sx={{ minWidth: 0 }}>
+                        <Chip size="small" color={lancamentoColor(lancamento.status_pagamento)} label={lancamento.status_pagamento || 'Sem status'} sx={{ maxWidth: { xs: '100%', sm: 220 }, '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }} />
                         <Button size="small" variant="outlined" onClick={() => onEditarLancamento(lancamento)} sx={{ whiteSpace: 'nowrap', minWidth: 104 }}>Editar nota</Button>
                       </Stack>
                     </Stack>
@@ -759,7 +783,7 @@ export default function ContratosView({
                 <Typography variant="body2" color="text.secondary">Nenhuma nota gerada para este contrato.</Typography>
               )}
             </Stack>
-          </Stack>
+          </Box>
         )}
       </Drawer>
 
