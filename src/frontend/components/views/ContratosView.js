@@ -663,39 +663,41 @@ export default function ContratosView({
         onClose={() => setSelectedContrato(null)}
         PaperProps={{
           sx: {
-            width: { xs: '100%', sm: 560, md: 680 },
-            maxWidth: '100vw',
+            width: { xs: '92vw', sm: 520, md: 560 },
+            maxWidth: 'calc(100vw - 16px)',
+            minWidth: 0,
+            boxSizing: 'border-box',
             overflowX: 'hidden',
           },
         }}
       >
         {selectedContrato && (
-          <Stack spacing={2} sx={{ p: { xs: 2, md: 2.5 }, minWidth: 0, height: '100%', overflowY: 'auto' }}>
+          <Stack spacing={2} sx={{ p: { xs: 2, md: 2.5 }, width: '100%', maxWidth: '100%', minWidth: 0, height: '100%', overflowX: 'hidden', overflowY: 'auto', boxSizing: 'border-box' }}>
             <Box sx={{ minWidth: 0 }}>
               <Typography variant="overline" color="text.secondary" fontWeight={900}>
                 Linha do tempo do contrato
               </Typography>
               <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mb: 0.75 }}>
-                <Chip size="small" variant="outlined" label={`ID ${selectedContrato.id}`} />
-                <Chip size="small" variant="outlined" label={selectedContrato.tipo_contrato || 'Recorrente'} />
-                <Chip size="small" color={statusColor[selectedContrato.status] || 'default'} label={selectedContrato.status || 'Sem status'} />
+                <Chip size="small" variant="outlined" label={`ID ${selectedContrato.id}`} sx={{ maxWidth: '100%' }} />
+                <Chip size="small" variant="outlined" label={selectedContrato.tipo_contrato || 'Recorrente'} sx={{ maxWidth: '100%' }} />
+                <Chip size="small" color={statusColor[selectedContrato.status] || 'default'} label={selectedContrato.status || 'Sem status'} sx={{ maxWidth: '100%', '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }} />
               </Stack>
-              <Typography variant="h6" fontWeight={900} sx={{ overflowWrap: 'anywhere', lineHeight: 1.25 }}>
+              <Typography variant="h6" fontWeight={900} sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word', lineHeight: 1.25 }}>
                 {contratoItemLabel(selectedContrato)}
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
+              <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
                 {selectedContrato.fornecedor?.nome_empresa || '-'} | Contrato {selectedContrato.contrato_usado || '-'}
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>{filialLabel(selectedContrato.filial)} | {currency(selectedContrato.valor_base_previsto)}</Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>{selectedContrato.descricao_servico || '-'}</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{filialLabel(selectedContrato.filial)} | {currency(selectedContrato.valor_base_previsto)}</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{selectedContrato.descricao_servico || '-'}</Typography>
             </Box>
             <Divider />
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }}>
-              <TextField size="small" type="month" label="Competência" value={competencia} onChange={(e) => setCompetencia(e.target.value)} InputLabelProps={{ shrink: true }} sx={{ flex: 1, minWidth: { xs: '100%', sm: 180 } }} />
+              <TextField size="small" type="month" label="Competência" value={competencia} onChange={(e) => setCompetencia(e.target.value)} InputLabelProps={{ shrink: true }} sx={{ flex: 1, minWidth: { xs: '100%', sm: 180 }, maxWidth: '100%' }} />
               <Button variant="contained" disabled={selectedContrato.status !== 'Ativo' || selectedContrato.tipo_contrato === 'Avulso'} onClick={() => onGerarCompetencia(selectedContrato.id, competencia)} sx={{ minWidth: 132, flexShrink: 0, whiteSpace: 'nowrap' }}>Gerar nota</Button>
             </Stack>
 
-            <Stack spacing={1.25}>
+            <Stack spacing={1.25} sx={{ minWidth: 0, maxWidth: '100%' }}>
               <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" sx={{ minWidth: 0 }}>
                 <Typography variant="subtitle2" fontWeight={900}>
                   Notas vinculadas
@@ -712,11 +714,15 @@ export default function ContratosView({
                     variant="outlined"
                     sx={{
                       p: 1.5,
+                      minWidth: 0,
+                      maxWidth: '100%',
+                      overflowX: 'hidden',
+                      boxSizing: 'border-box',
                       borderColor: temVariacao ? (variacao > 0 ? 'error.light' : 'success.light') : 'divider',
                       bgcolor: temVariacao ? (variacao > 0 ? '#fff5f5' : '#f0fdf4') : 'background.paper',
                     }}
                   >
-                    <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }}>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }} sx={{ minWidth: 0, maxWidth: '100%' }}>
                       <Box sx={{ minWidth: 0, flex: 1 }}>
                         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
                           <Typography fontWeight={800}>{lancamento.competencia || '-'}</Typography>
@@ -741,8 +747,8 @@ export default function ContratosView({
                           </Typography>
                         )}
                       </Box>
-                      <Stack spacing={1} alignItems={{ xs: 'stretch', sm: 'flex-end' }}>
-                        <Chip size="small" color={lancamentoColor(lancamento.status_pagamento)} label={lancamento.status_pagamento || 'Sem status'} sx={{ maxWidth: { xs: '100%', sm: 220 }, '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }} />
+                      <Stack spacing={1} alignItems={{ xs: 'stretch', sm: 'flex-end' }} sx={{ minWidth: 0, maxWidth: { xs: '100%', sm: 220 }, flexShrink: 0 }}>
+                        <Chip size="small" color={lancamentoColor(lancamento.status_pagamento)} label={lancamento.status_pagamento || 'Sem status'} sx={{ width: '100%', maxWidth: { xs: '100%', sm: 220 }, '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }} />
                         <Button size="small" variant="outlined" onClick={() => onEditarLancamento(lancamento)} sx={{ whiteSpace: 'nowrap', minWidth: 104 }}>Editar nota</Button>
                       </Stack>
                     </Stack>
