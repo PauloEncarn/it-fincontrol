@@ -693,7 +693,7 @@ export default function ContratosView({
             boxShadow: '-12px 0 28px rgba(0,0,0,0.18)',
           }}
         >
-            <Box sx={{ minWidth: 0, position: 'relative', p: { xs: 2, md: 2.5 }, pb: 1.5, pr: 6, bgcolor: 'background.paper', borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Box sx={{ minWidth: 0, flexShrink: 0, position: 'relative', p: { xs: 2, md: 2.5 }, pb: 1.5, pr: 6, bgcolor: 'background.paper', borderBottom: '1px solid', borderColor: 'divider' }}>
               <Tooltip title="Fechar">
                 <IconButton size="small" onClick={() => setSelectedContrato(null)} sx={{ position: 'absolute', top: 0, right: 0 }}>
                   <CloseIcon fontSize="small" />
@@ -716,7 +716,7 @@ export default function ContratosView({
               <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{filialLabel(selectedContrato.filial)} | {currency(selectedContrato.valor_base_previsto)}</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{selectedContrato.descricao_servico || '-'}</Typography>
             </Box>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }} sx={{ px: { xs: 2, md: 2.5 }, py: 1.5, bgcolor: 'background.paper', borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }} sx={{ flexShrink: 0, px: { xs: 2, md: 2.5 }, py: 1.5, bgcolor: 'background.paper', borderBottom: '1px solid', borderColor: 'divider' }}>
               <TextField size="small" type="month" label="Competência" value={competencia} onChange={(e) => setCompetencia(e.target.value)} InputLabelProps={{ shrink: true }} sx={{ flex: 1, minWidth: { xs: '100%', sm: 180 }, maxWidth: '100%' }} />
               <Button variant="contained" disabled={selectedContrato.status !== 'Ativo' || selectedContrato.tipo_contrato === 'Avulso'} onClick={() => onGerarCompetencia(selectedContrato.id, competencia)} sx={{ minWidth: 132, flexShrink: 0, whiteSpace: 'nowrap' }}>Gerar nota</Button>
             </Stack>
@@ -740,7 +740,6 @@ export default function ContratosView({
                       p: 1.5,
                       minWidth: 0,
                       maxWidth: '100%',
-                      overflowX: 'hidden',
                       boxSizing: 'border-box',
                       borderColor: temVariacao ? (variacao > 0 ? 'error.light' : 'success.light') : 'divider',
                       bgcolor: temVariacao ? (variacao > 0 ? '#fff5f5' : '#f0fdf4') : 'background.paper',
@@ -772,7 +771,22 @@ export default function ContratosView({
                         )}
                       </Box>
                       <Stack direction="row" spacing={1} alignItems="center" justifyContent="flex-end" flexWrap="wrap" useFlexGap sx={{ minWidth: 0 }}>
-                        <Chip size="small" color={lancamentoColor(lancamento.status_pagamento)} label={lancamento.status_pagamento || 'Sem status'} sx={{ maxWidth: { xs: '100%', sm: 220 }, '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }} />
+                        <Chip
+                          size="small"
+                          color={lancamentoColor(lancamento.status_pagamento)}
+                          label={lancamento.status_pagamento || 'Sem status'}
+                          sx={{
+                            height: 'auto',
+                            minHeight: 24,
+                            maxWidth: '100%',
+                            '& .MuiChip-label': {
+                              whiteSpace: 'normal',
+                              overflow: 'visible',
+                              textOverflow: 'clip',
+                              py: 0.25,
+                            },
+                          }}
+                        />
                         <Button size="small" variant="outlined" onClick={() => onEditarLancamento(lancamento)} sx={{ whiteSpace: 'nowrap', minWidth: 104 }}>Editar nota</Button>
                       </Stack>
                     </Stack>
