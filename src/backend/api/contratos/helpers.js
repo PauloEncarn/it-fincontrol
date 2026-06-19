@@ -103,10 +103,6 @@ export async function validateFornecedorLists(supabase, payload, existingContrat
   if (!fornecedor) return 'Fornecedor não encontrado.';
 
   const cnpjs = listValues(fornecedor.lista_cnpjs);
-  if (cnpjs.length && !payload.cnpj_usado) {
-    return 'Selecione um CNPJ cadastrado no fornecedor.';
-  }
-
   const withExisting = (field, values, normalize = (item) => item) => {
     const currentValue = existingContrato?.[field];
     if (currentValue === null || currentValue === undefined || currentValue === '') return values;

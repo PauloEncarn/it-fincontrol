@@ -293,7 +293,6 @@ export default function ContratosView({
         onChange={(e) => setForm({ ...form, [field]: e.target.value })}
         fullWidth
         helperText={options.length ? 'Opções cadastradas no fornecedor' : 'Cadastre as opções no fornecedor'}
-        required={field === 'cnpj_usado'}
       >
         <MenuItem value="">{options.length ? 'Selecione...' : 'Sem opções cadastradas'}</MenuItem>
         {currentOutsideList && (
