@@ -146,6 +146,8 @@ export default function ContratosView({
   onSalvar,
   onExcluir,
   onGerarCompetencia,
+  onGerarPendentes,
+  gerandoPendentes,
   onEditarLancamento,
 }) {
   const [showModal, setShowModal] = useState(false);
@@ -380,9 +382,20 @@ export default function ContratosView({
               Cadastro de contratos por fornecedor
             </Typography>
           </Box>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={abrirNovo}>
-            Novo contrato
-          </Button>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }}>
+            <Button
+              variant="outlined"
+              color="success"
+              startIcon={<PlayCircleIcon />}
+              onClick={onGerarPendentes}
+              disabled={gerandoPendentes}
+            >
+              {gerandoPendentes ? 'Gerando...' : 'Gerar notas pendentes'}
+            </Button>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={abrirNovo}>
+              Novo contrato
+            </Button>
+          </Stack>
         </Stack>
       </Paper>
 

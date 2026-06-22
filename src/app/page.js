@@ -229,6 +229,17 @@ function DashboardContent() {
       onError: (err) => addToast('error', 'Erro ao gerar nota: ' + (err.response?.data?.error || err.message))
   });
 
+  const mutationGerarPendentesContratos = useMutation({
+      mutationFn: () => axios.post(`${API_URL}/contratos/lancamentos/pendentes`, {}, authConfig),
+      onSuccess: (res) => {
+          atualizarListas();
+          const data = res.data || {};
+          addToast('success', `Notas pendentes geradas: ${data.criados || 0}. Existentes: ${data.existentes || 0}.`);
+          if (data.erros?.length) addToast('error', `${data.erros.length} contratos tiveram erro ao gerar nota.`);
+      },
+      onError: (err) => addToast('error', 'Erro ao gerar notas pendentes: ' + (err.response?.data?.error || err.message))
+  });
+
   const mutationSolicitacao = useMutation({ 
       mutationFn: (dados) => dados.id ? axios.put(`${API_URL}/solicitacoes/${dados.id}`, dados, authConfig) : axios.post(`${API_URL}/solicitacoes/`, dados, authConfig), 
       onSuccess: () => { 
@@ -612,6 +623,8 @@ function DashboardContent() {
                                     () => mutationDeleteContrato.mutate(contrato.id)
                                 )}
                                 onGerarCompetencia={(contratoId, competencia) => mutationGerarCompetencia.mutate({ contratoId, competencia })}
+                                onGerarPendentes={() => mutationGerarPendentesContratos.mutate()}
+                                gerandoPendentes={mutationGerarPendentesContratos.isPending}
                                 onEditarLancamento={abrirEdicaoLancamento}
                             />
                         )}

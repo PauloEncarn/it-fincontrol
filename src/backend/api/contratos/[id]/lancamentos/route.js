@@ -1,43 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getActorFromRequest, registrarEventoLancamento } from '@/backend/utils/audit';
+import { getActorFromRequest } from '@/backend/utils/audit';
+import { competenciaAtualSaoPaulo, createLancamentoForContrato } from '@/backend/api/contratos/geracao-recorrente';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
-
-const pad = (value) => String(value).padStart(2, '0');
-const competenciaAtual = () => {
-  const hoje = new Date();
-  return `${hoje.getFullYear()}-${pad(hoje.getMonth() + 1)}`;
-};
-
-const vencimentoParaCompetencia = (competencia, dia) => {
-  const [ano, mes] = competencia.split('-').map(Number);
-  const ultimoDia = new Date(ano, mes, 0).getDate();
-  return `${ano}-${pad(mes)}-${pad(Math.min(Number(dia) || 1, ultimoDia))}`;
-};
-
-const statusInicial = 'Pendente Fatura';
-
-async function valorInicialParaContrato(contrato) {
-  if (contrato.valor_fixo !== false) {
-    return contrato.valor_base_previsto ?? null;
-  }
-
-  const { data, error } = await supabase
-    .from('lancamentos')
-    .select('valor')
-    .eq('contrato_id', contrato.id)
-    .not('valor', 'is', null)
-    .order('competencia', { ascending: false })
-    .order('id', { ascending: false })
-    .limit(1);
-
-  if (error) throw error;
-  return data?.[0]?.valor ?? null;
-}
 
 export async function GET(request, context) {
   const params = await context.params;
@@ -62,7 +31,7 @@ export async function POST(request, context) {
   const params = await context.params;
   const id = params.id;
   const body = await request.json().catch(() => ({}));
-  const competencia = body.competencia || competenciaAtual();
+  const competencia = body.competencia || competenciaAtualSaoPaulo();
 
   const { data: contrato, error: errContrato } = await supabase
     .from('contratos_mensais')
@@ -83,66 +52,16 @@ export async function POST(request, context) {
     return NextResponse.json({ error: 'Informe a filial do contrato antes de gerar nota.' }, { status: 400 });
   }
 
-  let valorInicial = null;
   try {
-    valorInicial = await valorInicialParaContrato(contrato);
+    const result = await createLancamentoForContrato(supabase, contrato, competencia, {
+      ator,
+      origem: 'manual',
+      titulo: 'Nota recorrente gerada manualmente',
+      descricao: 'Competencia criada a partir do cadastro do contrato recorrente.',
+    });
+
+    return NextResponse.json(result.lancamento || { success: true });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-
-  const payload = {
-    contrato_id: contrato.id,
-    competencia,
-    filial_id: contrato.filial_id,
-    fornecedor_id: contrato.fornecedor_id,
-    cnpj_usado: contrato.cnpj_usado,
-    contrato_usado: contrato.contrato_usado,
-    centro_custo_usado: contrato.centro_custo_usado,
-    descricao_servico: contrato.descricao_servico,
-    servico_protheus: contrato.produto_protheus || contrato.servico_protheus,
-    valor_previsto: valorInicial,
-    valor: valorInicial,
-    data_vencimento: vencimentoParaCompetencia(competencia, contrato.dia_vencimento),
-    etapa: 'pendente',
-    status_pagamento: statusInicial,
-    repetir_por: 1,
-    observacao: [
-      `Contrato interno ID ${contrato.id}`,
-      contrato.subcontrato_nome,
-      contrato.detalhe,
-    ].filter(Boolean).join(' | ') || null,
-  };
-
-  const { data: existentes, error: errExistente } = await supabase
-    .from('lancamentos')
-    .select('*')
-    .eq('contrato_id', contrato.id)
-    .eq('competencia', competencia)
-    .order('id', { ascending: false })
-    .limit(1);
-
-  if (errExistente) return NextResponse.json({ error: errExistente.message }, { status: 500 });
-  const existente = existentes?.[0];
-  if (existente) return NextResponse.json(existente);
-
-  const { data, error } = await supabase
-    .from('lancamentos')
-    .insert([payload])
-    .select()
-    .single();
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  await registrarEventoLancamento(supabase, {
-    lancamentoId: data?.id,
-    tipo: 'geracao_recorrente',
-    titulo: 'Nota recorrente gerada manualmente',
-    descricao: 'Competencia criada a partir do cadastro do contrato recorrente.',
-    ator,
-    depois: data || null,
-    metadata: {
-      contrato_id: contrato.id,
-      competencia,
-    },
-  });
-  return NextResponse.json(data || { success: true });
 }
