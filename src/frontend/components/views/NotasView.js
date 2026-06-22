@@ -82,6 +82,16 @@ const STATUS_BY_GROUP = {
   concluida: ['Concluída', 'Cancelada'],
 };
 
+const GROUP_BY_OPTIONS = [
+  { value: 'fornecedor', label: 'Fornecedor' },
+  { value: 'filial', label: 'Filial' },
+  { value: 'competencia', label: 'Competência' },
+  { value: 'mes_vencimento', label: 'Mês de vencimento' },
+  { value: 'status', label: 'Status' },
+  { value: 'centro_custo', label: 'Centro de custo' },
+  { value: 'servico', label: 'Serviço' },
+];
+
 const DUE_SIGNAL_STYLE = {
   error: { bg: '#fde7e9', border: '#a4262c', text: '#a4262c' },
   warning: { bg: '#fff4ce', border: '#ffb900', text: '#8a5a00' },
@@ -124,6 +134,58 @@ const formatDateForInput = (value) => {
   const text = String(value).split('T')[0];
   const match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   return match ? `${match[3]}/${match[2]}/${match[1]}` : text;
+};
+
+const formatMonthLabel = (value) => {
+  if (!value) return 'Sem mês';
+  const text = String(value).slice(0, 7);
+  const match = text.match(/^(\d{4})-(\d{2})$/);
+  if (!match) return value;
+
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, 1, 12, 0, 0);
+  return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+};
+
+const agrupamentoNota = (nota, tipo) => {
+  if (tipo === 'filial') {
+    return nota.filial?.nome_fantasia || 'Filial não informada';
+  }
+  if (tipo === 'competencia') {
+    return formatMonthLabel(nota.competencia);
+  }
+  if (tipo === 'mes_vencimento') {
+    return formatMonthLabel(nota.data_vencimento);
+  }
+  if (tipo === 'status') {
+    return nota.status_pagamento || 'Sem status';
+  }
+  if (tipo === 'centro_custo') {
+    return nota.centro_custo_usado || 'Centro de custo não informado';
+  }
+  if (tipo === 'servico') {
+    return nota.descricao_servico || 'Serviço não informado';
+  }
+
+  return nota.nome_fornecedor || nota.fornecedor?.nome_empresa || 'Fornecedor não informado';
+};
+
+const agrupamentoNotaKey = (nota, tipo) => {
+  if (tipo === 'filial') return `filial:${nota.filial_id || 'sem_filial'}`;
+  if (tipo === 'competencia') return `competencia:${nota.competencia || 'sem_competencia'}`;
+  if (tipo === 'mes_vencimento') return `mes_vencimento:${String(nota.data_vencimento || '').slice(0, 7) || 'sem_mes'}`;
+  if (tipo === 'status') return `status:${nota.status_pagamento || 'sem_status'}`;
+  if (tipo === 'centro_custo') return `centro_custo:${nota.centro_custo_usado || 'sem_centro'}`;
+  if (tipo === 'servico') return `servico:${nota.descricao_servico || 'sem_servico'}`;
+
+  return `fornecedor:${nota.nome_fornecedor || nota.fornecedor?.nome_empresa || 'sem_fornecedor'}`;
+};
+
+const sortGroupedEntries = (entries, tipo) => {
+  if (tipo === 'competencia' || tipo === 'mes_vencimento') {
+    return entries.sort((a, b) => b.key.localeCompare(a.key));
+  }
+
+  return entries.sort((a, b) => a.label.localeCompare(b.label));
 };
 
 const maskDateInput = (value) => {
@@ -189,6 +251,7 @@ export default function NotasView({
 }) {
   const [expandedSupplier, setExpandedSupplier] = useState({});
   const [viewMode, setViewMode] = useState('grouped');
+  const [groupBy, setGroupBy] = useState('fornecedor');
   const [draggedNotaId, setDraggedNotaId] = useState(null);
   const [collapsedGroups, setCollapsedGroups] = useState({});
   const [collapsedGridSuppliers, setCollapsedGridSuppliers] = useState({});
@@ -255,14 +318,16 @@ export default function NotasView({
     return matchStatus && matchFilial && matchBusca;
   });
 
-  const dadosAgrupados = Object.entries(
-    notasFiltradas.reduce((grupos, nota) => {
-      const nome = nota.nome_fornecedor || nota.fornecedor?.nome_empresa || 'Fornecedor não informado';
-      grupos[nome] = grupos[nome] || [];
-      grupos[nome].push(nota);
+  const dadosAgrupados = sortGroupedEntries(
+    Object.values(notasFiltradas.reduce((grupos, nota) => {
+      const key = agrupamentoNotaKey(nota, groupBy);
+      const label = agrupamentoNota(nota, groupBy);
+      grupos[key] = grupos[key] || { key, label, itens: [] };
+      grupos[key].itens.push(nota);
       return grupos;
-    }, {})
-  ).sort((a, b) => a[0].localeCompare(b[0]));
+    }, {})),
+    groupBy
+  ).map((grupo) => [grupo.label, grupo.itens]);
 
   const handleDateChange = (e) => {
     if (!e.target.value) return;
@@ -1044,13 +1109,31 @@ export default function NotasView({
             >
               <ToggleButton value="grouped" aria-label="Visualização agrupada">
                 <ViewListIcon fontSize="small" sx={{ mr: 0.75 }} />
-                Fornecedores
+                Agrupado
               </ToggleButton>
               <ToggleButton value="grid" aria-label="Visualização em grid">
                 <ViewModuleIcon fontSize="small" sx={{ mr: 0.75 }} />
                 Grid
               </ToggleButton>
             </ToggleButtonGroup>
+            {viewMode === 'grouped' && (
+              <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 220 } }}>
+                <InputLabel id="group-by-label">Agrupar por</InputLabel>
+                <Select
+                  labelId="group-by-label"
+                  value={groupBy}
+                  label="Agrupar por"
+                  onChange={(event) => {
+                    setGroupBy(event.target.value);
+                    setExpandedSupplier({});
+                  }}
+                >
+                  {GROUP_BY_OPTIONS.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
           </Stack>
 
           <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 260 } }}>

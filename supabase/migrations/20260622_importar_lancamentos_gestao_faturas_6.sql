@@ -47,6 +47,56 @@ as $$
   end
 $$;
 
+create or replace function pg_temp.tmp_import_fornecedor_matches(left_value text, right_value text)
+returns boolean
+language sql
+immutable
+as $$
+  with aliases(alias, canonico) as (
+    values
+      ('claro', 'claro_embratel'),
+      ('embratel', 'claro_embratel'),
+      ('claro embratel', 'claro_embratel'),
+      ('vivo', 'vivo_telefonica'),
+      ('telefonica', 'vivo_telefonica'),
+      ('vivo telefonica', 'vivo_telefonica'),
+      ('telefonica vivo', 'vivo_telefonica'),
+      ('algar', 'algar'),
+      ('algar telecom', 'algar'),
+      ('ingram', 'ingram'),
+      ('ingram micro', 'ingram'),
+      ('synnex', 'synnex'),
+      ('td synnex', 'synnex'),
+      ('mercanet', 'mercanet'),
+      ('totvs', 'totvs')
+  ),
+  entrada as (
+    select
+      pg_temp.tmp_import_norm(left_value) as left_norm,
+      pg_temp.tmp_import_norm(right_value) as right_norm
+  ),
+  canonicos as (
+    select
+      coalesce(
+        (select canonico from aliases, entrada where entrada.left_norm = aliases.alias or position(aliases.alias in entrada.left_norm) > 0 order by length(alias) desc limit 1),
+        (select left_norm from entrada)
+      ) as left_canonico,
+      coalesce(
+        (select canonico from aliases, entrada where entrada.right_norm = aliases.alias or position(aliases.alias in entrada.right_norm) > 0 order by length(alias) desc limit 1),
+        (select right_norm from entrada)
+      ) as right_canonico,
+      left_norm,
+      right_norm
+    from entrada
+  )
+  select case
+    when left_norm = '' or right_norm = '' then false
+    when left_canonico = right_canonico then true
+    else pg_temp.tmp_import_text_matches(left_value, right_value)
+  end
+  from canonicos
+$$;
+
 create temp table tmp_import_lancamentos_gestao_faturas_6 (
   row_num integer,
   filial_original text,
@@ -651,7 +701,7 @@ left join lateral (
       and pg_temp.tmp_import_text_key(regra.filial_codigo) = pg_temp.tmp_import_text_key(tmp.filial_codigo)
       and (
         pg_temp.tmp_import_text_key(regra.fornecedor_importacao) is null
-        or pg_temp.tmp_import_text_matches(regra.fornecedor_importacao, tmp.fornecedor_nome)
+        or pg_temp.tmp_import_fornecedor_matches(regra.fornecedor_importacao, tmp.fornecedor_nome)
       )
       and (
         pg_temp.tmp_import_text_key(regra.identificador_item_importacao) is null
@@ -733,8 +783,8 @@ left join lateral (
     select por_produto_centro.*
     from por_produto_centro
     where pg_temp.tmp_import_text_key(tmp.fornecedor_nome) is null
-       or pg_temp.tmp_import_text_matches(por_produto_centro.fornecedor_contrato_nome, tmp.fornecedor_nome)
-       or pg_temp.tmp_import_text_matches(por_produto_centro.nome_contrato, tmp.fornecedor_nome)
+       or pg_temp.tmp_import_fornecedor_matches(por_produto_centro.fornecedor_contrato_nome, tmp.fornecedor_nome)
+       or pg_temp.tmp_import_fornecedor_matches(por_produto_centro.nome_contrato, tmp.fornecedor_nome)
   ),
   stats as (
     select
