@@ -120,6 +120,8 @@ const contratoValorLabel = (contrato) => (
   contrato?.valor_fixo === false ? 'Variavel' : currency(contrato?.valor_base_previsto)
 );
 
+const contratoTemNotas = (contrato) => Boolean(contrato?.ultimo_lancamento?.id || contrato?.ultimo_lancamento?.competencia);
+
 const clampTextSx = {
   minWidth: 0,
   overflow: 'hidden',
@@ -152,6 +154,8 @@ export default function ContratosView({
   const [expandedGroup, setExpandedGroup] = useState(null);
   const [busca, setBusca] = useState('');
   const [statusFiltro, setStatusFiltro] = useState('todos');
+  const [filialFiltro, setFilialFiltro] = useState('todas');
+  const [notasFiltro, setNotasFiltro] = useState('todos');
   const [pagina, setPagina] = useState(1);
   const fornecedorSelecionado = useMemo(
     () => fornecedores.find((item) => item.id == form.fornecedor_id) || null,
@@ -208,6 +212,14 @@ export default function ContratosView({
         const itens = grupo.itens.filter((contrato) => {
           const bateStatus = statusFiltro === 'todos' || contrato.status === statusFiltro;
           if (!bateStatus) return false;
+
+          const bateFilial = filialFiltro === 'todas' || String(contrato.filial_id || '') === String(filialFiltro);
+          if (!bateFilial) return false;
+
+          const temNotas = contratoTemNotas(contrato);
+          const bateNotas = notasFiltro === 'todos' || (notasFiltro === 'sem_notas' ? !temNotas : temNotas);
+          if (!bateNotas) return false;
+
           if (!termo) return true;
 
           return [
@@ -227,7 +239,21 @@ export default function ContratosView({
         return itens.length ? { ...grupo, itens } : null;
       })
       .filter(Boolean);
-  }, [busca, gruposContratos, statusFiltro]);
+  }, [busca, filialFiltro, gruposContratos, notasFiltro, statusFiltro]);
+
+  const resumoContratos = useMemo(() => {
+    const lista = (contratos || []);
+    const semNotas = lista.filter((contrato) => !contratoTemNotas(contrato)).length;
+    const ativos = lista.filter((contrato) => contrato.status === 'Ativo').length;
+    const filtrados = gruposFiltrados.reduce((acc, grupo) => acc + grupo.itens.length, 0);
+
+    return {
+      total: lista.length,
+      ativos,
+      semNotas,
+      filtrados,
+    };
+  }, [contratos, gruposFiltrados]);
 
   const totalPaginas = Math.max(1, Math.ceil(gruposFiltrados.length / PAGE_SIZE));
   const paginaAtual = Math.min(pagina, totalPaginas);
@@ -361,7 +387,7 @@ export default function ContratosView({
       </Paper>
 
       <Paper variant="outlined" sx={{ p: 2 }}>
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', md: 'center' }}>
+        <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', lg: 'center' }}>
           <TextField
             size="small"
             label="Buscar contrato"
@@ -373,7 +399,25 @@ export default function ContratosView({
             }}
             sx={{ flex: 1 }}
           />
-          <FormControl size="small" sx={{ minWidth: { xs: '100%', md: 180 } }}>
+          <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 220 } }}>
+            <InputLabel>Filial</InputLabel>
+            <Select
+              label="Filial"
+              value={filialFiltro}
+              onChange={(e) => {
+                setFilialFiltro(e.target.value);
+                resetListagem();
+              }}
+            >
+              <MenuItem value="todas">Todas</MenuItem>
+              {filiais.map((filial) => (
+                <MenuItem key={filial.id} value={filial.id}>
+                  {filial.codigo} - {filial.nome_fantasia}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 170 } }}>
             <InputLabel>Status</InputLabel>
             <Select
               label="Status"
@@ -389,9 +433,26 @@ export default function ContratosView({
               <MenuItem value="Cancelado">Cancelados</MenuItem>
             </Select>
           </FormControl>
-          <Typography variant="body2" color="text.secondary" sx={{ minWidth: { md: 220 } }}>
-            {gruposFiltrados.length} fornecedores encontrados
-          </Typography>
+          <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 180 } }}>
+            <InputLabel>Notas</InputLabel>
+            <Select
+              label="Notas"
+              value={notasFiltro}
+              onChange={(e) => {
+                setNotasFiltro(e.target.value);
+                resetListagem();
+              }}
+            >
+              <MenuItem value="todos">Todos</MenuItem>
+              <MenuItem value="sem_notas">Sem nota vinculada</MenuItem>
+              <MenuItem value="com_notas">Com nota vinculada</MenuItem>
+            </Select>
+          </FormControl>
+          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ minWidth: { lg: 360 } }}>
+            <Chip size="small" variant="outlined" label={`${resumoContratos.filtrados} contratos filtrados`} />
+            <Chip size="small" color="success" variant="outlined" label={`${resumoContratos.ativos} ativos`} />
+            <Chip size="small" color={resumoContratos.semNotas ? 'warning' : 'success'} label={`${resumoContratos.semNotas} sem notas`} />
+          </Stack>
         </Stack>
       </Paper>
 
@@ -427,97 +488,125 @@ export default function ContratosView({
               </AccordionSummary>
               <AccordionDetails sx={{ pt: 0 }}>
                 <TableContainer component={Paper} variant="outlined" sx={{ overflowX: 'auto' }}>
-                  <Table size="small" sx={{ minWidth: 980, tableLayout: 'fixed' }}>
+                  <Table size="small" sx={{ minWidth: 1120, tableLayout: 'fixed' }}>
                     <TableHead>
                       <TableRow>
-                        <TableCell sx={{ width: 300 }}>Contrato</TableCell>
-                        <TableCell sx={{ width: 180 }}>Filial</TableCell>
-                        <TableCell sx={{ width: 150 }}>Produto</TableCell>
-                        <TableCell sx={{ width: 110 }}>Valor</TableCell>
-                        <TableCell sx={{ width: 100 }}>Vencimento</TableCell>
-                        <TableCell>Próxima</TableCell>
+                        <TableCell sx={{ width: 230 }}>Contrato</TableCell>
+                        <TableCell sx={{ width: 320 }}>Descrição</TableCell>
+                        <TableCell sx={{ width: 210 }}>Filial</TableCell>
+                        <TableCell sx={{ width: 140 }}>Valor</TableCell>
+                        <TableCell sx={{ width: 120 }}>Agenda</TableCell>
                         <TableCell sx={{ width: 110 }}>Status</TableCell>
-                        <TableCell align="right">Ações</TableCell>
+                        <TableCell sx={{ width: 150 }} align="center">Ações</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {grupo.itens.map((contrato) => (
-                        <TableRow key={contrato.id} hover>
+                      {grupo.itens.map((contrato) => {
+                        const temNotas = contratoTemNotas(contrato);
+
+                        return (
+                        <TableRow key={contrato.id} hover sx={{ bgcolor: temNotas ? 'background.paper' : 'rgba(255, 185, 0, 0.08)' }}>
                           <TableCell>
                             <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap" sx={{ mb: 0.5 }}>
                               <Chip size="small" variant="outlined" label={`ID ${contrato.id}`} sx={{ height: 20, fontSize: 11 }} />
                               <Chip size="small" variant="outlined" label={contrato.tipo_contrato || 'Recorrente'} sx={{ height: 20, fontSize: 11 }} />
+                              {!temNotas && <Chip size="small" color="warning" label="Sem notas" sx={{ height: 20, fontSize: 11, fontWeight: 800 }} />}
                             </Stack>
-                            <Typography variant="body2" fontWeight={800} sx={{ overflowWrap: 'anywhere' }}>
+                            <Typography variant="h6" fontWeight={900} color="primary.main" sx={{ overflowWrap: 'anywhere', lineHeight: 1.15 }}>
                               Contrato {contrato.contrato_usado || '-'}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography variant="body2" fontWeight={800} sx={{ display: 'block', mt: 0.25, ...wrapTextSx }}>
                               {contratoItemLabel(contrato)}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={800} sx={wrapTextSx}>
                               {contrato.descricao_servico || '-'}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                              {contrato.centro_custo_usado || '-'}
+                            <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap" sx={{ mt: 0.75 }}>
+                              {contrato.produto_protheus && <Chip size="small" variant="outlined" label={contrato.produto_protheus} sx={{ maxWidth: '100%', '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }} />}
+                              {contrato.centro_custo_usado && <Chip size="small" variant="outlined" label={`CC ${contrato.centro_custo_usado}`} />}
+                            </Stack>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={900} sx={wrapTextSx}>
+                              {contrato.filial?.codigo || '-'}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', ...wrapTextSx }}>
+                              {contrato.filial?.nome_fantasia || 'Filial não informada'}
                             </Typography>
                           </TableCell>
-                          <TableCell sx={clampTextSx} title={filialLabel(contrato.filial)}>{filialLabel(contrato.filial)}</TableCell>
-                          <TableCell sx={clampTextSx} title={contrato.produto_protheus || contrato.servico_protheus || '-'}>{contrato.produto_protheus || contrato.servico_protheus || '-'}</TableCell>
-                          <TableCell>{contratoValorLabel(contrato)}</TableCell>
-                          <TableCell>Dia {contrato.dia_vencimento}</TableCell>
-                          <TableCell>{contrato.proxima_competencia || '-'}</TableCell>
+                          <TableCell>
+                            <Typography variant="subtitle1" fontWeight={900} color={contrato.valor_fixo === false ? 'warning.main' : 'success.main'} sx={{ lineHeight: 1.15 }}>
+                              {contratoValorLabel(contrato)}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {contrato.valor_fixo === false ? 'Valor variável' : 'Valor fixo'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={800}>Dia {contrato.dia_vencimento}</Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                              Próx. {contrato.proxima_competencia || '-'}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                              Última {contrato.ultimo_lancamento?.competencia || '-'}
+                            </Typography>
+                          </TableCell>
                           <TableCell>
                             <Chip size="small" color={statusColor[contrato.status] || 'default'} label={contrato.status} sx={{ fontWeight: 700 }} />
                           </TableCell>
-                          <TableCell align="right" sx={{ verticalAlign: 'top' }}>
-                            <Stack direction="row" spacing={0.25} justifyContent="flex-end" flexWrap="wrap" useFlexGap sx={{ width: 1 }}>
+                          <TableCell align="center" sx={{ verticalAlign: 'top' }}>
+                            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 36px)', gridAutoRows: 36, gap: 0.5, justifyContent: 'center' }}>
                             <Tooltip title="Linha do tempo">
-                              <IconButton color="primary" onClick={() => setSelectedContrato(contrato)}>
+                              <IconButton size="small" color="primary" onClick={() => setSelectedContrato(contrato)}>
                                 <HistoryOutlinedIcon />
                               </IconButton>
                             </Tooltip>
                             <Tooltip title={contrato.status === 'Ativo' ? 'Gerar nota' : 'Apenas itens ativos geram notas'}>
                               <span>
-                                <IconButton color="success" disabled={contrato.status !== 'Ativo' || contrato.tipo_contrato === 'Avulso'} onClick={() => onGerarCompetencia(contrato.id, contrato.proxima_competencia || competenciaAtual())}>
+                                <IconButton size="small" color="success" disabled={contrato.status !== 'Ativo' || contrato.tipo_contrato === 'Avulso'} onClick={() => onGerarCompetencia(contrato.id, contrato.proxima_competencia || competenciaAtual())}>
                                   <PlayCircleIcon />
                                 </IconButton>
                               </span>
                             </Tooltip>
+                            <Tooltip title="Editar">
+                              <IconButton size="small" onClick={() => abrirEdicao(contrato)}>
+                                <EditOutlinedIcon />
+                              </IconButton>
+                            </Tooltip>
                             {contrato.status === 'Ativo' && (
                               <Tooltip title="Pausar item">
-                                <IconButton color="warning" onClick={() => alterarStatus(contrato, 'Pausado')}>
+                                <IconButton size="small" color="warning" onClick={() => alterarStatus(contrato, 'Pausado')}>
                                   <PauseCircleOutlinedIcon />
-                                </IconButton>
-                              </Tooltip>
-                            )}
-                            {contrato.status !== 'Cancelado' && (
-                              <Tooltip title="Cancelar item">
-                                <IconButton color="error" onClick={() => alterarStatus(contrato, 'Cancelado')}>
-                                  <CancelOutlinedIcon />
                                 </IconButton>
                               </Tooltip>
                             )}
                             {contrato.status !== 'Ativo' && (
                               <Tooltip title="Reativar item">
-                                <IconButton color="success" onClick={() => alterarStatus(contrato, 'Ativo')}>
+                                <IconButton size="small" color="success" onClick={() => alterarStatus(contrato, 'Ativo')}>
                                   <ReplayOutlinedIcon />
                                 </IconButton>
                               </Tooltip>
                             )}
-                            <Tooltip title="Editar">
-                              <IconButton onClick={() => abrirEdicao(contrato)}>
-                                <EditOutlinedIcon />
-                              </IconButton>
-                            </Tooltip>
+                            {contrato.status !== 'Cancelado' && (
+                              <Tooltip title="Cancelar item">
+                                <IconButton size="small" color="error" onClick={() => alterarStatus(contrato, 'Cancelado')}>
+                                  <CancelOutlinedIcon />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                            {contrato.status === 'Cancelado' && <Box />}
                             <Tooltip title="Excluir contrato">
-                              <IconButton color="error" onClick={() => onExcluir?.(contrato)}>
+                              <IconButton size="small" color="error" onClick={() => onExcluir?.(contrato)}>
                                 <DeleteOutlinedIcon />
                               </IconButton>
                             </Tooltip>
-                            </Stack>
+                            </Box>
                           </TableCell>
                         </TableRow>
-                      ))}
+                      );
+                      })}
                     </TableBody>
                   </Table>
                 </TableContainer>
@@ -528,6 +617,11 @@ export default function ContratosView({
         {gruposContratos.length === 0 && (
           <Paper variant="outlined" sx={{ py: 6, textAlign: 'center', color: 'text.secondary' }}>
             Nenhum contrato cadastrado.
+          </Paper>
+        )}
+        {gruposContratos.length > 0 && gruposPagina.length === 0 && (
+          <Paper variant="outlined" sx={{ py: 6, textAlign: 'center', color: 'text.secondary' }}>
+            Nenhum contrato encontrado com os filtros atuais.
           </Paper>
         )}
       </Stack>
