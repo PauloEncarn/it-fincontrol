@@ -104,12 +104,7 @@ export async function createLancamentoForContrato(supabase, contrato, competenci
     etapa: 'pendente',
     status_pagamento: 'Pendente Fatura',
     repetir_por: 1,
-    observacao: [
-      `Contrato interno ID ${contrato.id}`,
-      contrato.subcontrato_nome,
-      contrato.detalhe,
-      contrato.observacao,
-    ].filter(Boolean).join(' | ') || null,
+    observacao: null,
   };
 
   const { data, error } = await supabase
