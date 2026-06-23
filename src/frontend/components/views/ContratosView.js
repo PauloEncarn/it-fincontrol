@@ -70,6 +70,24 @@ const emptyContract = {
   observacao: '',
 };
 
+const emptyRegraVinculo = {
+  id: null,
+  contrato_id: '',
+  contrato_importacao: '',
+  filial_codigo: '',
+  fornecedor_importacao: '',
+  identificador_item_importacao: '',
+  servico_importacao: '',
+  servico_protheus_importacao: '',
+  centro_custo_importacao: '',
+  dia_vencimento: '',
+  valor_referencia: '',
+  tolerancia_valor_percentual: 5,
+  prioridade: 100,
+  ativo: true,
+  observacao: '',
+};
+
 const statusColor = {
   Ativo: 'success',
   Pausado: 'warning',
@@ -122,6 +140,13 @@ const contratoValorLabel = (contrato) => (
 
 const contratoTemNotas = (contrato) => Boolean(contrato?.ultimo_lancamento?.id || contrato?.ultimo_lancamento?.competencia);
 
+const contratoRegraLabel = (contrato) => [
+  contrato?.fornecedor?.nome_empresa,
+  contrato?.contrato_usado ? `Contrato ${contrato.contrato_usado}` : null,
+  contrato?.filial ? filialLabel(contrato.filial) : null,
+  contratoItemLabel(contrato),
+].filter(Boolean).join(' | ');
+
 const clampTextSx = {
   minWidth: 0,
   overflow: 'hidden',
@@ -149,9 +174,14 @@ export default function ContratosView({
   onGerarPendentes,
   gerandoPendentes,
   onEditarLancamento,
+  regrasVinculo = [],
+  onSalvarRegraVinculo,
+  onExcluirRegraVinculo,
 }) {
   const [showModal, setShowModal] = useState(false);
+  const [showRegras, setShowRegras] = useState(false);
   const [form, setForm] = useState(emptyContract);
+  const [regraForm, setRegraForm] = useState(emptyRegraVinculo);
   const [competencia, setCompetencia] = useState(competenciaAtual());
   const [expandedGroup, setExpandedGroup] = useState(null);
   const [busca, setBusca] = useState('');
@@ -170,6 +200,20 @@ export default function ContratosView({
     servicos: listValues(fornecedorSelecionado?.lista_servicos),
     produtos: listValues(fornecedorSelecionado?.lista_produtos_protheus),
   }), [fornecedorSelecionado]);
+
+  const contratoRegraSelecionado = useMemo(
+    () => contratos.find((item) => String(item.id) === String(regraForm.contrato_id)) || null,
+    [contratos, regraForm.contrato_id]
+  );
+
+  const regrasOrdenadas = useMemo(() => (
+    [...(regrasVinculo || [])].sort((a, b) => (
+      Number(b.ativo) - Number(a.ativo) ||
+      Number(b.prioridade || 0) - Number(a.prioridade || 0) ||
+      String(a.contrato_importacao || '').localeCompare(String(b.contrato_importacao || '')) ||
+      String(a.filial_codigo || '').localeCompare(String(b.filial_codigo || ''))
+    ))
+  ), [regrasVinculo]);
 
   const normalizeToFornecedorOption = (value, options) => {
     if (!value || !options.length || options.includes(value)) return value || '';
@@ -330,6 +374,54 @@ export default function ContratosView({
     setShowModal(false);
   };
 
+  const buildRegraFromContrato = (contrato) => ({
+    ...emptyRegraVinculo,
+    contrato_id: contrato?.id || '',
+    contrato_importacao: contrato?.contrato_usado || '',
+    filial_codigo: contrato?.filial?.codigo || '',
+    fornecedor_importacao: contrato?.fornecedor?.nome_empresa || '',
+    identificador_item_importacao: contrato?.subcontrato_nome || '',
+    servico_importacao: contrato?.descricao_servico || '',
+    servico_protheus_importacao: contrato?.produto_protheus || contrato?.servico_protheus || '',
+    centro_custo_importacao: contrato?.centro_custo_usado || '',
+    dia_vencimento: contrato?.dia_vencimento || '',
+    valor_referencia: contrato?.valor_fixo === false ? '' : (contrato?.valor_base_previsto || ''),
+  });
+
+  const abrirRegras = (contrato = null) => {
+    setRegraForm(contrato ? buildRegraFromContrato(contrato) : emptyRegraVinculo);
+    setShowRegras(true);
+  };
+
+  const editarRegra = (regra) => {
+    setRegraForm({
+      ...emptyRegraVinculo,
+      ...regra,
+      contrato_id: regra.contrato_id || '',
+      valor_referencia: regra.valor_referencia ?? '',
+      tolerancia_valor_percentual: regra.tolerancia_valor_percentual ?? 5,
+      prioridade: regra.prioridade ?? 100,
+      ativo: regra.ativo !== false,
+    });
+  };
+
+  const handleContratoRegraChange = (contratoId) => {
+    const contrato = contratos.find((item) => String(item.id) === String(contratoId));
+    setRegraForm((prev) => ({
+      ...buildRegraFromContrato(contrato),
+      id: prev.id || null,
+      observacao: prev.observacao || '',
+      ativo: prev.ativo !== false,
+      prioridade: prev.prioridade ?? 100,
+      tolerancia_valor_percentual: prev.tolerancia_valor_percentual ?? 5,
+    }));
+  };
+
+  const handleSalvarRegra = () => {
+    onSalvarRegraVinculo?.(regraForm);
+    setRegraForm(emptyRegraVinculo);
+  };
+
   const renderListField = (label, field, options) => {
     const currentValue = form[field] || '';
 
@@ -408,6 +500,9 @@ export default function ContratosView({
               disabled={gerandoPendentes}
             >
               {gerandoPendentes ? 'Gerando...' : 'Gerar notas pendentes'}
+            </Button>
+            <Button variant="outlined" startIcon={<HistoryOutlinedIcon />} onClick={() => abrirRegras()}>
+              Regras de vinculo
             </Button>
             <Button variant="contained" startIcon={<AddIcon />} onClick={abrirNovo}>
               Novo contrato
@@ -884,6 +979,230 @@ export default function ContratosView({
             </Stack>
         </Box>
       )}
+
+      <Dialog open={showRegras} onClose={() => setShowRegras(false)} fullWidth maxWidth="lg">
+        <DialogTitle>Regras de vinculo para importacao</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <Paper variant="outlined" sx={{ p: 2 }}>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12 }}>
+                  <TextField
+                    select
+                    label="Contrato correto no sistema"
+                    value={regraForm.contrato_id || ''}
+                    onChange={(e) => handleContratoRegraChange(e.target.value)}
+                    fullWidth
+                    required
+                    helperText={contratoRegraSelecionado ? 'Os campos abaixo foram preenchidos com base neste contrato.' : 'Escolha o contrato que deve receber as notas quando esta regra bater.'}
+                  >
+                    <MenuItem value="">Selecione...</MenuItem>
+                    {contratos.map((contrato) => (
+                      <MenuItem key={contrato.id} value={contrato.id}>
+                        {contratoRegraLabel(contrato)}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Grid>
+                <Grid size={{ xs: 12, md: 3 }}>
+                  <TextField
+                    label="Contrato na planilha"
+                    value={regraForm.contrato_importacao || ''}
+                    onChange={(e) => setRegraForm({ ...regraForm, contrato_importacao: e.target.value })}
+                    fullWidth
+                    required
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 3 }}>
+                  <TextField
+                    label="Filial na planilha"
+                    value={regraForm.filial_codigo || ''}
+                    onChange={(e) => setRegraForm({ ...regraForm, filial_codigo: e.target.value })}
+                    fullWidth
+                    required
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 3 }}>
+                  <TextField
+                    label="Fornecedor na planilha"
+                    value={regraForm.fornecedor_importacao || ''}
+                    onChange={(e) => setRegraForm({ ...regraForm, fornecedor_importacao: e.target.value })}
+                    fullWidth
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 3 }}>
+                  <TextField
+                    label="Identificador do item"
+                    value={regraForm.identificador_item_importacao || ''}
+                    onChange={(e) => setRegraForm({ ...regraForm, identificador_item_importacao: e.target.value })}
+                    fullWidth
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <TextField
+                    label="Servico na planilha"
+                    value={regraForm.servico_importacao || ''}
+                    onChange={(e) => setRegraForm({ ...regraForm, servico_importacao: e.target.value })}
+                    fullWidth
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <TextField
+                    label="Servico Protheus"
+                    value={regraForm.servico_protheus_importacao || ''}
+                    onChange={(e) => setRegraForm({ ...regraForm, servico_protheus_importacao: e.target.value })}
+                    fullWidth
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <TextField
+                    label="Centro de custo"
+                    value={regraForm.centro_custo_importacao || ''}
+                    onChange={(e) => setRegraForm({ ...regraForm, centro_custo_importacao: e.target.value })}
+                    fullWidth
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 3 }}>
+                  <TextField
+                    label="Dia vencimento"
+                    value={regraForm.dia_vencimento || ''}
+                    onChange={(e) => setRegraForm({ ...regraForm, dia_vencimento: e.target.value })}
+                    fullWidth
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 3 }}>
+                  <TextField
+                    type="number"
+                    label="Valor referencia"
+                    value={regraForm.valor_referencia || ''}
+                    onChange={(e) => setRegraForm({ ...regraForm, valor_referencia: e.target.value })}
+                    fullWidth
+                    slotProps={{ htmlInput: { min: 0, step: '0.01' } }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 3 }}>
+                  <TextField
+                    type="number"
+                    label="Tolerancia %"
+                    value={regraForm.tolerancia_valor_percentual ?? 5}
+                    onChange={(e) => setRegraForm({ ...regraForm, tolerancia_valor_percentual: e.target.value })}
+                    fullWidth
+                    slotProps={{ htmlInput: { min: 0, step: '0.01' } }}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 3 }}>
+                  <TextField
+                    type="number"
+                    label="Prioridade"
+                    value={regraForm.prioridade ?? 100}
+                    onChange={(e) => setRegraForm({ ...regraForm, prioridade: e.target.value })}
+                    fullWidth
+                    helperText="Maior prioridade vence empate"
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 3 }}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={regraForm.ativo !== false}
+                        onChange={(e) => setRegraForm({ ...regraForm, ativo: e.target.checked })}
+                      />
+                    }
+                    label="Regra ativa"
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 9 }}>
+                  <TextField
+                    label="Observacao"
+                    value={regraForm.observacao || ''}
+                    onChange={(e) => setRegraForm({ ...regraForm, observacao: e.target.value })}
+                    fullWidth
+                  />
+                </Grid>
+                <Grid size={12}>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="flex-end">
+                    <Button onClick={() => setRegraForm(emptyRegraVinculo)}>Limpar</Button>
+                    <Button variant="contained" onClick={handleSalvarRegra}>
+                      {regraForm.id ? 'Salvar alteracao' : 'Adicionar regra'}
+                    </Button>
+                  </Stack>
+                </Grid>
+              </Grid>
+            </Paper>
+
+            <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 420 }}>
+              <Table size="small" stickyHeader sx={{ minWidth: 980 }}>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Regra</TableCell>
+                    <TableCell>Contrato destino</TableCell>
+                    <TableCell>Criterios extras</TableCell>
+                    <TableCell>Prioridade</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell align="right">Acoes</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {regrasOrdenadas.map((regra) => (
+                    <TableRow key={regra.id} hover>
+                      <TableCell sx={{ maxWidth: 220 }}>
+                        <Typography variant="body2" fontWeight={800} sx={wrapTextSx}>
+                          {regra.contrato_importacao || '-'} | {regra.filial_codigo || '-'}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', ...wrapTextSx }}>
+                          {regra.fornecedor_importacao || 'Fornecedor nao informado'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell sx={{ maxWidth: 320 }}>
+                        <Typography variant="body2" sx={wrapTextSx}>
+                          {regra.contrato ? contratoRegraLabel(regra.contrato) : `ID ${regra.contrato_id}`}
+                        </Typography>
+                      </TableCell>
+                      <TableCell sx={{ maxWidth: 320 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', ...wrapTextSx }}>
+                          {[
+                            regra.identificador_item_importacao && `Item: ${regra.identificador_item_importacao}`,
+                            regra.servico_importacao && `Servico: ${regra.servico_importacao}`,
+                            regra.servico_protheus_importacao && `Protheus: ${regra.servico_protheus_importacao}`,
+                            regra.centro_custo_importacao && `CC: ${regra.centro_custo_importacao}`,
+                            regra.dia_vencimento && `Dia: ${regra.dia_vencimento}`,
+                          ].filter(Boolean).join(' | ') || 'Somente contrato + filial'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>{regra.prioridade ?? 100}</TableCell>
+                      <TableCell>
+                        <Chip size="small" color={regra.ativo ? 'success' : 'default'} label={regra.ativo ? 'Ativa' : 'Inativa'} />
+                      </TableCell>
+                      <TableCell align="right">
+                        <Tooltip title="Editar regra">
+                          <IconButton size="small" onClick={() => editarRegra(regra)}>
+                            <EditOutlinedIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Excluir regra">
+                          <IconButton size="small" color="error" onClick={() => onExcluirRegraVinculo?.(regra)}>
+                            <DeleteOutlinedIcon />
+                          </IconButton>
+                        </Tooltip>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {regrasOrdenadas.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center" sx={{ py: 5, color: 'text.secondary' }}>
+                        Nenhuma regra manual cadastrada.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowRegras(false)}>Fechar</Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={showModal} onClose={() => setShowModal(false)} fullWidth maxWidth="md">
         <DialogTitle>{form.id ? 'Editar contrato' : 'Novo contrato'}</DialogTitle>

@@ -152,6 +152,12 @@ function DashboardContent() {
       enabled: !!token && !!selectedContrato?.id
   });
 
+  const { data: regrasVinculoContratos = [] } = useQuery({
+      queryKey: ['contrato_regras_vinculo'],
+      queryFn: () => axios.get(`${API_URL}/contratos/regras-vinculo`, authConfig).then(res => res.data),
+      enabled: !!token && currentView === 'contratos'
+  });
+
   const { data: dadosBusca = [], isFetching: carregandoBusca } = useQuery({ queryKey: ['busca', termoBusca], queryFn: async () => { if (!termoBusca) return []; const res = await axios.get(`${API_URL}/lancamentos/?busca=${termoBusca}`, authConfig); return res.data; }, enabled: !!token && termoBusca.length > 2 });
 
   // SOLICITAÇÕES: Baixa tudo para filtrar e enriquecer no front
@@ -238,6 +244,26 @@ function DashboardContent() {
           if (data.erros?.length) addToast('error', `${data.erros.length} contratos tiveram erro ao gerar nota.`);
       },
       onError: (err) => addToast('error', 'Erro ao gerar notas pendentes: ' + (err.response?.data?.error || err.message))
+  });
+
+  const mutationRegraVinculoContrato = useMutation({
+      mutationFn: (data) => data.id
+          ? axios.put(`${API_URL}/contratos/regras-vinculo/${data.id}`, data, authConfig)
+          : axios.post(`${API_URL}/contratos/regras-vinculo`, data, authConfig),
+      onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ['contrato_regras_vinculo'] });
+          addToast('success', 'Regra de vinculo salva!');
+      },
+      onError: (err) => addToast('error', 'Erro ao salvar regra: ' + (err.response?.data?.error || err.message))
+  });
+
+  const mutationDeleteRegraVinculoContrato = useMutation({
+      mutationFn: (id) => axios.delete(`${API_URL}/contratos/regras-vinculo/${id}`, authConfig),
+      onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ['contrato_regras_vinculo'] });
+          addToast('success', 'Regra de vinculo excluida!');
+      },
+      onError: (err) => addToast('error', 'Erro ao excluir regra: ' + (err.response?.data?.error || err.message))
   });
 
   const mutationSolicitacao = useMutation({ 
@@ -626,6 +652,13 @@ function DashboardContent() {
                                 onGerarPendentes={() => mutationGerarPendentesContratos.mutate()}
                                 gerandoPendentes={mutationGerarPendentesContratos.isPending}
                                 onEditarLancamento={abrirEdicaoLancamento}
+                                regrasVinculo={regrasVinculoContratos}
+                                onSalvarRegraVinculo={(regra) => mutationRegraVinculoContrato.mutate(regra)}
+                                onExcluirRegraVinculo={(regra) => openConfirm(
+                                    'Excluir regra de vinculo',
+                                    `Deseja excluir a regra do contrato ${regra.contrato_importacao || 'selecionado'}?`,
+                                    () => mutationDeleteRegraVinculoContrato.mutate(regra.id)
+                                )}
                             />
                         )}
 
