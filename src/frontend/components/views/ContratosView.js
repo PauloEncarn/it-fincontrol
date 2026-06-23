@@ -171,6 +171,13 @@ export default function ContratosView({
     produtos: listValues(fornecedorSelecionado?.lista_produtos_protheus),
   }), [fornecedorSelecionado]);
 
+  const normalizeToFornecedorOption = (value, options) => {
+    if (!value || !options.length || options.includes(value)) return value || '';
+
+    const sameText = options.find((option) => option.trim().toLowerCase() === String(value).trim().toLowerCase());
+    return sameText || '';
+  };
+
   const lancamentosContrato = useMemo(() => (
     [...(lancamentos || [])].sort((a, b) => String(b.competencia || '').localeCompare(String(a.competencia || '')))
   ), [lancamentos]);
@@ -279,11 +286,25 @@ export default function ContratosView({
 
   const abrirEdicao = (contrato) => {
     onLoadFornecedores?.();
+    const fornecedor = fornecedores.find((item) => item.id == contrato.fornecedor_id);
+    const opcoes = {
+      cnpjs: listValues(fornecedor?.lista_cnpjs),
+      contratos: listValues(fornecedor?.lista_contratos),
+      centros: listValues(fornecedor?.lista_centro_custos),
+      servicos: listValues(fornecedor?.lista_servicos),
+      produtos: listValues(fornecedor?.lista_produtos_protheus),
+    };
+
     setForm({
       ...emptyContract,
       ...contrato,
       fornecedor_id: contrato.fornecedor_id || '',
       filial_id: contrato.filial_id || '',
+      cnpj_usado: normalizeToFornecedorOption(contrato.cnpj_usado, opcoes.cnpjs),
+      contrato_usado: normalizeToFornecedorOption(contrato.contrato_usado, opcoes.contratos),
+      centro_custo_usado: normalizeToFornecedorOption(contrato.centro_custo_usado, opcoes.centros),
+      descricao_servico: normalizeToFornecedorOption(contrato.descricao_servico, opcoes.servicos),
+      produto_protheus: normalizeToFornecedorOption(contrato.produto_protheus, opcoes.produtos),
       data_inicio: contrato.data_inicio || '',
     });
     setShowModal(true);
@@ -311,7 +332,6 @@ export default function ContratosView({
 
   const renderListField = (label, field, options) => {
     const currentValue = form[field] || '';
-    const currentOutsideList = currentValue && !options.includes(currentValue);
 
     return (
       <TextField
@@ -323,9 +343,6 @@ export default function ContratosView({
         helperText={options.length ? 'Opções cadastradas no fornecedor' : 'Cadastre as opções no fornecedor'}
       >
         <MenuItem value="">{options.length ? 'Selecione...' : 'Sem opções cadastradas'}</MenuItem>
-        {currentOutsideList && (
-          <MenuItem value={currentValue}>{currentValue} (fora da lista)</MenuItem>
-        )}
         {options.map((opcao) => (
           <MenuItem key={opcao} value={opcao}>{opcao}</MenuItem>
         ))}
