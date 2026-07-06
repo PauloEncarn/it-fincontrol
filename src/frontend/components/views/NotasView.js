@@ -238,7 +238,6 @@ export default function NotasView({
   onEditar,
   onDuplicar,
   onCopiarProtheus,
-  onCopiarLancamento,
   onEnviarEmail,
   onEnviarEmailGopa,
   onDownload,
@@ -472,6 +471,11 @@ export default function NotasView({
     setEditingValue('');
   };
 
+  const copiarCampo = (label, value) => {
+    const texto = value === null || value === undefined || value === '' ? '-' : String(value);
+    navigator.clipboard.writeText(texto).then(() => addToast?.('success', `${label} copiado!`));
+  };
+
   const commitInlineEdit = async (nota, field) => {
     const original = nota[field] ?? '';
     if (String(original) !== String(editingValue)) {
@@ -484,6 +488,7 @@ export default function NotasView({
     const cellKey = `${nota.id}:${field}`;
     const isEditing = editingCell === cellKey;
     const displayValue = options.format ? options.format(value) : (value || '-');
+    const copyValue = options.copyValue ? options.copyValue(value) : displayValue;
 
     if (isEditing) {
       return (
@@ -517,27 +522,36 @@ export default function NotasView({
     }
 
     return (
-      <Box
-        role="button"
-        tabIndex={0}
-        onClick={() => beginInlineEdit(nota, field, value)}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') beginInlineEdit(nota, field, value);
-        }}
-        sx={{
-          minHeight: 28,
-          cursor: 'text',
-          borderBottom: '1px dashed',
-          borderColor: 'divider',
-          '&:hover': { borderColor: 'primary.main', color: 'primary.main' },
-        }}
-      >
-        {options.render ? options.render(displayValue) : (
-          <Typography variant={options.variant || 'body2'} fontWeight={options.fontWeight || 700} noWrap title={String(displayValue)}>
-            {displayValue}
-          </Typography>
-        )}
-      </Box>
+      <Stack direction="row" alignItems="center" spacing={0.5} sx={{ minWidth: 0 }}>
+        <Box
+          role="button"
+          tabIndex={0}
+          onClick={() => beginInlineEdit(nota, field, value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') beginInlineEdit(nota, field, value);
+          }}
+          sx={{
+            minHeight: 28,
+            flex: 1,
+            minWidth: 0,
+            cursor: 'text',
+            borderBottom: '1px dashed',
+            borderColor: 'divider',
+            '&:hover': { borderColor: 'primary.main', color: 'primary.main' },
+          }}
+        >
+          {options.render ? options.render(displayValue) : (
+            <Typography variant={options.variant || 'body2'} fontWeight={options.fontWeight || 700} noWrap title={String(displayValue)}>
+              {displayValue}
+            </Typography>
+          )}
+        </Box>
+        <Tooltip title={`Copiar ${label}`}>
+          <IconButton size="small" onClick={(event) => { event.stopPropagation(); copiarCampo(label, copyValue); }} aria-label={`Copiar ${label}`}>
+            <ContentCopyOutlinedIcon fontSize="inherit" />
+          </IconButton>
+        </Tooltip>
+      </Stack>
     );
   };
 
@@ -611,11 +625,6 @@ export default function NotasView({
       <Tooltip title="Copiar Protheus">
         <IconButton size="small" onClick={() => onCopiarProtheus(nota)} aria-label="Copiar Protheus">
           <ContentCopyOutlinedIcon />
-        </IconButton>
-      </Tooltip>
-      <Tooltip title="Copiar dados do lancamento">
-        <IconButton size="small" onClick={() => onCopiarLancamento?.(nota)} aria-label="Copiar dados do lancamento">
-          <StorageOutlinedIcon />
         </IconButton>
       </Tooltip>
       <Tooltip title="Ver linha do tempo">
@@ -760,6 +769,7 @@ export default function NotasView({
             variant: 'h6',
             fontWeight: 900,
             format: (value) => value ? `#${value}` : 'Pendente',
+            copyValue: (value) => value || '-',
             render: (value) => (
               <Typography variant="h6" fontWeight={900} color="primary" noWrap title={String(value)}>
                 {value}
@@ -855,7 +865,27 @@ export default function NotasView({
         </Box>
 
         <FormControl size="small" fullWidth sx={{ mt: 'auto' }}>
+          <InputLabel>Etapa</InputLabel>
           <Select
+            label="Etapa"
+            value={notaGroup}
+            onChange={(e) => {
+              const group = GRID_GROUPS.find((item) => item.id === e.target.value);
+              if (group) onEtapaChange(nota.id, group.id, group.targetStatus);
+            }}
+          >
+            {GRID_GROUPS.map((group) => (
+              <MenuItem key={group.id} value={group.id}>
+                {group.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        <FormControl size="small" fullWidth sx={{ mt: 'auto' }}>
+          <InputLabel>Status</InputLabel>
+          <Select
+            label="Status"
             value={nota.status_pagamento || ''}
             onChange={(e) => onStatusChange(nota.id, e.target.value)}
           >
@@ -1068,11 +1098,6 @@ export default function NotasView({
                         <Tooltip title="Copiar Protheus">
                           <IconButton onClick={() => onCopiarProtheus(nota)} aria-label="Copiar Protheus">
                             <ContentCopyOutlinedIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Copiar dados do lancamento">
-                          <IconButton onClick={() => onCopiarLancamento?.(nota)} aria-label="Copiar dados do lancamento">
-                            <StorageOutlinedIcon />
                           </IconButton>
                         </Tooltip>
                         {isGopaFunc(nota) && (

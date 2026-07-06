@@ -584,18 +584,11 @@ function DashboardContent() {
     `Valor R$: ${formatMoneyCopy(nota.valor)}`,
     `Contrato: ${nota.contrato_usado || '-'}`,
     `Produto/Servico Protheus: ${nota.servico_protheus || '-'}`,
-  ].join(' | '), 'Informacoes Protheus copiadas!');
-  const copiarDadosLancamento = (nota) => copyToClipboard([
-    `NF: ${nota.numero_nota || '-'}`,
     `Fluig: ${nota.solicitacao_fluig || '-'}`,
     `Pedido: ${nota.numero_pedido || '-'}`,
     `Medicao: ${nota.numero_medicao || '-'}`,
-    `Contrato: ${nota.contrato_usado || '-'}`,
-    `Produto/Servico Protheus: ${nota.servico_protheus || '-'}`,
     `Centro de custo: ${nota.centro_custo_usado || '-'}`,
-    `Vencimento: ${formatDateCopy(nota.data_vencimento)}`,
-    `Valor R$: ${formatMoneyCopy(nota.valor)}`,
-  ].join(' | '), 'Dados do lancamento copiados!');
+  ].join(' | '), 'Informacoes Protheus copiadas!');
 
   if (loadingInit) return (
     <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center', bgcolor: 'background.default' }}>
@@ -669,7 +662,6 @@ function DashboardContent() {
                                 onEditar={abrirEdicaoLancamento}
                                 onDuplicar={duplicarNota}
                                 onCopiarProtheus={copiarProtheus}
-                                onCopiarLancamento={copiarDadosLancamento}
                                 onEnviarEmail={handleEnviarEmail}
                                 onEnviarEmailGopa={handleEnviarEmailGopa}
                                 onDownload={(path) => window.open(path.startsWith('http') ? path : `${API_URL}/${path}`, '_blank')}
