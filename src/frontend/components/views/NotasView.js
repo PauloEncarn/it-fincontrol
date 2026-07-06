@@ -1270,7 +1270,27 @@ export default function NotasView({
                   outlineOffset: -6,
                 }}
               >
-                <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
+                <Stack
+                  direction="row"
+                  alignItems="flex-start"
+                  justifyContent="space-between"
+                  spacing={1}
+                  sx={{
+                    position: 'sticky',
+                    top: { xs: 8, md: 12 },
+                    zIndex: 3,
+                    mx: -1.5,
+                    mt: -1.5,
+                    px: 1.5,
+                    pt: 1.5,
+                    pb: 1,
+                    bgcolor: draggedNotaId ? 'rgba(239, 246, 255, 0.98)' : 'rgba(250, 249, 248, 0.98)',
+                    borderBottom: '1px solid',
+                    borderColor: draggedNotaId ? 'primary.light' : 'divider',
+                    boxShadow: draggedNotaId ? '0 6px 14px rgba(0,0,0,0.08)' : '0 4px 10px rgba(0,0,0,0.04)',
+                    backdropFilter: 'blur(6px)',
+                  }}
+                >
                   <Box sx={{ minWidth: 0 }}>
                     <Typography variant="subtitle2" fontWeight={900}>
                       {group.label}
