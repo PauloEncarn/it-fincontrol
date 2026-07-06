@@ -121,7 +121,9 @@ function DashboardContent() {
           res.data.forEach(forn => { if(forn.lancamentos) forn.lancamentos.forEach(nota => lista.push({ ...nota, nome_fornecedor: forn.nome_empresa })); }); 
           return lista; 
       }, 
-      enabled: !!token && currentView === 'notas'
+      enabled: !!token && currentView === 'notas',
+      staleTime: 1000 * 60,
+      refetchOnWindowFocus: false
   });
 
   const { data: dadosDashboard = [] } = useQuery({ 
@@ -231,6 +233,21 @@ function DashboardContent() {
           queryClient.invalidateQueries({ queryKey: ['notas_operacional'], exact: false });
           queryClient.invalidateQueries({ queryKey: ['dashboard_full'], exact: false });
           queryClient.invalidateQueries({ queryKey: ['notificacoes'], exact: false });
+      },
+      onError: () => {
+          queryClient.invalidateQueries({ queryKey: ['notas_operacional'], exact: false });
+      }
+  });
+
+  const mutationLancamentoCampo = useMutation({
+      mutationFn: ({ id, field, value }) => axios.patch(`${API_URL}/lancamentos/${id}/campo`, { field, value }, authConfig),
+      onMutate: async ({ id, field, value }) => {
+          await queryClient.cancelQueries({ queryKey: ['notas_operacional'], exact: false });
+          mergeNotaCache({ id, [field]: value });
+      },
+      onSuccess: (res, { id, field, value }) => {
+          mergeNotaCache(res.data || { id, [field]: value });
+          invalidateNotaDependenciasLeves();
       },
       onError: () => {
           queryClient.invalidateQueries({ queryKey: ['notas_operacional'], exact: false });
@@ -519,8 +536,14 @@ function DashboardContent() {
     }
   };
 
-  const salvarLancamentoInline = async (dados) => {
+  const salvarLancamentoInline = async (dados, field, value) => {
     try {
+      if (field && dados?.id) {
+        await mutationLancamentoCampo.mutateAsync({ id: dados.id, field, value });
+        addToast('success', 'Campo salvo!');
+        return;
+      }
+
       const payload = prepararPayloadLancamento(dados);
       await mutationLancamento.mutateAsync(payload);
       addToast('success', payload.etapa === 'em_analise' ? 'Nota salva e enviada para análise!' : 'Nota salva!');

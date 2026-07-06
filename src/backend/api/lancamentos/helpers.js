@@ -46,3 +46,16 @@ export const normalizarNumeroNota = (valor) => {
 
   return { value: digits.padStart(9, '0'), error: null };
 };
+
+export const normalizarData = (valor) => {
+  const texto = limparTexto(valor);
+  if (!texto) return null;
+
+  const isoDate = texto.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoDate) return `${isoDate[1]}-${isoDate[2]}-${isoDate[3]}`;
+
+  const brDate = texto.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (brDate) return `${brDate[3]}-${brDate[2]}-${brDate[1]}`;
+
+  return texto.includes('/') ? null : texto;
+};

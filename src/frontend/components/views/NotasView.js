@@ -503,7 +503,7 @@ export default function NotasView({
   const commitInlineEdit = async (nota, field) => {
     const original = nota[field] ?? '';
     if (String(original) !== String(editingValue)) {
-      await onSalvarInline({ ...nota, [field]: editingValue });
+      await onSalvarInline(nota, field, editingValue);
     }
     cancelInlineEdit();
   };
@@ -1039,7 +1039,7 @@ export default function NotasView({
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <FileDrop
                     label="Adicionar nota"
-                    onFileSelect={(path) => onSalvarInline({ ...nota, arquivo_nota: path })}
+                    onFileSelect={(path) => onSalvarInline(nota, 'arquivo_nota', path)}
                     existingFile={nota.arquivo_nota}
                     metaData={{ fornecedor, nota: nota.numero_nota || `ID-${nota.id}`, vencimento: nota.data_vencimento }}
                     addToast={addToast}
@@ -1048,7 +1048,7 @@ export default function NotasView({
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <FileDrop
                     label="Adicionar boleto"
-                    onFileSelect={(path) => onSalvarInline({ ...nota, arquivo_boleto: path })}
+                    onFileSelect={(path) => onSalvarInline(nota, 'arquivo_boleto', path)}
                     existingFile={nota.arquivo_boleto}
                     metaData={{ fornecedor, nota: nota.numero_nota || `ID-${nota.id}`, vencimento: nota.data_vencimento }}
                     addToast={addToast}
