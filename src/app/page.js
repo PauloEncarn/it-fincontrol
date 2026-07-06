@@ -40,7 +40,7 @@ const ModalSolicitacao = dynamic(() => import('@/frontend/components/modals/Moda
 });
 // ---------------------------------------------------
 
-const initialFormLancamento = { id: null, contrato_id: null, competencia: '', filial_id: '', fornecedor_id: '', cnpj_usado: '', contrato_usado: '', centro_custo_usado: '', numero_nota: '', serie: 'U', valor: '', valor_previsto: '', data_envio: '', data_vencimento: '', descricao_servico: '', servico_protheus: '', numero_medicao: '', numero_pedido: '', solicitacao_fluig: '', observacao: '', etapa: 'pendente', status_pagamento: 'Pendente Nota', arquivo_nota: '', arquivo_boleto: '', repetir_por: '1' };
+const initialFormLancamento = { id: null, contrato_id: null, competencia: '', filial_id: '', fornecedor_id: '', cnpj_usado: '', contrato_usado: '', centro_custo_usado: '', numero_nota: '', serie: 'U', valor: '', valor_previsto: '', data_envio: '', data_vencimento: '', descricao_servico: '', servico_protheus: '', numero_medicao: '', numero_pedido: '', solicitacao_fluig: '', observacao: '', etapa: 'pendente', status_pagamento: 'Pendente Nota', arquivo_nota: '', arquivo_boleto: '', boleto_grupo: '', valor_boleto: '', observacao_boleto: '', repetir_por: '1' };
 const initialFormSolicitacao = { id: null, filial_id: '', fornecedor_id: '', solicitante: '', cnpj: '', condicao_pagamento: '', valor: '', numero_sc: '', numero_pedido: '', servico: '', servico_protheus: '', centro_custo: '', numero_nota: '', fluig_id: '', data_vencimento: '', status: 'Em Andamento', observacao: '' };
 
 function DashboardContent() {
@@ -384,7 +384,7 @@ function DashboardContent() {
   
   const abrirEdicaoLancamento = useCallback((nota) => { handleFornecedorChange(nota.fornecedor_id); setForm({...nota, data_envio: getDateInputValue(nota.data_envio), data_vencimento: getDateInputValue(nota.data_vencimento)}); setShowModal(true); }, [handleFornecedorChange]);
   
-  const duplicarNota = useCallback((nota) => { openConfirm("Duplicar Lançamento", "Deseja criar uma cópia?", () => { handleFornecedorChange(nota.fornecedor_id); setForm({ ...nota, id: null, contrato_id: null, competencia: '', numero_nota: '', arquivo_nota: '', arquivo_boleto: '', data_envio: '', data_vencimento: getDateInputValue(nota.data_vencimento), etapa: 'pendente', status_pagamento: 'Pendente Nota', repetir_por: '1' }); setShowModal(true); }); }, [handleFornecedorChange]);
+  const duplicarNota = useCallback((nota) => { openConfirm("Duplicar Lançamento", "Deseja criar uma cópia?", () => { handleFornecedorChange(nota.fornecedor_id); setForm({ ...nota, id: null, contrato_id: null, competencia: '', numero_nota: '', arquivo_nota: '', arquivo_boleto: '', boleto_grupo: '', valor_boleto: '', observacao_boleto: '', data_envio: '', data_vencimento: getDateInputValue(nota.data_vencimento), etapa: 'pendente', status_pagamento: 'Pendente Nota', repetir_por: '1' }); setShowModal(true); }); }, [handleFornecedorChange]);
   
   const notaCompletaParaAnalise = (nota) => Boolean(
     nota.filial_id &&
@@ -403,6 +403,7 @@ function DashboardContent() {
     const numeroNota = normalizeInvoiceNumber(dados.numero_nota);
     const valor = normalizeMoneyValue(dados.valor);
     const valorPrevisto = normalizeMoneyValue(dados.valor_previsto);
+    const valorBoleto = normalizeMoneyValue(dados.valor_boleto);
 
     if (dados.numero_nota && numeroNota === null) {
       throw new Error('Numero da nota fiscal deve ter no maximo 9 digitos.');
@@ -416,11 +417,16 @@ function DashboardContent() {
       throw new Error('Valor previsto invalido. Use formato como 1566,93 ou 1566.93.');
     }
 
+    if (dados.valor_boleto !== null && dados.valor_boleto !== undefined && dados.valor_boleto !== '' && valorBoleto === null) {
+      throw new Error('Valor do boleto invalido. Use formato como 1566,93 ou 1566.93.');
+    }
+
     const payload = {
       ...dados,
       numero_nota: numeroNota,
       valor,
       valor_previsto: valorPrevisto === '' ? null : valorPrevisto,
+      valor_boleto: valorBoleto === '' ? null : valorBoleto,
       data_envio: normalizeDateForApi(dados.data_envio),
       data_vencimento: normalizeDateForApi(dados.data_vencimento),
     };
@@ -588,6 +594,8 @@ function DashboardContent() {
     `Pedido: ${nota.numero_pedido || '-'}`,
     `Medicao: ${nota.numero_medicao || '-'}`,
     `Centro de custo: ${nota.centro_custo_usado || '-'}`,
+    `Boleto compartilhado: ${nota.boleto_grupo || '-'}`,
+    `Valor boleto R$: ${nota.valor_boleto ? formatMoneyCopy(nota.valor_boleto) : '-'}`,
   ].join(' | '), 'Informacoes Protheus copiadas!');
 
   if (loadingInit) return (

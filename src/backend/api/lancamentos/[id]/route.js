@@ -75,6 +75,9 @@ export async function PUT(request, context) {
       status_pagamento: limparTexto(body.status_pagamento),
       arquivo_nota: limparTexto(body.arquivo_nota),
       arquivo_boleto: limparTexto(body.arquivo_boleto),
+      boleto_grupo: limparTexto(body.boleto_grupo),
+      valor_boleto: limparNumero(body.valor_boleto),
+      observacao_boleto: limparTexto(body.observacao_boleto),
       // repetir_por: limparNumero(body.repetir_por) // Geralmente não se edita a repetição, mas se precisar, descomente
     };
 

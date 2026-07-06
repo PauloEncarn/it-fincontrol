@@ -28,7 +28,7 @@ export async function GET(request) {
     if (busca) {
       // Lista de campos de TEXTO para pesquisar
       // (Adicionei contrato_usado, cnpj_usado, numero_nota, pedido, descrição e observação)
-      let filtros = `numero_nota.ilike.%${busca}%,contrato_usado.ilike.%${busca}%,cnpj_usado.ilike.%${busca}%,descricao_servico.ilike.%${busca}%,numero_pedido.ilike.%${busca}%,observacao.ilike.%${busca}%`;
+      let filtros = `numero_nota.ilike.%${busca}%,contrato_usado.ilike.%${busca}%,cnpj_usado.ilike.%${busca}%,descricao_servico.ilike.%${busca}%,numero_pedido.ilike.%${busca}%,boleto_grupo.ilike.%${busca}%,observacao.ilike.%${busca}%`;
 
       // Verificação especial para VALOR (Numérico)
       // Se o usuário digitou um número válido (ex: 150.50), adicionamos a busca na coluna 'valor'
@@ -96,6 +96,9 @@ export async function POST(request) {
       status_pagamento: body.status_pagamento || 'Pendente Nota',
       arquivo_nota: body.arquivo_nota,
       arquivo_boleto: body.arquivo_boleto,
+      boleto_grupo: body.boleto_grupo || null,
+      valor_boleto: limparNumero(body.valor_boleto),
+      observacao_boleto: body.observacao_boleto || null,
       repetir_por: body.repetir_por
     };
 

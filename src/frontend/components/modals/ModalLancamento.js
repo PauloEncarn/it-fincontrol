@@ -164,6 +164,18 @@ export default function ModalLancamento({
             <FileDrop label="Anexar boleto" onFileSelect={(path) => setForm({ ...form, arquivo_boleto: path })} existingFile={form.arquivo_boleto} metaData={{ fornecedor: nomeFornecedorAtual, nota: form.numero_nota, vencimento: form.data_vencimento }} addToast={addToast} />
           </Grid>
           <Grid size={12}>
+            <Typography variant="subtitle2" color="primary" fontWeight={800}>Boleto compartilhado</Typography>
+          </Grid>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <TextField label="Grupo do boleto" value={form.boleto_grupo || ''} onChange={(e) => setForm({ ...form, boleto_grupo: e.target.value })} fullWidth helperText="Use o mesmo grupo nas notas do mesmo boleto" />
+          </Grid>
+          <Grid size={{ xs: 12, md: 3 }}>
+            <TextField label="Valor do boleto" value={form.valor_boleto || ''} onChange={(e) => setForm({ ...form, valor_boleto: e.target.value })} fullWidth placeholder="1566,93" slotProps={{ htmlInput: { inputMode: 'decimal' } }} />
+          </Grid>
+          <Grid size={{ xs: 12, md: 5 }}>
+            <TextField label="Observação do boleto" value={form.observacao_boleto || ''} onChange={(e) => setForm({ ...form, observacao_boleto: e.target.value })} fullWidth />
+          </Grid>
+          <Grid size={12}>
             <TextField label="Observações" value={form.observacao || ''} onChange={(e) => setForm({ ...form, observacao: e.target.value })} multiline minRows={3} fullWidth />
           </Grid>
         </Grid>

@@ -319,6 +319,29 @@ export default function NotasView({
     return matchStatus && matchFilial && matchBusca;
   });
 
+  const boletoResumoPorGrupo = notasFiltradas.reduce((grupos, nota) => {
+    const grupo = String(nota.boleto_grupo || '').trim();
+    if (!grupo) return grupos;
+
+    const key = grupo.toLowerCase();
+    if (!grupos[key]) {
+      grupos[key] = {
+        grupo,
+        notas: [],
+        somaNotas: 0,
+        valorBoleto: null,
+      };
+    }
+
+    grupos[key].notas.push(nota);
+    grupos[key].somaNotas += Number(nota.valor || 0);
+    if (grupos[key].valorBoleto === null && nota.valor_boleto !== null && nota.valor_boleto !== undefined && nota.valor_boleto !== '') {
+      grupos[key].valorBoleto = Number(nota.valor_boleto || 0);
+    }
+
+    return grupos;
+  }, {});
+
   const dadosAgrupados = sortGroupedEntries(
     Object.values(notasFiltradas.reduce((grupos, nota) => {
       const key = agrupamentoNotaKey(nota, groupBy);
@@ -673,6 +696,11 @@ export default function NotasView({
     const totalAnexos = Number(Boolean(nota.arquivo_nota)) + Number(Boolean(nota.arquivo_boleto));
     const dueSignal = notaGroup === 'concluida' ? null : getDueSignal(nota.data_vencimento);
     const dueSignalStyle = dueSignal ? DUE_SIGNAL_STYLE[dueSignal.color] : null;
+    const boletoKey = String(nota.boleto_grupo || '').trim().toLowerCase();
+    const boletoResumo = boletoKey ? boletoResumoPorGrupo[boletoKey] : null;
+    const valorBoleto = boletoResumo?.valorBoleto ?? (nota.valor_boleto !== null && nota.valor_boleto !== undefined && nota.valor_boleto !== '' ? Number(nota.valor_boleto || 0) : null);
+    const diferencaBoleto = valorBoleto !== null && boletoResumo ? boletoResumo.somaNotas - valorBoleto : 0;
+    const boletoOk = valorBoleto !== null && Math.abs(diferencaBoleto) < 0.01;
 
     return (
       <Paper
@@ -874,6 +902,59 @@ export default function NotasView({
           </Typography>
           {renderEditableValue(nota, 'centro_custo_usado', 'Centro de custo', nota.centro_custo_usado)}
         </Box>
+
+        <Paper variant="outlined" sx={{ p: 1.25, bgcolor: boletoResumo ? '#f8fafc' : '#faf9f8', borderStyle: boletoResumo ? 'solid' : 'dashed' }}>
+          <Stack spacing={1}>
+            <Stack direction="row" spacing={0.75} alignItems="center" justifyContent="space-between">
+              <Typography variant="caption" color="text.secondary" fontWeight={900}>
+                Boleto
+              </Typography>
+              {boletoResumo && (
+                <Chip
+                  size="small"
+                  color={boletoResumo.notas.length > 1 ? (boletoOk ? 'success' : 'warning') : 'default'}
+                  label={boletoResumo.notas.length > 1 ? 'Compartilhado' : 'Vinculado'}
+                  sx={{ fontWeight: 800 }}
+                />
+              )}
+            </Stack>
+            {renderEditableValue(nota, 'boleto_grupo', 'Grupo boleto', nota.boleto_grupo, {
+              placeholder: 'Ex.: ALGAR-2026-07-01',
+            })}
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              <Box sx={{ flex: '1 1 120px', minWidth: 0 }}>
+                <Typography variant="caption" color="text.secondary" fontWeight={700}>Valor boleto</Typography>
+                {renderEditableValue(nota, 'valor_boleto', 'Valor boleto', nota.valor_boleto || '', {
+                  inputMode: 'decimal',
+                  placeholder: '1566,93',
+                  render: () => (
+                    <Typography variant="body2" fontWeight={800}>
+                      {valorBoleto === null ? '-' : `R$ ${valorBoleto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                    </Typography>
+                  ),
+                })}
+              </Box>
+              <Box sx={{ flex: '1 1 120px', minWidth: 0 }}>
+                <Typography variant="caption" color="text.secondary" fontWeight={700}>Resumo</Typography>
+                <Typography variant="body2" fontWeight={800} color={boletoResumo && valorBoleto !== null && !boletoOk ? 'warning.main' : 'text.primary'}>
+                  {boletoResumo
+                    ? `${boletoResumo.notas.length} nota(s) | R$ ${boletoResumo.somaNotas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                    : 'Sem grupo'}
+                </Typography>
+                {boletoResumo && valorBoleto !== null && !boletoOk && (
+                  <Typography variant="caption" color="warning.main">
+                    Dif. R$ {diferencaBoleto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </Typography>
+                )}
+              </Box>
+            </Stack>
+            {boletoResumo?.notas?.length > 1 && (
+              <Typography variant="caption" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
+                NFs: {boletoResumo.notas.map((item) => item.numero_nota || `ID ${item.id}`).join(', ')}
+              </Typography>
+            )}
+          </Stack>
+        </Paper>
 
         <FormControl size="small" fullWidth sx={{ mt: 'auto' }}>
           <InputLabel>Etapa</InputLabel>
@@ -1096,6 +1177,11 @@ export default function NotasView({
                         <Typography variant="body2" color="text.secondary">
                           Contrato {nota.contrato_usado || '-'} | Produto Protheus {nota.servico_protheus || '-'}
                         </Typography>
+                        {nota.boleto_grupo && (
+                          <Typography variant="body2" color="text.secondary">
+                            Boleto compartilhado {nota.boleto_grupo} | Valor boleto {nota.valor_boleto ? `R$ ${Number(nota.valor_boleto || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '-'}
+                          </Typography>
+                        )}
                       </Box>
 
                       <Box sx={{ minWidth: 150 }}>
