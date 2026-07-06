@@ -30,6 +30,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
+import DragIndicatorOutlinedIcon from '@mui/icons-material/DragIndicatorOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
@@ -677,8 +678,6 @@ export default function NotasView({
       <Paper
         key={nota.id}
         variant="outlined"
-        draggable
-        onDragStart={(event) => handleDragStart(event, nota)}
         onDragEnd={handleDragEnd}
         sx={{
           p: 1.5,
@@ -689,14 +688,25 @@ export default function NotasView({
           borderTop: '4px solid',
           borderTopColor: borderColor,
           bgcolor: 'background.paper',
-          cursor: 'grab',
           opacity: String(draggedNotaId) === String(nota.id) ? 0.55 : 1,
           transition: 'box-shadow 0.2s ease, opacity 0.2s ease, transform 0.2s ease',
           '&:hover': { boxShadow: '0 8px 24px rgba(0,0,0,0.08)' },
-          '&:active': { cursor: 'grabbing' },
         }}
       >
         <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
+          <Stack direction="row" spacing={0.75} alignItems="flex-start" sx={{ minWidth: 0 }}>
+            <Tooltip title="Arrastar nota">
+              <IconButton
+                size="small"
+                draggable
+                onDragStart={(event) => handleDragStart(event, nota)}
+                onDragEnd={handleDragEnd}
+                aria-label="Arrastar nota"
+                sx={{ cursor: 'grab', flex: '0 0 auto', '&:active': { cursor: 'grabbing' } }}
+              >
+                <DragIndicatorOutlinedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
           <Box sx={{ minWidth: 0 }}>
             <Typography variant="subtitle2" fontWeight={800} noWrap title={fornecedor}>
               {fornecedor}
@@ -705,6 +715,7 @@ export default function NotasView({
               {nota.filial?.nome_fantasia || '-'} | {nota.competencia || 'Sem competência'}
             </Typography>
           </Box>
+          </Stack>
           <Stack spacing={0.75} alignItems="flex-end">
             <Chip
               size="small"
@@ -1255,6 +1266,8 @@ export default function NotasView({
                   borderTop: '4px solid',
                   borderTopColor: `${group.color}.main`,
                   transition: 'background-color 0.2s ease, border-color 0.2s ease',
+                  outline: draggedNotaId ? '2px dashed rgba(0, 120, 212, 0.32)' : 'none',
+                  outlineOffset: -6,
                 }}
               >
                 <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
@@ -1266,7 +1279,7 @@ export default function NotasView({
                       {notasDoGrupo.length} notas
                     </Typography>
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                      Solte aqui para marcar como {group.targetStatus}
+                      Arraste pelo icone e solte aqui para marcar como {group.targetStatus}
                     </Typography>
                   </Box>
                   <Stack direction="row" spacing={0.75} alignItems="center">
