@@ -912,21 +912,27 @@ export default function NotasView({
           {renderEditableValue(nota, 'centro_custo_usado', 'Centro de custo', nota.centro_custo_usado)}
         </Box>
 
-        <Paper variant="outlined" sx={{ p: 1.25, bgcolor: boletoResumo ? '#f8fafc' : '#faf9f8', borderStyle: boletoResumo ? 'solid' : 'dashed' }}>
-          <Stack spacing={1}>
-            <Stack direction="row" spacing={0.75} alignItems="center" justifyContent="space-between">
-              <Typography variant="caption" color="text.secondary" fontWeight={900}>
-                Boleto
+        {nota.boleto_grupo && (
+        <Accordion disableGutters variant="outlined" sx={{ bgcolor: '#f8fafc', '&:before': { display: 'none' } }}>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ minHeight: 40, '& .MuiAccordionSummary-content': { my: 0.75 } }}>
+            <Stack direction="row" spacing={0.75} alignItems="center" justifyContent="space-between" sx={{ width: '100%', minWidth: 0, pr: 1 }}>
+              <Typography variant="body2" fontWeight={900} noWrap>
+                Nota compartilhada
               </Typography>
-              {boletoResumo && (
+              {boletoResumo ? (
                 <Chip
                   size="small"
                   color={boletoResumo.notas.length > 1 ? (boletoOk ? 'success' : 'warning') : 'default'}
                   label={boletoResumo.notas.length > 1 ? (boletoOk ? 'Compartilhado OK' : 'Divergencia') : 'Vinculado'}
                   sx={{ fontWeight: 800 }}
                 />
+              ) : (
+                <Chip size="small" variant="outlined" label={nota.boleto_grupo} sx={{ fontWeight: 800, maxWidth: 140 }} />
               )}
             </Stack>
+          </AccordionSummary>
+          <AccordionDetails sx={{ pt: 0 }}>
+          <Stack spacing={1}>
             {renderEditableValue(nota, 'boleto_grupo', 'Grupo boleto', nota.boleto_grupo, {
               placeholder: 'Ex.: ALGAR-2026-07-01',
             })}
@@ -963,7 +969,9 @@ export default function NotasView({
               </Typography>
             )}
           </Stack>
-        </Paper>
+          </AccordionDetails>
+        </Accordion>
+        )}
 
         <FormControl size="small" fullWidth sx={{ mt: 'auto' }}>
           <InputLabel>Etapa</InputLabel>
