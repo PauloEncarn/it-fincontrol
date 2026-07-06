@@ -697,10 +697,19 @@ export default function NotasView({
     const dueSignal = notaGroup === 'concluida' ? null : getDueSignal(nota.data_vencimento);
     const dueSignalStyle = dueSignal ? DUE_SIGNAL_STYLE[dueSignal.color] : null;
     const boletoKey = String(nota.boleto_grupo || '').trim().toLowerCase();
-    const boletoResumo = boletoKey ? boletoResumoPorGrupo[boletoKey] : null;
+    const boletoResumoLocal = boletoKey ? boletoResumoPorGrupo[boletoKey] : null;
+    const boletoResumoApi = nota.boleto_resumo ? {
+      grupo: nota.boleto_resumo.grupo,
+      notas: nota.boleto_resumo.notas || [],
+      somaNotas: Number(nota.boleto_resumo.soma_notas || 0),
+      valorBoleto: nota.boleto_resumo.valor_boleto === null || nota.boleto_resumo.valor_boleto === undefined ? null : Number(nota.boleto_resumo.valor_boleto || 0),
+      diferenca: nota.boleto_resumo.diferenca === null || nota.boleto_resumo.diferenca === undefined ? null : Number(nota.boleto_resumo.diferenca || 0),
+      ok: nota.boleto_resumo.ok,
+    } : null;
+    const boletoResumo = boletoResumoApi || boletoResumoLocal;
     const valorBoleto = boletoResumo?.valorBoleto ?? (nota.valor_boleto !== null && nota.valor_boleto !== undefined && nota.valor_boleto !== '' ? Number(nota.valor_boleto || 0) : null);
-    const diferencaBoleto = valorBoleto !== null && boletoResumo ? boletoResumo.somaNotas - valorBoleto : 0;
-    const boletoOk = valorBoleto !== null && Math.abs(diferencaBoleto) < 0.01;
+    const diferencaBoleto = boletoResumo?.diferenca ?? (valorBoleto !== null && boletoResumo ? boletoResumo.somaNotas - valorBoleto : 0);
+    const boletoOk = boletoResumo?.ok ?? (valorBoleto !== null && Math.abs(diferencaBoleto) < 0.01);
 
     return (
       <Paper
@@ -913,7 +922,7 @@ export default function NotasView({
                 <Chip
                   size="small"
                   color={boletoResumo.notas.length > 1 ? (boletoOk ? 'success' : 'warning') : 'default'}
-                  label={boletoResumo.notas.length > 1 ? 'Compartilhado' : 'Vinculado'}
+                  label={boletoResumo.notas.length > 1 ? (boletoOk ? 'Compartilhado OK' : 'Divergencia') : 'Vinculado'}
                   sx={{ fontWeight: 800 }}
                 />
               )}
