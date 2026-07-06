@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getActorFromRequest, registrarEventoLancamento } from '@/backend/utils/audit';
+import { limparNumero, normalizarNumeroNota } from './helpers';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -31,8 +32,8 @@ export async function GET(request) {
 
       // Verificação especial para VALOR (Numérico)
       // Se o usuário digitou um número válido (ex: 150.50), adicionamos a busca na coluna 'valor'
-      const valorNumerico = parseFloat(busca);
-      if (!isNaN(valorNumerico)) {
+      const valorNumerico = limparNumero(busca);
+      if (valorNumerico !== null) {
         // Adiciona condição OR valor = X
         filtros += `,valor.eq.${valorNumerico}`;
       }
@@ -53,6 +54,11 @@ export async function POST(request) {
   try {
     const ator = await getActorFromRequest(request);
     const body = await request.json();
+    const numeroNota = normalizarNumeroNota(body.numero_nota);
+
+    if (numeroNota.error) {
+      return NextResponse.json({ error: numeroNota.error }, { status: 400 });
+    }
     
     // MONTAGEM DO PAYLOAD
     const payload = {
@@ -63,8 +69,8 @@ export async function POST(request) {
       competencia: body.competencia || null,
       
       // Dados Financeiros
-      valor: body.valor ? parseFloat(body.valor) : 0,
-      valor_previsto: body.valor_previsto ? parseFloat(body.valor_previsto) : null,
+      valor: limparNumero(body.valor) || 0,
+      valor_previsto: limparNumero(body.valor_previsto),
       data_vencimento: body.data_vencimento || null,
       data_envio: body.data_envio || null,
       
@@ -74,7 +80,7 @@ export async function POST(request) {
       cnpj_usado: body.cnpj_usado || null,
       
       // Detalhes
-      numero_nota: body.numero_nota,
+      numero_nota: numeroNota.value,
       serie: body.serie,
       
       // Outros

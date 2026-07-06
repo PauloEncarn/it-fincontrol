@@ -29,6 +29,13 @@ const maskDateInput = (value) => {
   return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
 };
 
+const maskInvoiceNumber = (value) => String(value || '').replace(/\D/g, '').slice(0, 9);
+
+const formatInvoiceNumber = (value) => {
+  const digits = maskInvoiceNumber(value);
+  return digits ? digits.padStart(9, '0') : '';
+};
+
 export default function ModalLancamento({
   isOpen,
   onClose,
@@ -45,6 +52,7 @@ export default function ModalLancamento({
 }) {
   const nomeFornecedorAtual = fornecedores.find((fornecedor) => fornecedor.id == form.fornecedor_id)?.nome_empresa || '';
   const setDateField = (field, value) => setForm({ ...form, [field]: maskDateInput(value) });
+  const setInvoiceNumber = (value) => setForm({ ...form, numero_nota: maskInvoiceNumber(value) });
 
   return (
     <Dialog open={isOpen} onClose={onClose} fullWidth maxWidth="lg">
@@ -107,13 +115,13 @@ export default function ModalLancamento({
           <Grid size={12}><Divider /></Grid>
 
           <Grid size={{ xs: 12, md: 3 }}>
-            <TextField label="Nº nota" value={form.numero_nota || ''} onChange={(e) => setForm({ ...form, numero_nota: e.target.value })} fullWidth required />
+            <TextField label="Nº nota" value={form.numero_nota || ''} onChange={(e) => setInvoiceNumber(e.target.value)} onBlur={() => setForm({ ...form, numero_nota: formatInvoiceNumber(form.numero_nota) })} fullWidth required helperText="9 digitos; ex.: 018 vira 000000018" slotProps={{ htmlInput: { inputMode: 'numeric', maxLength: 9 } }} />
           </Grid>
           <Grid size={{ xs: 12, md: 2 }}>
             <TextField label="Série" value={form.serie || ''} onChange={(e) => setForm({ ...form, serie: e.target.value })} fullWidth />
           </Grid>
           <Grid size={{ xs: 12, md: 3 }}>
-            <TextField label="Valor" type="number" value={form.valor || ''} onChange={(e) => setForm({ ...form, valor: e.target.value })} fullWidth required />
+            <TextField label="Valor" value={form.valor || ''} onChange={(e) => setForm({ ...form, valor: e.target.value })} fullWidth required placeholder="1566,93" slotProps={{ htmlInput: { inputMode: 'decimal' } }} />
           </Grid>
 
           {!form.id && (

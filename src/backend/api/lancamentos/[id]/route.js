@@ -1,27 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { diffLancamentoFields, getActorFromRequest, registrarEventoLancamento } from '@/backend/utils/audit';
+import { limparNumero, limparTexto, normalizarNumeroNota } from '../helpers';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
-
-// --- HELPER: Limpeza de Dados ---
-const limparNumero = (valor) => {
-  if (valor === null || valor === undefined) return null;
-  const stringVal = String(valor).trim();
-  if (stringVal === '' || stringVal === 'undefined' || stringVal === 'null' || stringVal === 'NaN') return null;
-  const numero = parseFloat(stringVal);
-  return isNaN(numero) ? null : numero;
-};
-
-const limparTexto = (valor) => {
-  if (valor === null || valor === undefined) return null;
-  const stringVal = String(valor).trim();
-  if (stringVal === '' || stringVal === 'undefined' || stringVal === 'null') return null;
-  return stringVal;
-};
 
 // --- PUT: ATUALIZAR NOTA ---
 export async function PUT(request, context) {
@@ -36,6 +21,11 @@ export async function PUT(request, context) {
     }
 
     const body = await request.json();
+    const numeroNota = normalizarNumeroNota(body.numero_nota);
+
+    if (numeroNota.error) {
+      return NextResponse.json({ error: numeroNota.error }, { status: 400 });
+    }
 
     const { data: notaAntes, error: erroBusca } = await supabase
       .from('lancamentos')
@@ -69,7 +59,7 @@ export async function PUT(request, context) {
       cnpj_usado: limparTexto(body.cnpj_usado),
       
       // Detalhes da Nota
-      numero_nota: limparTexto(body.numero_nota),
+      numero_nota: numeroNota.value,
       serie: limparTexto(body.serie),
       
       // Outros

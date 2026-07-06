@@ -266,6 +266,38 @@ function DashboardContent() {
     return String(value || '').split(/[;|\n]/).map((item) => item.trim()).filter(Boolean);
   };
   const getDateInputValue = (value) => value ? String(value).split('T')[0] : '';
+  const normalizeInvoiceNumber = (value) => {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    const digits = text.replace(/\D/g, '');
+    if (!digits) return '';
+    if (digits.length > 9) return null;
+    return digits.padStart(9, '0');
+  };
+  const normalizeMoneyValue = (value) => {
+    if (value === null || value === undefined || value === '') return '';
+    const text = String(value).trim().replace(/[^\d,.-]/g, '');
+    if (!text) return '';
+
+    const hasComma = text.includes(',');
+    const hasDot = text.includes('.');
+    let normalized = text;
+
+    if (hasComma && hasDot) {
+      const decimalSeparator = text.lastIndexOf(',') > text.lastIndexOf('.') ? ',' : '.';
+      const thousandSeparator = decimalSeparator === ',' ? '.' : ',';
+      normalized = text
+        .replace(new RegExp(`\\${thousandSeparator}`, 'g'), '')
+        .replace(decimalSeparator, '.');
+    } else if (hasComma) {
+      normalized = text.replace(/\./g, '').replace(',', '.');
+    } else if (hasDot && text.split('.').length > 2) {
+      normalized = text.replace(/\./g, '');
+    }
+
+    const parsed = Number(normalized);
+    return Number.isNaN(parsed) ? null : parsed;
+  };
   const normalizeDateForApi = (value) => {
     const text = String(value || '').trim();
     if (!text) return null;
@@ -368,8 +400,27 @@ function DashboardContent() {
   );
 
   const prepararPayloadLancamento = (dados) => {
+    const numeroNota = normalizeInvoiceNumber(dados.numero_nota);
+    const valor = normalizeMoneyValue(dados.valor);
+    const valorPrevisto = normalizeMoneyValue(dados.valor_previsto);
+
+    if (dados.numero_nota && numeroNota === null) {
+      throw new Error('Numero da nota fiscal deve ter no maximo 9 digitos.');
+    }
+
+    if (dados.valor !== null && dados.valor !== undefined && dados.valor !== '' && valor === null) {
+      throw new Error('Valor invalido. Use formato como 1566,93 ou 1566.93.');
+    }
+
+    if (dados.valor_previsto !== null && dados.valor_previsto !== undefined && dados.valor_previsto !== '' && valorPrevisto === null) {
+      throw new Error('Valor previsto invalido. Use formato como 1566,93 ou 1566.93.');
+    }
+
     const payload = {
       ...dados,
+      numero_nota: numeroNota,
+      valor,
+      valor_previsto: valorPrevisto === '' ? null : valorPrevisto,
       data_envio: normalizeDateForApi(dados.data_envio),
       data_vencimento: normalizeDateForApi(dados.data_vencimento),
     };
@@ -397,27 +448,27 @@ function DashboardContent() {
       return addToast('error', 'Selecione o contrato cadastrado correto para vincular a nota.');
     }
 
-    const payload = prepararPayloadLancamento(form);
     try {
+      const payload = prepararPayloadLancamento(form);
       await mutationLancamento.mutateAsync(payload);
       addToast('success', payload.etapa === 'em_analise' ? 'Lançamento salvo e enviado para análise!' : 'Lançamento salvo!');
       setShowModal(false);
-    } catch {
-      addToast('error', 'Erro ao salvar.');
+    } catch (error) {
+      addToast('error', error.message || 'Erro ao salvar.');
     }
   };
 
   const salvarLancamentoInline = async (dados) => {
-    const payload = prepararPayloadLancamento(dados);
     try {
+      const payload = prepararPayloadLancamento(dados);
       await mutationLancamento.mutateAsync(payload);
       addToast('success', payload.etapa === 'em_analise' ? 'Nota salva e enviada para análise!' : 'Nota salva!');
-    } catch {
-      addToast('error', 'Erro ao salvar nota.');
+    } catch (error) {
+      addToast('error', error.message || 'Erro ao salvar nota.');
     }
   };
   
-  const salvarEEnviar = async () => { if (!form.arquivo_nota) return addToast('error', 'Anexe a nota fiscal para enviar.'); const payload = prepararPayloadLancamento(form); try { setSendingEmail(true); const response = await mutationLancamento.mutateAsync(payload); const notaSalva = response.data; await handleEnviarEmail({...payload, id: notaSalva.id || form.id}); setShowModal(false); } catch (e) { addToast('error', 'Erro no processo Salvar/Enviar.'); } finally { setSendingEmail(false); } };
+  const salvarEEnviar = async () => { if (!form.arquivo_nota) return addToast('error', 'Anexe a nota fiscal para enviar.'); try { const payload = prepararPayloadLancamento(form); setSendingEmail(true); const response = await mutationLancamento.mutateAsync(payload); const notaSalva = response.data; await handleEnviarEmail({...payload, id: notaSalva.id || form.id}); setShowModal(false); } catch (e) { addToast('error', e.message || 'Erro no processo Salvar/Enviar.'); } finally { setSendingEmail(false); } };
 
   // ENVIO DE EMAIL
   const handleEnviarEmail = async (dadosNota) => {
@@ -522,6 +573,30 @@ function DashboardContent() {
     });
   }, [solicitacoes, fornecedores, filiais]);
 
+  const formatMoneyCopy = (value) => Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  const formatDateCopy = (value) => value ? String(value).split('T')[0].split('-').reverse().join('/') : '-';
+  const copyToClipboard = (text, message = 'Copiado!') => navigator.clipboard.writeText(text).then(() => addToast('success', message));
+  const copiarProtheus = (nota) => copyToClipboard([
+    `Fornecedor: ${nota.fornecedor?.nome_empresa || nota.nome_fornecedor || '-'}`,
+    `CPF/CNPJ: ${nota.cnpj_usado || '-'}`,
+    `NF: ${nota.numero_nota || '-'}`,
+    `Vencimento: ${formatDateCopy(nota.data_vencimento)}`,
+    `Valor R$: ${formatMoneyCopy(nota.valor)}`,
+    `Contrato: ${nota.contrato_usado || '-'}`,
+    `Produto/Servico Protheus: ${nota.servico_protheus || '-'}`,
+  ].join(' | '), 'Informacoes Protheus copiadas!');
+  const copiarDadosLancamento = (nota) => copyToClipboard([
+    `NF: ${nota.numero_nota || '-'}`,
+    `Fluig: ${nota.solicitacao_fluig || '-'}`,
+    `Pedido: ${nota.numero_pedido || '-'}`,
+    `Medicao: ${nota.numero_medicao || '-'}`,
+    `Contrato: ${nota.contrato_usado || '-'}`,
+    `Produto/Servico Protheus: ${nota.servico_protheus || '-'}`,
+    `Centro de custo: ${nota.centro_custo_usado || '-'}`,
+    `Vencimento: ${formatDateCopy(nota.data_vencimento)}`,
+    `Valor R$: ${formatMoneyCopy(nota.valor)}`,
+  ].join(' | '), 'Dados do lancamento copiados!');
+
   if (loadingInit) return (
     <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center', bgcolor: 'background.default' }}>
       <CircularProgress size={44} />
@@ -593,7 +668,8 @@ function DashboardContent() {
                                 setStatusFiltro={setStatusFiltro}
                                 onEditar={abrirEdicaoLancamento}
                                 onDuplicar={duplicarNota}
-                                onCopiarProtheus={(n) => navigator.clipboard.writeText(`${n.fornecedor?.nome_empresa} | CPF/CNPJ: ${n.cnpj_usado||'?'} | NF: ${n.numero_nota} | Valor R$: ${n.valor.toLocaleString('pt-BR',{minimumFractionDigits:2})}`).then(()=>addToast('success', "Copiado!"))}
+                                onCopiarProtheus={copiarProtheus}
+                                onCopiarLancamento={copiarDadosLancamento}
                                 onEnviarEmail={handleEnviarEmail}
                                 onEnviarEmailGopa={handleEnviarEmailGopa}
                                 onDownload={(path) => window.open(path.startsWith('http') ? path : `${API_URL}/${path}`, '_blank')}

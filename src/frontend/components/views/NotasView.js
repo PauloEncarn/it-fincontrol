@@ -238,6 +238,7 @@ export default function NotasView({
   onEditar,
   onDuplicar,
   onCopiarProtheus,
+  onCopiarLancamento,
   onEnviarEmail,
   onEnviarEmailGopa,
   onDownload,
@@ -492,15 +493,25 @@ export default function NotasView({
           type="text"
           label={label}
           value={editingValue}
-          onChange={(event) => setEditingValue(options.mask === 'date' ? maskDateInput(event.target.value) : event.target.value)}
+          onChange={(event) => {
+            if (options.mask === 'date') setEditingValue(maskDateInput(event.target.value));
+            else if (options.mask === 'invoice') setEditingValue(String(event.target.value || '').replace(/\D/g, '').slice(0, 9));
+            else setEditingValue(event.target.value);
+          }}
           onBlur={() => commitInlineEdit(nota, field)}
           onKeyDown={(event) => {
             if (event.key === 'Enter') commitInlineEdit(nota, field);
             if (event.key === 'Escape') cancelInlineEdit();
           }}
           fullWidth
-          placeholder={options.mask === 'date' ? 'dd/mm/aaaa' : undefined}
-          slotProps={options.mask === 'date' ? { htmlInput: { inputMode: 'numeric', maxLength: 10 } } : undefined}
+          placeholder={options.mask === 'date' ? 'dd/mm/aaaa' : options.placeholder}
+          slotProps={options.mask === 'date'
+            ? { htmlInput: { inputMode: 'numeric', maxLength: 10 } }
+            : options.mask === 'invoice'
+              ? { htmlInput: { inputMode: 'numeric', maxLength: 9 } }
+              : options.inputMode
+                ? { htmlInput: { inputMode: options.inputMode } }
+                : undefined}
         />
       );
     }
@@ -602,6 +613,11 @@ export default function NotasView({
           <ContentCopyOutlinedIcon />
         </IconButton>
       </Tooltip>
+      <Tooltip title="Copiar dados do lancamento">
+        <IconButton size="small" onClick={() => onCopiarLancamento?.(nota)} aria-label="Copiar dados do lancamento">
+          <StorageOutlinedIcon />
+        </IconButton>
+      </Tooltip>
       <Tooltip title="Ver linha do tempo">
         <IconButton size="small" onClick={() => openTimeline(nota)} aria-label="Ver linha do tempo">
           <HistoryOutlinedIcon />
@@ -657,7 +673,7 @@ export default function NotasView({
         onDragEnd={handleDragEnd}
         sx={{
           p: 1.5,
-          minHeight: 336,
+          minHeight: 430,
           display: 'flex',
           flexDirection: 'column',
           gap: 1.25,
@@ -740,6 +756,7 @@ export default function NotasView({
             Nota fiscal
           </Typography>
           {renderEditableValue(nota, 'numero_nota', 'Nº nota', nota.numero_nota, {
+            mask: 'invoice',
             variant: 'h6',
             fontWeight: 900,
             format: (value) => value ? `#${value}` : 'Pendente',
@@ -785,20 +802,28 @@ export default function NotasView({
 
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
           <Box sx={{ flex: '1 1 120px', minWidth: 0 }}>
+            <Typography variant="caption" color="text.secondary" fontWeight={700}>Contrato</Typography>
+            {renderEditableValue(nota, 'contrato_usado', 'Contrato', nota.contrato_usado)}
+          </Box>
+          <Box sx={{ flex: '1 1 160px', minWidth: 0 }}>
+            <Typography variant="caption" color="text.secondary" fontWeight={700}>Produto Protheus</Typography>
+            {renderEditableValue(nota, 'servico_protheus', 'Produto Protheus', nota.servico_protheus)}
+          </Box>
+        </Stack>
+
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          <Box sx={{ flex: '1 1 120px', minWidth: 0 }}>
             <Typography variant="caption" color="text.secondary" fontWeight={700}>Pedido</Typography>
             {renderEditableValue(nota, 'numero_pedido', 'Pedido', nota.numero_pedido)}
           </Box>
-          {isGopaFunc(nota) ? (
-            <Box sx={{ flex: '1 1 120px', minWidth: 0 }}>
-              <Typography variant="caption" color="text.secondary" fontWeight={700}>Medição</Typography>
-              {renderEditableValue(nota, 'numero_medicao', 'Medição', nota.numero_medicao)}
-            </Box>
-          ) : (
-            <Box sx={{ flex: '1 1 120px', minWidth: 0 }}>
-              <Typography variant="caption" color="text.secondary" fontWeight={700}>Fluig</Typography>
-              {renderEditableValue(nota, 'solicitacao_fluig', 'Fluig', nota.solicitacao_fluig)}
-            </Box>
-          )}
+          <Box sx={{ flex: '1 1 120px', minWidth: 0 }}>
+            <Typography variant="caption" color="text.secondary" fontWeight={700}>Medicao</Typography>
+            {renderEditableValue(nota, 'numero_medicao', 'Medicao', nota.numero_medicao)}
+          </Box>
+          <Box sx={{ flex: '1 1 120px', minWidth: 0 }}>
+            <Typography variant="caption" color="text.secondary" fontWeight={700}>Fluig</Typography>
+            {renderEditableValue(nota, 'solicitacao_fluig', 'Fluig', nota.solicitacao_fluig)}
+          </Box>
         </Stack>
 
         <Box>
@@ -806,7 +831,8 @@ export default function NotasView({
             Valor
           </Typography>
           {renderEditableValue(nota, 'valor', 'Valor', nota.valor || '', {
-            type: 'number',
+            inputMode: 'decimal',
+            placeholder: '1566,93',
             render: () => (
               <Typography variant="h6" fontWeight={900}>
                 R$ {valorReal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -1024,7 +1050,10 @@ export default function NotasView({
                           {missingDocs && <Chip size="small" color="warning" label={!nota.arquivo_nota && !nota.arquivo_boleto ? 'Sem anexos' : !nota.arquivo_nota ? 'Sem NF' : 'Sem boleto'} />}
                         </Stack>
                         <Typography variant="body2" color="text.secondary">
-                          Venc. {formatDate(nota.data_vencimento)} | Pedido {nota.numero_pedido || '-'} | {isGopaFunc(nota) ? `Medição ${nota.numero_medicao || '-'}` : `Fluig ${nota.solicitacao_fluig || '-'}`}
+                          Venc. {formatDate(nota.data_vencimento)} | Pedido {nota.numero_pedido || '-'} | Medicao {nota.numero_medicao || '-'} | Fluig {nota.solicitacao_fluig || '-'}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Contrato {nota.contrato_usado || '-'} | Produto Protheus {nota.servico_protheus || '-'}
                         </Typography>
                       </Box>
 
@@ -1039,6 +1068,11 @@ export default function NotasView({
                         <Tooltip title="Copiar Protheus">
                           <IconButton onClick={() => onCopiarProtheus(nota)} aria-label="Copiar Protheus">
                             <ContentCopyOutlinedIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Copiar dados do lancamento">
+                          <IconButton onClick={() => onCopiarLancamento?.(nota)} aria-label="Copiar dados do lancamento">
+                            <StorageOutlinedIcon />
                           </IconButton>
                         </Tooltip>
                         {isGopaFunc(nota) && (
