@@ -187,15 +187,70 @@ function DashboardContent() {
       setTimeout(() => addToast('success', 'Dados atualizados!'), 500);
   };
 
+  const mergeNotaCache = useCallback((notaAtualizada) => {
+      if (!notaAtualizada?.id) return;
+      const notaLimpa = Object.fromEntries(Object.entries(notaAtualizada).filter(([, value]) => value !== undefined));
+
+      const mergeNota = (nota) => String(nota.id) === String(notaAtualizada.id)
+          ? {
+              ...nota,
+              ...notaLimpa,
+              filial: notaLimpa.filial || nota.filial,
+              fornecedor: notaLimpa.fornecedor || nota.fornecedor,
+              nome_fornecedor: notaLimpa.nome_fornecedor || nota.nome_fornecedor,
+            }
+          : nota;
+
+      const updateList = (old) => Array.isArray(old) ? old.map(mergeNota) : old;
+
+      queryClient.setQueriesData({ queryKey: ['notas_operacional'], exact: false }, updateList);
+      queryClient.setQueriesData({ queryKey: ['dashboard_full'], exact: false }, updateList);
+      queryClient.setQueriesData({ queryKey: ['busca'], exact: false }, updateList);
+      queryClient.setQueriesData({ queryKey: ['contrato_lancamentos'], exact: false }, updateList);
+  }, [queryClient]);
+
+  const invalidateNotaDependenciasLeves = useCallback(() => {
+      queryClient.invalidateQueries({ queryKey: ['notificacoes'], exact: false });
+  }, [queryClient]);
+
   // --- MUTATIONS ---
-  const mutationLancamento = useMutation({ mutationFn: (nota) => nota.id ? axios.put(`${API_URL}/lancamentos/${nota.id}`, nota, authConfig) : axios.post(`${API_URL}/lancamentos/`, nota, authConfig), onSuccess: () => { atualizarListas(); }});
+  const mutationLancamento = useMutation({
+      mutationFn: (nota) => nota.id ? axios.put(`${API_URL}/lancamentos/${nota.id}`, nota, authConfig) : axios.post(`${API_URL}/lancamentos/`, nota, authConfig),
+      onMutate: async (nota) => {
+          if (!nota?.id) return null;
+          await queryClient.cancelQueries({ queryKey: ['notas_operacional'], exact: false });
+          mergeNotaCache(nota);
+          return { id: nota.id };
+      },
+      onSuccess: (res, nota) => {
+          if (nota?.id) {
+              mergeNotaCache(res.data || nota);
+              invalidateNotaDependenciasLeves();
+              return;
+          }
+          queryClient.invalidateQueries({ queryKey: ['notas_operacional'], exact: false });
+          queryClient.invalidateQueries({ queryKey: ['dashboard_full'], exact: false });
+          queryClient.invalidateQueries({ queryKey: ['notificacoes'], exact: false });
+      },
+      onError: () => {
+          queryClient.invalidateQueries({ queryKey: ['notas_operacional'], exact: false });
+      }
+  });
   
   const mutationStatus = useMutation({ 
       mutationFn: ({id, status, etapa}) => axios.patch(`${API_URL}/lancamentos/${id}/status`, { status, etapa }, authConfig), 
-      onSuccess: () => { 
-          atualizarListas(); 
+      onMutate: async ({ id, status, etapa }) => {
+          await queryClient.cancelQueries({ queryKey: ['notas_operacional'], exact: false });
+          mergeNotaCache({ id, status_pagamento: status, etapa });
+      },
+      onSuccess: (_, { id, status, etapa }) => { 
+          mergeNotaCache({ id, status_pagamento: status, etapa });
+          invalidateNotaDependenciasLeves();
           addToast('success', 'Nota atualizada!'); 
-      } 
+      },
+      onError: () => {
+          queryClient.invalidateQueries({ queryKey: ['notas_operacional'], exact: false });
+      }
   });
 
   const mutationFilial = useMutation({ mutationFn: (data) => data.id ? axios.put(`${API_URL}/filiais/${data.id}`, data, authConfig) : axios.post(`${API_URL}/filiais/`, data, authConfig), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['filiais'] }); addToast('success', 'Filial salva!'); } });
