@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient, QueryClient, QueryClientProvider
 import { Box, CircularProgress, CssBaseline, ThemeProvider, Typography } from '@mui/material';
 
 import { API_URL } from '@/frontend/utils/constants';
+import { clearStoredToken, getStoredToken, getTokenPayload, setStoredToken } from '@/frontend/utils/authStorage';
 import { sharepointTheme } from '@/frontend/theme/sharepointTheme';
 
 import LoginScreen from '@/frontend/components/ui/LoginScreen';
@@ -70,9 +71,17 @@ function DashboardContent() {
   const [sendingEmail, setSendingEmail] = useState(false);
   
   const authConfig = useMemo(() => ({ headers: { Authorization: `Bearer ${token}` } }), [token]);
+  const usuarioLogado = useMemo(() => getTokenPayload(token), [token]);
 
   // --- EFEITOS ---
-  useEffect(() => { const timer = setTimeout(() => { const storedToken = localStorage.getItem('token'); if (storedToken) setToken(storedToken); setLoadingInit(false); }, 0); return () => clearTimeout(timer); }, []);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const storedToken = getStoredToken();
+      if (storedToken) setToken(storedToken);
+      setLoadingInit(false);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Limpa a busca ao trocar de aba (Usabilidade)
   useEffect(() => {
@@ -83,8 +92,25 @@ function DashboardContent() {
 
   const addToast = useCallback((type, message) => { const id = Date.now(); setToasts(prev => [...prev, { id, type, message }]); setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000); }, []);
   const openConfirm = (title, message, action) => { setConfirmConfig({ isOpen: true, title, message, onConfirm: () => { action(); setConfirmConfig(p => ({...p, isOpen: false})); } }); };
-  const handleLogin = (t) => { localStorage.setItem('token', t); setToken(t); };
-  const handleLogout = () => { localStorage.removeItem('token'); setToken(null); queryClient.clear(); };
+  const handleLogin = (t, remember = false) => { setStoredToken(t, remember); setToken(t); };
+  const handleLogout = () => { clearStoredToken(); setToken(null); queryClient.clear(); };
+
+  useEffect(() => {
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (token && error?.response?.status === 401) {
+          clearStoredToken();
+          setToken(null);
+          queryClient.clear();
+          addToast('error', 'Sessao expirada. Faca login novamente.');
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    return () => axios.interceptors.response.eject(interceptor);
+  }, [token, queryClient, addToast]);
 
   // --- QUERIES OTIMIZADAS ---
   
@@ -744,6 +770,7 @@ function DashboardContent() {
                 onRefresh={handleManualRefresh}
                 notificacoes={notificacoes}
                 onNotificationClick={abrirNotificacao}
+                usuarioLogado={usuarioLogado}
             />
 
             <Box sx={{ width: '100%', maxWidth: 1680, mx: 'auto', px: { xs: 2, md: 3 }, py: 3, pb: 8 }}>

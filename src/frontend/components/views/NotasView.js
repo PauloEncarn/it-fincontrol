@@ -46,6 +46,7 @@ import ViewListIcon from '@mui/icons-material/ViewList';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import FileDrop from '@/frontend/components/ui/FileDrop';
 import { API_URL } from '@/frontend/utils/constants';
+import { getStoredToken } from '@/frontend/utils/authStorage';
 
 const STATUS_COLOR = {
   'Pendente Nota': 'warning',
@@ -412,7 +413,7 @@ export default function NotasView({
     let active = true;
     const loadLocks = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const token = getStoredToken();
         const response = await fetch(`${API_URL}/lancamentos/locks`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
@@ -548,7 +549,7 @@ export default function NotasView({
     setTimelineLoading(true);
 
     try {
-      const token = localStorage.getItem('token');
+      const token = getStoredToken();
       const response = await fetch(`${API_URL}/lancamentos/${nota.id}/timeline`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -575,7 +576,7 @@ export default function NotasView({
     setContratoHistoricoLoading(true);
 
     try {
-      const token = localStorage.getItem('token');
+      const token = getStoredToken();
       const response = await fetch(`${API_URL}/contratos/${nota.contrato_id}/lancamentos`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });

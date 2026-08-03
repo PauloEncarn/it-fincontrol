@@ -20,6 +20,7 @@ import AddCircleOutlinedIcon from '@mui/icons-material/AddCircleOutlined';
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
 import FileDrop from '@/frontend/components/ui/FileDrop';
 import { API_URL } from '@/frontend/utils/constants';
+import { getStoredToken } from '@/frontend/utils/authStorage';
 
 const formatDateForInput = (value) => {
   if (!value) return '';
@@ -101,7 +102,7 @@ export default function ModalLancamento({
     }
 
     let active = true;
-    const token = localStorage.getItem('token');
+    const token = getStoredToken();
     const headers = {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),

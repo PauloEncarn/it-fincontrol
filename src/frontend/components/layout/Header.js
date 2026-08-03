@@ -40,6 +40,7 @@ export default function Header({
   onRefresh,
   notificacoes = [],
   onNotificationClick,
+  usuarioLogado,
 }) {
   const [notificationAnchor, setNotificationAnchor] = useState(null);
   const notificationItems = Array.isArray(notificacoes) ? notificacoes : [];
@@ -73,6 +74,15 @@ export default function Header({
     criticas: notificationItems.filter((item) => item.severity === 'error').length,
     atencao: notificationItems.filter((item) => item.severity === 'warning').length,
   }), [notificationItems]);
+  const nomeUsuario = usuarioLogado?.nome || usuarioLogado?.username || 'Usuario';
+  const usernameUsuario = usuarioLogado?.username || '';
+  const iniciaisUsuario = String(nomeUsuario)
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((parte) => parte[0])
+    .join('')
+    .toUpperCase() || 'TI';
 
   const getNotificationIcon = (severity) => {
     if (severity === 'error') return <ErrorOutlineIcon color="error" fontSize="small" />;
@@ -225,7 +235,26 @@ export default function Header({
             )}
           </Popover>
 
-          <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.dark', fontSize: 13 }}>TI</Avatar>
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            sx={{ minWidth: 0, maxWidth: { xs: 38, sm: 220 } }}
+          >
+            <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.dark', fontSize: 12, flex: '0 0 auto' }}>
+              {iniciaisUsuario}
+            </Avatar>
+            <Box sx={{ minWidth: 0, display: { xs: 'none', sm: 'block' } }}>
+              <Typography variant="body2" fontWeight={800} noWrap title={nomeUsuario}>
+                {nomeUsuario}
+              </Typography>
+              {usernameUsuario && (
+                <Typography variant="caption" color="text.secondary" noWrap title={usernameUsuario} sx={{ display: 'block', lineHeight: 1 }}>
+                  {usernameUsuario}
+                </Typography>
+              )}
+            </Box>
+          </Stack>
         </Stack>
       </Toolbar>
     </AppBar>

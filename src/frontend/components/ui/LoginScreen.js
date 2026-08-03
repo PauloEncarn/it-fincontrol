@@ -5,8 +5,10 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   CircularProgress,
   Divider,
+  FormControlLabel,
   Link,
   Paper,
   Stack,
@@ -29,6 +31,7 @@ const initialFormData = {
 export default function LoginScreen({ onLogin, addToast }) {
   const [isRegistering, setIsRegistering] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [remember, setRemember] = useState(false);
   const [formData, setFormData] = useState(initialFormData);
 
   const handleChange = (event) => {
@@ -57,7 +60,7 @@ export default function LoginScreen({ onLogin, addToast }) {
         fd.append('password', formData.password);
 
         const res = await axios.post(`${API_URL}/token`, fd);
-        onLogin(res.data.access_token);
+        onLogin(res.data.access_token, remember);
       }
     } catch (error) {
       let mensagemErro = 'Erro desconhecido ao tentar acessar.';
@@ -161,6 +164,13 @@ export default function LoginScreen({ onLogin, addToast }) {
                   required
                   fullWidth
                 />
+
+                {!isRegistering && (
+                  <FormControlLabel
+                    control={<Checkbox checked={remember} onChange={(event) => setRemember(event.target.checked)} />}
+                    label="Manter conectado neste navegador"
+                  />
+                )}
 
                 <Button
                   type="submit"
