@@ -59,3 +59,40 @@ export const normalizarData = (valor) => {
 
   return texto.includes('/') ? null : texto;
 };
+
+const FIELD_NORMALIZERS = {
+  numero_nota: (value) => {
+    const numeroNota = normalizarNumeroNota(value);
+    if (numeroNota.error) return { error: numeroNota.error };
+    return { value: numeroNota.value };
+  },
+  valor: (value) => ({ value: limparNumero(value) || 0 }),
+  valor_previsto: (value) => ({ value: limparNumero(value) }),
+  valor_boleto: (value) => ({ value: limparNumero(value) }),
+  data_vencimento: (value) => ({ value: normalizarData(value) }),
+  data_envio: (value) => ({ value: normalizarData(value) }),
+  cnpj_usado: (value) => ({ value: limparTexto(value) }),
+  contrato_usado: (value) => ({ value: limparTexto(value) }),
+  centro_custo_usado: (value) => ({ value: limparTexto(value) }),
+  descricao_servico: (value) => ({ value: limparTexto(value) }),
+  servico_protheus: (value) => ({ value: limparTexto(value) }),
+  numero_medicao: (value) => ({ value: limparTexto(value) }),
+  numero_pedido: (value) => ({ value: limparTexto(value) }),
+  solicitacao_fluig: (value) => ({ value: limparTexto(value) }),
+  observacao: (value) => ({ value: limparTexto(value) }),
+  arquivo_nota: (value) => ({ value: limparTexto(value) }),
+  arquivo_boleto: (value) => ({ value: limparTexto(value) }),
+  boleto_grupo: (value) => ({ value: limparTexto(value) }),
+  observacao_boleto: (value) => ({ value: limparTexto(value) }),
+};
+
+export const CAMPOS_EDICAO_INLINE = Object.keys(FIELD_NORMALIZERS);
+
+export const normalizarCampoLancamento = (field, value) => {
+  const campo = limparTexto(field);
+  if (!campo || !FIELD_NORMALIZERS[campo]) {
+    return { error: 'Campo nao permitido para edicao rapida.' };
+  }
+
+  return { field: campo, ...FIELD_NORMALIZERS[campo](value) };
+};

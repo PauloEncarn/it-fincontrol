@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Accordion,
   AccordionDetails,
@@ -259,6 +259,7 @@ export default function NotasView({
   const [expandedAttachments, setExpandedAttachments] = useState({});
   const [editingCell, setEditingCell] = useState(null);
   const [editingValue, setEditingValue] = useState('');
+  const [savingCell, setSavingCell] = useState(null);
   const [previewFile, setPreviewFile] = useState(null);
   const [timelineNota, setTimelineNota] = useState(null);
   const [timelineEventos, setTimelineEventos] = useState([]);
@@ -294,7 +295,7 @@ export default function NotasView({
     document.body.removeChild(link);
   };
 
-  const notasFiltradas = notas.filter((n) => {
+  const notasFiltradas = useMemo(() => notas.filter((n) => {
     const matchStatus = statusFiltro.length === 0 || statusFiltro.includes(n.status_pagamento);
     const matchFilial = !filialFiltro || n.filial_id == filialFiltro;
 
@@ -317,9 +318,9 @@ export default function NotasView({
       valorLimpo.includes(termo);
 
     return matchStatus && matchFilial && matchBusca;
-  });
+  }), [notas, statusFiltro, filialFiltro, busca]);
 
-  const boletoResumoPorGrupo = notasFiltradas.reduce((grupos, nota) => {
+  const boletoResumoPorGrupo = useMemo(() => notasFiltradas.reduce((grupos, nota) => {
     const grupo = String(nota.boleto_grupo || '').trim();
     if (!grupo) return grupos;
 
@@ -340,9 +341,9 @@ export default function NotasView({
     }
 
     return grupos;
-  }, {});
+  }, {}), [notasFiltradas]);
 
-  const dadosAgrupados = sortGroupedEntries(
+  const dadosAgrupados = useMemo(() => sortGroupedEntries(
     Object.values(notasFiltradas.reduce((grupos, nota) => {
       const key = agrupamentoNotaKey(nota, groupBy);
       const label = agrupamentoNota(nota, groupBy);
@@ -351,7 +352,7 @@ export default function NotasView({
       return grupos;
     }, {})),
     groupBy
-  ).map((grupo) => [grupo.label, grupo.itens]);
+  ).map((grupo) => [grupo.label, grupo.itens]), [notasFiltradas, groupBy]);
 
   const handleDateChange = (e) => {
     if (!e.target.value) return;
@@ -501,16 +502,28 @@ export default function NotasView({
   };
 
   const commitInlineEdit = async (nota, field) => {
+    const cellKey = `${nota.id}:${field}`;
+    if (savingCell === cellKey) return;
+
     const original = nota[field] ?? '';
-    if (String(original) !== String(editingValue)) {
-      await onSalvarInline(nota, field, editingValue);
+    if (String(original) === String(editingValue)) {
+      cancelInlineEdit();
+      return;
     }
-    cancelInlineEdit();
+
+    try {
+      setSavingCell(cellKey);
+      await onSalvarInline(nota, field, editingValue);
+      cancelInlineEdit();
+    } finally {
+      setSavingCell(null);
+    }
   };
 
   const renderEditableValue = (nota, field, label, value, options = {}) => {
     const cellKey = `${nota.id}:${field}`;
     const isEditing = editingCell === cellKey;
+    const isSaving = savingCell === cellKey;
     const displayValue = options.format ? options.format(value) : (value || '-');
     const copyValue = options.copyValue ? options.copyValue(value) : displayValue;
 
@@ -522,6 +535,7 @@ export default function NotasView({
           type="text"
           label={label}
           value={editingValue}
+          disabled={isSaving}
           onChange={(event) => {
             if (options.mask === 'date') setEditingValue(maskDateInput(event.target.value));
             else if (options.mask === 'invoice') setEditingValue(String(event.target.value || '').replace(/\D/g, '').slice(0, 9));
@@ -534,6 +548,7 @@ export default function NotasView({
           }}
           fullWidth
           placeholder={options.mask === 'date' ? 'dd/mm/aaaa' : options.placeholder}
+          helperText={isSaving ? 'Salvando...' : undefined}
           slotProps={options.mask === 'date'
             ? { htmlInput: { inputMode: 'numeric', maxLength: 10 } }
             : options.mask === 'invoice'
@@ -550,9 +565,9 @@ export default function NotasView({
         <Box
           role="button"
           tabIndex={0}
-          onClick={() => beginInlineEdit(nota, field, value)}
+          onClick={() => !isSaving && beginInlineEdit(nota, field, value)}
           onKeyDown={(event) => {
-            if (event.key === 'Enter') beginInlineEdit(nota, field, value);
+            if (event.key === 'Enter' && !isSaving) beginInlineEdit(nota, field, value);
           }}
           sx={{
             minHeight: 28,
@@ -570,8 +585,9 @@ export default function NotasView({
             </Typography>
           )}
         </Box>
+        {isSaving && <Chip size="small" variant="outlined" label="Salvando" sx={{ height: 22 }} />}
         <Tooltip title={`Copiar ${label}`}>
-          <IconButton size="small" onClick={(event) => { event.stopPropagation(); copiarCampo(label, copyValue); }} aria-label={`Copiar ${label}`}>
+          <IconButton size="small" disabled={isSaving} onClick={(event) => { event.stopPropagation(); copiarCampo(label, copyValue); }} aria-label={`Copiar ${label}`}>
             <ContentCopyOutlinedIcon fontSize="inherit" />
           </IconButton>
         </Tooltip>

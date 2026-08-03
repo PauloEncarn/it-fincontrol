@@ -1,36 +1,92 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# IT FinControl
 
-## Getting Started
+Sistema interno para controle de notas fiscais, contratos recorrentes, fornecedores, filiais, solicitacoes de compra, vencimentos, anexos, notificacoes e envio de informacoes para Protheus/Fluig.
 
-First, run the development server:
+O projeto nasceu para resolver um problema operacional especifico: manter contratos e lancamentos bem vinculados, principalmente quando fornecedores possuem contratos com o mesmo numero, mas filiais, servicos, CNPJs ou itens diferentes.
+
+## Principais Modulos
+
+- **Notas fiscais**: cadastro, edicao inline, anexos, status, etapas, agrupamentos, copia de informacoes e boleto compartilhado.
+- **Contratos**: contratos recorrentes/avulsos por fornecedor, valor fixo ou variavel, geracao de notas pendentes e linha do tempo.
+- **Fornecedores**: cadastro com listas de CNPJs, contratos, centros de custo, servicos e produtos Protheus.
+- **Filiais**: cadastro das unidades usadas nos lancamentos e contratos.
+- **Solicitacoes**: acompanhamento de solicitacoes de compra.
+- **Usuarios**: controle basico de acesso.
+- **Notificacoes e jobs**: avisos de pendencias e geracao recorrente de notas.
+
+## Stack
+
+- Next.js 16
+- React 19
+- Material UI
+- TanStack React Query
+- Supabase PostgreSQL, Storage e Service Role
+- Playwright
+- Node test runner
+
+## Como Rodar Localmente
+
+1. Instale as dependencias:
+
+```bash
+npm install
+```
+
+2. Configure as variaveis em `.env.local`.
+
+Use nomes reais das variaveis, mas nunca commite valores sensiveis:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+JWT_SECRET=
+CRON_SECRET=
+APP_URL=http://localhost:3000
+```
+
+3. Rode o servidor:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+4. Abra:
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+```text
+http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Scripts
 
-## Learn More
+```bash
+npm run dev        # servidor local
+npm run build      # build de producao
+npm run start      # executa build gerado
+npm run lint       # eslint
+npm test           # testes unitarios
+npm run test:unit  # testes unitarios
+npm run test:e2e   # testes Playwright com servidor local automatico
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Documentacao
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- [Visao geral funcional](docs/guia-usuario.md)
+- [Arquitetura tecnica](docs/arquitetura.md)
+- [Banco de dados e migrations](docs/banco-migrations.md)
+- [API e rotas](docs/api.md)
+- [Operacao, testes e deploy](docs/operacao-testes-deploy.md)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Validacao Recomendada Antes de Deploy
 
-## Deploy on Vercel
+```bash
+npm run test:unit
+npm run build
+npm run test:e2e
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Cuidados
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Nao commitar `.env.local`.
+- Nao expor `SUPABASE_SERVICE_ROLE_KEY`.
+- Antes de rodar migrations em producao, revisar se o arquivo e estrutural ou de populacao.
+- Ao alterar contratos, validar se a combinacao de fornecedor, contrato, filial, CNPJ, servico, produto Protheus, centro de custo e identificador do item continua distinguindo casos parecidos.

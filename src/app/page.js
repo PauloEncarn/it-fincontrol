@@ -156,14 +156,15 @@ function DashboardContent() {
 
   const { data: dadosBusca = [], isFetching: carregandoBusca } = useQuery({ queryKey: ['busca', termoBusca], queryFn: async () => { if (!termoBusca) return []; const res = await axios.get(`${API_URL}/lancamentos/?busca=${termoBusca}`, authConfig); return res.data; }, enabled: !!token && termoBusca.length > 2 });
 
-  // SOLICITAÇÕES: Baixa tudo para filtrar e enriquecer no front
+  // SOLICITAÇÕES: carrega apenas nas telas que usam estes dados
   const { data: solicitacoes = [] } = useQuery({ 
       queryKey: ['solicitacoes'], 
       queryFn: async () => { 
           const res = await axios.get(`${API_URL}/solicitacoes`, authConfig); 
           return res.data; 
       }, 
-      enabled: !!token 
+      enabled: !!token && (currentView === 'dashboard' || currentView === 'solicitacoes' || showModalSolicitacao),
+      staleTime: 1000 * 60
   });
 
   // --- REFRESH LOGIC ---
@@ -338,6 +339,7 @@ function DashboardContent() {
     return String(value || '').split(/[;|\n]/).map((item) => item.trim()).filter(Boolean);
   };
   const getDateInputValue = (value) => value ? String(value).split('T')[0] : '';
+  const getTodayInputValue = () => new Date().toISOString().split('T')[0];
   const normalizeInvoiceNumber = (value) => {
     const text = String(value || '').trim();
     if (!text) return '';
@@ -456,7 +458,9 @@ function DashboardContent() {
   
   const abrirEdicaoLancamento = useCallback((nota) => { handleFornecedorChange(nota.fornecedor_id); setForm({...nota, data_envio: getDateInputValue(nota.data_envio), data_vencimento: getDateInputValue(nota.data_vencimento)}); setShowModal(true); }, [handleFornecedorChange]);
   
-  const duplicarNota = useCallback((nota) => { openConfirm("Duplicar Lançamento", "Deseja criar uma cópia?", () => { handleFornecedorChange(nota.fornecedor_id); setForm({ ...nota, id: null, contrato_id: null, competencia: '', numero_nota: '', arquivo_nota: '', arquivo_boleto: '', boleto_grupo: '', valor_boleto: '', observacao_boleto: '', data_envio: '', data_vencimento: getDateInputValue(nota.data_vencimento), etapa: 'pendente', status_pagamento: 'Pendente Nota', repetir_por: '1' }); setShowModal(true); }); }, [handleFornecedorChange]);
+  const novoLancamentoForm = useCallback(() => ({ ...initialFormLancamento, data_envio: getTodayInputValue() }), []);
+  
+  const duplicarNota = useCallback((nota) => { openConfirm("Duplicar Lançamento", "Deseja criar uma cópia?", () => { handleFornecedorChange(nota.fornecedor_id); setForm({ ...nota, id: null, contrato_id: null, competencia: '', numero_nota: '', arquivo_nota: '', arquivo_boleto: '', boleto_grupo: '', valor_boleto: '', observacao_boleto: '', data_envio: getTodayInputValue(), data_vencimento: getDateInputValue(nota.data_vencimento), etapa: 'pendente', status_pagamento: 'Pendente Nota', repetir_por: '1' }); setShowModal(true); }); }, [handleFornecedorChange]);
   
   const notaCompletaParaAnalise = (nota) => Boolean(
     nota.filial_id &&
@@ -713,7 +717,7 @@ function DashboardContent() {
                 onOpenMenu={() => setIsMenuOpen(true)}
                 termoBusca={termoBusca} 
                 setTermoBusca={setTermoBusca} 
-                onNovoLancamento={() => { setForm(initialFormLancamento); setShowModal(true); }}
+                onNovoLancamento={() => { setForm(novoLancamentoForm()); setShowModal(true); }}
                 onNovaSolicitacao={() => { setFormSolicitacao(initialFormSolicitacao); setShowModalSolicitacao(true); }}
                 onRefresh={handleManualRefresh}
                 notificacoes={notificacoes}
