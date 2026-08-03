@@ -94,10 +94,17 @@ const GROUP_BY_OPTIONS = [
 ];
 
 const DUE_SIGNAL_STYLE = {
-  error: { bg: '#fde7e9', border: '#a4262c', text: '#a4262c' },
-  warning: { bg: '#fff4ce', border: '#ffb900', text: '#8a5a00' },
-  success: { bg: '#dff6dd', border: '#107c10', text: '#107c10' },
+  error: { bg: '#fde7e9', cardBg: '#fff5f6', border: '#a4262c', text: '#a4262c', shadow: '0 10px 26px rgba(164, 38, 44, 0.18)' },
+  warning: { bg: '#fff4ce', cardBg: '#fffaf0', border: '#ffb900', text: '#8a5a00', shadow: '0 10px 24px rgba(255, 185, 0, 0.18)' },
+  success: { bg: '#dff6dd', cardBg: '#f6fff5', border: '#107c10', text: '#107c10', shadow: '0 8px 20px rgba(16, 124, 16, 0.12)' },
 };
+
+const DUE_LEGEND = [
+  { color: 'error', title: 'Prazo critico', description: 'Vencida, vence hoje ou vence em ate 10 dias.' },
+  { color: 'warning', title: 'Atencao', description: 'Vence em 11 ou 12 dias.' },
+  { color: 'success', title: 'Dentro do prazo', description: 'Vence em 13 dias ou mais.' },
+  { color: 'default', title: 'Sem sombra', description: 'Concluida ou sem vencimento informado.' },
+];
 
 const normalizeText = (value) =>
   String(value || '')
@@ -740,10 +747,13 @@ export default function NotasView({
           gap: 1.25,
           borderTop: '4px solid',
           borderTopColor: borderColor,
-          bgcolor: 'background.paper',
+          borderColor: dueSignalStyle ? dueSignalStyle.border : 'divider',
+          borderTopColor: borderColor,
+          bgcolor: dueSignalStyle?.cardBg || 'background.paper',
+          boxShadow: dueSignalStyle?.shadow || 'none',
           opacity: String(draggedNotaId) === String(nota.id) ? 0.55 : 1,
-          transition: 'box-shadow 0.2s ease, opacity 0.2s ease, transform 0.2s ease',
-          '&:hover': { boxShadow: '0 8px 24px rgba(0,0,0,0.08)' },
+          transition: 'background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease, transform 0.2s ease',
+          '&:hover': { boxShadow: dueSignalStyle ? dueSignalStyle.shadow : '0 8px 24px rgba(0,0,0,0.08)' },
         }}
       >
         <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
@@ -1343,6 +1353,58 @@ export default function NotasView({
           </FormControl>
         </Stack>
       </Paper>
+
+      {viewMode === 'grid' && (
+        <Paper variant="outlined" sx={{ p: 1.5, bgcolor: '#faf9f8' }}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', md: 'center' }} justifyContent="space-between">
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="subtitle2" fontWeight={900}>
+                Legenda de prazos
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                As cores indicam prioridade de atendimento pelo vencimento da nota.
+              </Typography>
+            </Box>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              {DUE_LEGEND.map((item) => {
+                const style = item.color === 'default' ? null : DUE_SIGNAL_STYLE[item.color];
+
+                return (
+                  <Tooltip key={item.title} title={item.description}>
+                    <Stack
+                      direction="row"
+                      spacing={0.75}
+                      alignItems="center"
+                      sx={{
+                        px: 1,
+                        py: 0.75,
+                        borderRadius: 1,
+                        border: '1px solid',
+                        borderColor: style?.border || 'divider',
+                        bgcolor: style?.bg || 'background.paper',
+                        color: style?.text || 'text.secondary',
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: 10,
+                          height: 10,
+                          borderRadius: '50%',
+                          bgcolor: style?.border || 'text.disabled',
+                          flex: '0 0 auto',
+                        }}
+                      />
+                      <Typography variant="caption" fontWeight={900}>
+                        {item.title}
+                      </Typography>
+                    </Stack>
+                  </Tooltip>
+                );
+              })}
+            </Stack>
+          </Stack>
+        </Paper>
+      )}
 
       {dadosAgrupados.length === 0 ? (
         <Alert icon={<FilterAltOutlinedIcon />} severity="info" variant="outlined">
