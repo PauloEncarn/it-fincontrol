@@ -45,6 +45,8 @@ export async function PATCH(request, context) {
       return NextResponse.json({ error: 'Informe status ou etapa.' }, { status: 400 });
     }
 
+    payload.updated_at = new Date().toISOString();
+
     const { data: notaAntes, error: erroBusca } = await supabase
       .from('lancamentos')
       .select('*')
@@ -74,7 +76,7 @@ export async function PATCH(request, context) {
       metadata: { campos_alterados: camposAlterados, payload },
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json(notaDepois);
   } catch (error) {
     console.error('[lancamentos/status] Erro:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

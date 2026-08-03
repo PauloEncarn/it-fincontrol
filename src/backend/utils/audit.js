@@ -26,7 +26,7 @@ const AUDIT_FIELDS = [
 ];
 
 export async function getActorFromRequest(request) {
-  const fallback = { ator_nome: 'Sistema', ator_username: null, origem: 'sistema' };
+  const fallback = { ator_id: null, ator_nome: 'Sistema', ator_username: null, origem: 'sistema' };
   const authorization = request?.headers?.get?.('authorization') || '';
   const token = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
 
@@ -37,6 +37,7 @@ export async function getActorFromRequest(request) {
     const { payload } = await jwtVerify(token, secret);
 
     return {
+      ator_id: payload.sub ? String(payload.sub) : null,
       ator_nome: payload.nome || payload.username || 'Usuario',
       ator_username: payload.username || null,
       origem: 'usuario',
@@ -81,4 +82,3 @@ export async function registrarEventoLancamento(supabase, evento) {
     console.warn('[audit] Evento nao registrado:', error.message);
   }
 }
-

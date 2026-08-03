@@ -33,7 +33,15 @@ export async function PATCH(request, context) {
 
     if (erroBusca) throw erroBusca;
 
-    const payload = { [field]: normalized.value };
+    if (body.expected_updated_at && notaAntes.updated_at && String(body.expected_updated_at) !== String(notaAntes.updated_at)) {
+      return NextResponse.json({
+        error: 'Esta nota foi alterada por outro usuario. Recarregue antes de salvar.',
+        code: 'STALE_LANCAMENTO',
+        current: notaAntes,
+      }, { status: 409 });
+    }
+
+    const payload = { [field]: normalized.value, updated_at: new Date().toISOString() };
 
     const { data, error } = await supabase
       .from('lancamentos')

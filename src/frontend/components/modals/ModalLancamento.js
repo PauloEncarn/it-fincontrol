@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
+  Box,
   Button,
   Dialog,
   DialogActions,
@@ -17,6 +19,7 @@ import {
 import AddCircleOutlinedIcon from '@mui/icons-material/AddCircleOutlined';
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
 import FileDrop from '@/frontend/components/ui/FileDrop';
+import { API_URL } from '@/frontend/utils/constants';
 
 const formatDateForInput = (value) => {
   if (!value) return '';
@@ -75,6 +78,11 @@ export default function ModalLancamento({
   addToast,
   isGopa,
 }) {
+  const sessionId = useMemo(() => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+    return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }, [form.id]);
+  const [lockState, setLockState] = useState({ loading: false, lockedByOther: false, lock: null, error: null });
   const filialAtual = filiais.find((filial) => filial.id == form.filial_id);
   const nomeFilialAtual = filialAtual ? [filialAtual.codigo, filialAtual.nome_fantasia].filter(Boolean).join(' - ') : '';
   const nomeFornecedorAtual = fornecedores.find((fornecedor) => fornecedor.id == form.fornecedor_id)?.nome_empresa || '';
@@ -84,6 +92,63 @@ export default function ModalLancamento({
   const contratos = Array.isArray(opcoesFornecedor?.contratos) ? opcoesFornecedor.contratos : [];
   const contratosCadastrados = Array.isArray(opcoesFornecedor?.contratosCadastrados) ? opcoesFornecedor.contratosCadastrados : [];
   const centrosCusto = Array.isArray(opcoesFornecedor?.ccs) ? opcoesFornecedor.ccs : [];
+  const lockedByOther = Boolean(lockState.lockedByOther);
+
+  useEffect(() => {
+    if (!isOpen || !form.id) {
+      setLockState({ loading: false, lockedByOther: false, lock: null, error: null });
+      return undefined;
+    }
+
+    let active = true;
+    const token = localStorage.getItem('token');
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+
+    const acquireLock = async () => {
+      setLockState((prev) => ({ ...prev, loading: true, error: null }));
+
+      try {
+        const response = await fetch(`${API_URL}/lancamentos/${form.id}/lock`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ session_id: sessionId }),
+        });
+        const data = await response.json();
+
+        if (!active) return;
+        if (response.status === 423) {
+          setLockState({ loading: false, lockedByOther: true, lock: data.lock, error: data.error });
+          return;
+        }
+        if (!response.ok) throw new Error(data.error || 'Erro ao bloquear nota para edicao.');
+
+        setLockState({ loading: false, lockedByOther: false, lock: data.lock, error: null });
+      } catch (error) {
+        if (active) setLockState({ loading: false, lockedByOther: false, lock: null, error: error.message });
+      }
+    };
+
+    const releaseLock = () => {
+      fetch(`${API_URL}/lancamentos/${form.id}/lock`, {
+        method: 'DELETE',
+        headers,
+        body: JSON.stringify({ session_id: sessionId }),
+        keepalive: true,
+      }).catch(() => {});
+    };
+
+    acquireLock();
+    const interval = setInterval(acquireLock, 30000);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+      releaseLock();
+    };
+  }, [form.id, isOpen, sessionId]);
 
   const observacaoProtheus = [
     `Fornecedor: ${nomeFornecedorAtual || '-'}`,
@@ -121,6 +186,20 @@ export default function ModalLancamento({
       </DialogTitle>
 
       <DialogContent dividers>
+        <Stack spacing={2}>
+        {lockState.error && (
+          <Alert severity={lockedByOther ? 'warning' : 'error'} variant="outlined">
+            {lockedByOther
+              ? `${lockState.error} Voce pode visualizar, mas nao editar ate a pessoa sair da nota.`
+              : lockState.error}
+          </Alert>
+        )}
+        {!lockedByOther && form.id && lockState.lock && (
+          <Alert severity="info" variant="outlined">
+            Voce esta editando esta nota. O bloqueio e renovado automaticamente enquanto o modal estiver aberto.
+          </Alert>
+        )}
+        <Box component="fieldset" disabled={lockedByOther} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
         <Grid container spacing={2} sx={{ pt: 1 }}>
           <Grid size={{ xs: 12, md: 3 }}>
             <CopyableField onCopy={copiarCampo} label="Filial" value={nomeFilialAtual}>
@@ -289,11 +368,13 @@ export default function ModalLancamento({
             </CopyableField>
           </Grid>
         </Grid>
+        </Box>
+        </Stack>
       </DialogContent>
 
       <DialogActions>
         <Button onClick={onClose}>Cancelar</Button>
-        <Button variant="contained" onClick={onSalvar}>Salvar</Button>
+        <Button variant="contained" onClick={onSalvar} disabled={lockedByOther}>Salvar</Button>
       </DialogActions>
     </Dialog>
   );

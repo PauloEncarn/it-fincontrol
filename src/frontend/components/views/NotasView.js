@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Accordion,
   AccordionDetails,
@@ -276,6 +276,7 @@ export default function NotasView({
   const [contratoHistoricoNota, setContratoHistoricoNota] = useState(null);
   const [contratoHistoricoLancamentos, setContratoHistoricoLancamentos] = useState([]);
   const [contratoHistoricoLoading, setContratoHistoricoLoading] = useState(false);
+  const [activeLocks, setActiveLocks] = useState([]);
 
   const handleExportarExcel = () => {
     if (!notas || notas.length === 0) return alert('Sem dados para exportar.');
@@ -365,6 +366,40 @@ export default function NotasView({
     }, {})),
     groupBy
   ).map((grupo) => [grupo.label, grupo.itens]), [notasFiltradas, groupBy]);
+
+  const locksPorLancamento = useMemo(() => activeLocks.reduce((mapa, lock) => {
+    mapa[String(lock.lancamento_id)] = lock;
+    return mapa;
+  }, {}), [activeLocks]);
+
+  useEffect(() => {
+    if (!notas?.length) {
+      setActiveLocks([]);
+      return undefined;
+    }
+
+    let active = true;
+    const loadLocks = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`${API_URL}/lancamentos/locks`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const data = await response.json();
+        if (!active || !response.ok) return;
+        setActiveLocks(Array.isArray(data) ? data : []);
+      } catch {
+        if (active) setActiveLocks([]);
+      }
+    };
+
+    loadLocks();
+    const interval = setInterval(loadLocks, 30000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [notas?.length]);
 
   const handleDateChange = (e) => {
     if (!e.target.value) return;
@@ -756,6 +791,7 @@ export default function NotasView({
     const borderColor = statusTone === 'default' ? 'divider' : `${statusTone}.main`;
     const anexosAbertos = Boolean(expandedAttachments[nota.id]);
     const totalAnexos = Number(Boolean(nota.arquivo_nota)) + Number(Boolean(nota.arquivo_boleto));
+    const activeLock = locksPorLancamento[String(nota.id)];
     const dueSignal = notaGroup === 'concluida' ? null : getDueSignal(nota.data_vencimento);
     const dueSignalStyle = dueSignal ? DUE_SIGNAL_STYLE[dueSignal.color] : null;
     const boletoKey = String(nota.boleto_grupo || '').trim().toLowerCase();
@@ -825,6 +861,15 @@ export default function NotasView({
               label={nota.status_pagamento || 'Sem status'}
               sx={{ fontWeight: 700, maxWidth: 150 }}
             />
+            {activeLock && (
+              <Chip
+                size="small"
+                color="info"
+                variant="outlined"
+                label={`Em edicao: ${activeLock.usuario_nome || 'Usuario'}`}
+                sx={{ fontWeight: 800, maxWidth: 180 }}
+              />
+            )}
           </Stack>
         </Stack>
 
@@ -1239,6 +1284,7 @@ export default function NotasView({
               .map((nota) => {
                 const dueSignal = getNotaGroup(nota) === 'concluida' ? null : getDueSignal(nota.data_vencimento);
                 const missingDocs = !nota.arquivo_nota || !nota.arquivo_boleto;
+                const activeLock = locksPorLancamento[String(nota.id)];
 
                 return (
                   <Paper key={nota.id} variant="outlined" sx={{ p: 1.5, borderLeft: '4px solid', borderLeftColor: dueSignal ? `${dueSignal.color}.main` : 'divider' }}>
@@ -1250,6 +1296,7 @@ export default function NotasView({
                           </Typography>
                           <Chip size="small" variant="outlined" label={nota.filial?.nome_fantasia || '-'} />
                           <Chip size="small" color={STATUS_COLOR[nota.status_pagamento] || 'default'} label={nota.status_pagamento || 'Sem status'} sx={{ fontWeight: 700 }} />
+                          {activeLock && <Chip size="small" color="info" variant="outlined" label={`Em edicao: ${activeLock.usuario_nome || 'Usuario'}`} sx={{ fontWeight: 800 }} />}
                           {dueSignal && <Chip size="small" color={dueSignal.color} variant="outlined" label={dueSignal.label} />}
                           {missingDocs && <Chip size="small" color="warning" label={!nota.arquivo_nota && !nota.arquivo_boleto ? 'Sem anexos' : !nota.arquivo_nota ? 'Sem NF' : 'Sem boleto'} />}
                         </Stack>

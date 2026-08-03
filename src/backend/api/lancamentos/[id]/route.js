@@ -35,6 +35,14 @@ export async function PUT(request, context) {
 
     if (erroBusca) throw erroBusca;
 
+    if (body.expected_updated_at && notaAntes.updated_at && String(body.expected_updated_at) !== String(notaAntes.updated_at)) {
+      return NextResponse.json({
+        error: 'Esta nota foi alterada por outro usuario. Recarregue antes de salvar.',
+        code: 'STALE_LANCAMENTO',
+        current: notaAntes,
+      }, { status: 409 });
+    }
+
     // 2. MONTAGEM MANUAL (WHITELIST)
     // Isso resolve dois problemas:
     // A) Ignora objetos aninhados (filial: {}) que o front manda e quebram o banco.
@@ -78,6 +86,7 @@ export async function PUT(request, context) {
       boleto_grupo: limparTexto(body.boleto_grupo),
       valor_boleto: limparNumero(body.valor_boleto),
       observacao_boleto: limparTexto(body.observacao_boleto),
+      updated_at: new Date().toISOString(),
       // repetir_por: limparNumero(body.repetir_por) // Geralmente não se edita a repetição, mas se precisar, descomente
     };
 

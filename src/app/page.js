@@ -241,7 +241,7 @@ function DashboardContent() {
   });
 
   const mutationLancamentoCampo = useMutation({
-      mutationFn: ({ id, field, value }) => axios.patch(`${API_URL}/lancamentos/${id}/campo`, { field, value }, authConfig),
+      mutationFn: ({ id, field, value, expected_updated_at }) => axios.patch(`${API_URL}/lancamentos/${id}/campo`, { field, value, expected_updated_at }, authConfig),
       onMutate: async ({ id, field, value }) => {
           await queryClient.cancelQueries({ queryKey: ['notas_operacional'], exact: false });
           mergeNotaCache({ id, [field]: value });
@@ -261,8 +261,8 @@ function DashboardContent() {
           await queryClient.cancelQueries({ queryKey: ['notas_operacional'], exact: false });
           mergeNotaCache({ id, status_pagamento: status, etapa });
       },
-      onSuccess: (_, { id, status, etapa }) => { 
-          mergeNotaCache({ id, status_pagamento: status, etapa });
+      onSuccess: (res, { id, status, etapa }) => { 
+          mergeNotaCache(res.data || { id, status_pagamento: status, etapa });
           invalidateNotaDependenciasLeves();
           addToast('success', 'Nota atualizada!'); 
       },
@@ -505,6 +505,7 @@ function DashboardContent() {
       valor_boleto: valorBoleto === '' ? null : valorBoleto,
       data_envio: normalizeDateForApi(dados.data_envio),
       data_vencimento: normalizeDateForApi(dados.data_vencimento),
+      expected_updated_at: dados.id ? dados.updated_at : undefined,
     };
     const etapaAtual = payload.etapa || 'pendente';
 
@@ -536,14 +537,17 @@ function DashboardContent() {
       addToast('success', payload.etapa === 'em_analise' ? 'Lançamento salvo e enviado para análise!' : 'Lançamento salvo!');
       setShowModal(false);
     } catch (error) {
-      addToast('error', error.message || 'Erro ao salvar.');
+      if (error.response?.status === 409 && error.response?.data?.current) {
+        mergeNotaCache(error.response.data.current);
+      }
+      addToast('error', error.response?.data?.error || error.message || 'Erro ao salvar.');
     }
   };
 
   const salvarLancamentoInline = async (dados, field, value) => {
     try {
       if (field && dados?.id) {
-        await mutationLancamentoCampo.mutateAsync({ id: dados.id, field, value });
+        await mutationLancamentoCampo.mutateAsync({ id: dados.id, field, value, expected_updated_at: dados.updated_at });
         addToast('success', 'Campo salvo!');
         return;
       }
@@ -552,7 +556,7 @@ function DashboardContent() {
       await mutationLancamento.mutateAsync(payload);
       addToast('success', payload.etapa === 'em_analise' ? 'Nota salva e enviada para análise!' : 'Nota salva!');
     } catch (error) {
-      addToast('error', error.message || 'Erro ao salvar nota.');
+      addToast('error', error.response?.data?.error || error.message || 'Erro ao salvar nota.');
     }
   };
   
