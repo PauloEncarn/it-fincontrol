@@ -11,6 +11,7 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  Drawer,
   FormControl,
   Grid,
   IconButton,
@@ -38,6 +39,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import FileCopyOutlinedIcon from '@mui/icons-material/FileCopyOutlined';
 import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
 import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
+import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined';
 import StorageOutlinedIcon from '@mui/icons-material/StorageOutlined';
 import ViewListIcon from '@mui/icons-material/ViewList';
@@ -271,6 +273,9 @@ export default function NotasView({
   const [timelineNota, setTimelineNota] = useState(null);
   const [timelineEventos, setTimelineEventos] = useState([]);
   const [timelineLoading, setTimelineLoading] = useState(false);
+  const [contratoHistoricoNota, setContratoHistoricoNota] = useState(null);
+  const [contratoHistoricoLancamentos, setContratoHistoricoLancamentos] = useState([]);
+  const [contratoHistoricoLoading, setContratoHistoricoLoading] = useState(false);
 
   const handleExportarExcel = () => {
     if (!notas || notas.length === 0) return alert('Sem dados para exportar.');
@@ -493,6 +498,33 @@ export default function NotasView({
     }
   };
 
+  const openNotasContrato = async (nota) => {
+    if (!nota?.contrato_id) {
+      addToast?.('error', 'Esta nota nao esta vinculada a um contrato cadastrado.');
+      return;
+    }
+
+    setContratoHistoricoNota(nota);
+    setContratoHistoricoLancamentos([]);
+    setContratoHistoricoLoading(true);
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/contratos/${nota.contrato_id}/lancamentos`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await response.json();
+
+      if (!response.ok) throw new Error(data.error || 'Erro ao carregar notas do contrato.');
+      setContratoHistoricoLancamentos(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error(error);
+      addToast?.('error', 'Nao foi possivel carregar as notas do contrato.');
+    } finally {
+      setContratoHistoricoLoading(false);
+    }
+  };
+
   const beginInlineEdit = (nota, field, value) => {
     setEditingCell(`${nota.id}:${field}`);
     setEditingValue(field === 'data_vencimento' ? formatDateForInput(value) : (value ?? ''));
@@ -678,6 +710,13 @@ export default function NotasView({
         <IconButton size="small" onClick={() => openTimeline(nota)} aria-label="Ver linha do tempo">
           <HistoryOutlinedIcon />
         </IconButton>
+      </Tooltip>
+      <Tooltip title={nota.contrato_id ? 'Notas do contrato' : 'Nota sem contrato vinculado'}>
+        <span>
+          <IconButton size="small" onClick={() => openNotasContrato(nota)} disabled={!nota.contrato_id} aria-label="Notas do contrato">
+            <ReceiptLongOutlinedIcon />
+          </IconButton>
+        </span>
       </Tooltip>
       {isGopaFunc(nota) && (
         <Tooltip title="Enviar para GOPA">
@@ -1612,6 +1651,93 @@ export default function NotasView({
         )}
       </DialogContent>
     </Dialog>
+    <Drawer
+      anchor="right"
+      open={Boolean(contratoHistoricoNota)}
+      onClose={() => setContratoHistoricoNota(null)}
+      PaperProps={{
+        sx: {
+          width: { xs: '100%', sm: 520, md: 640 },
+          maxWidth: '100%',
+        },
+      }}
+    >
+      <Stack spacing={2} sx={{ p: 2.5, height: '100%', overflow: 'auto' }}>
+        <Box>
+          <Typography variant="overline" color="text.secondary" fontWeight={900}>
+            Notas do contrato
+          </Typography>
+          <Typography variant="h6" fontWeight={900}>
+            Contrato {contratoHistoricoNota?.contrato_usado || '-'}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {contratoHistoricoNota?.descricao_servico || contratoHistoricoNota?.servico_protheus || 'Historico financeiro vinculado ao contrato cadastrado.'}
+          </Typography>
+        </Box>
+
+        <Divider />
+
+        {contratoHistoricoLoading ? (
+          <Alert severity="info" variant="outlined">Carregando notas do contrato...</Alert>
+        ) : contratoHistoricoLancamentos.length === 0 ? (
+          <Alert severity="info" variant="outlined">Nenhuma nota vinculada a este contrato.</Alert>
+        ) : (
+          <Stack spacing={1.25}>
+            {contratoHistoricoLancamentos.map((lancamento) => {
+              const isAtual = String(lancamento.id) === String(contratoHistoricoNota?.id);
+              return (
+                <Paper
+                  key={lancamento.id}
+                  variant="outlined"
+                  sx={{
+                    p: 1.5,
+                    borderLeft: '4px solid',
+                    borderLeftColor: isAtual ? 'primary.main' : 'divider',
+                    bgcolor: isAtual ? 'rgba(0, 120, 212, 0.06)' : 'background.paper',
+                  }}
+                >
+                  <Stack spacing={1}>
+                    <Stack direction="row" justifyContent="space-between" spacing={1} alignItems="flex-start">
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography variant="subtitle2" fontWeight={900}>
+                          {lancamento.competencia || 'Sem competencia'} {isAtual ? '(nota atual)' : ''}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          NF {lancamento.numero_nota || '-'} | Venc. {formatDate(lancamento.data_vencimento)}
+                        </Typography>
+                      </Box>
+                      <Chip size="small" color={STATUS_COLOR[lancamento.status_pagamento] || 'default'} label={lancamento.status_pagamento || 'Sem status'} sx={{ fontWeight: 800 }} />
+                    </Stack>
+
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      <Chip size="small" variant="outlined" label={lancamento.filial?.nome_fantasia || lancamento.filial_id || 'Sem filial'} />
+                      <Chip size="small" variant="outlined" label={`R$ ${Number(lancamento.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
+                      {lancamento.numero_pedido && <Chip size="small" variant="outlined" label={`Pedido ${lancamento.numero_pedido}`} />}
+                      {lancamento.numero_medicao && <Chip size="small" variant="outlined" label={`Medicao ${lancamento.numero_medicao}`} />}
+                    </Stack>
+
+                    <Stack direction="row" justifyContent="flex-end" spacing={0.5}>
+                      {lancamento.arquivo_nota && (
+                        <Tooltip title="Baixar nota">
+                          <IconButton size="small" onClick={() => onDownload(lancamento.arquivo_nota)} aria-label="Baixar nota do contrato">
+                            <DescriptionOutlinedIcon />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      <Tooltip title="Editar nota">
+                        <IconButton size="small" onClick={() => { setContratoHistoricoNota(null); onEditar(lancamento); }} aria-label="Editar nota do contrato">
+                          <EditOutlinedIcon />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
+                  </Stack>
+                </Paper>
+              );
+            })}
+          </Stack>
+        )}
+      </Stack>
+    </Drawer>
     <Dialog open={Boolean(previewFile)} onClose={() => setPreviewFile(null)} fullWidth maxWidth="lg">
       <DialogTitle>{previewFile?.title || 'Arquivo'}</DialogTitle>
       <DialogContent dividers sx={{ height: '78vh', p: 0 }}>
