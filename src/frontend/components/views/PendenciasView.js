@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import {
   Alert,
   Box,
-  Button,
   Chip,
   CircularProgress,
   Divider,
@@ -20,7 +19,6 @@ import {
   Typography,
 } from '@mui/material';
 import CheckCircleOutlineOutlinedIcon from '@mui/icons-material/CheckCircleOutlineOutlined';
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import EventBusyOutlinedIcon from '@mui/icons-material/EventBusyOutlined';
 import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
@@ -65,14 +63,14 @@ function SummaryCard({ label, value, helper, color = 'primary' }) {
   );
 }
 
-function NotaRow({ item, onEditar }) {
+function NotaRow({ item }) {
   const fornecedor = item.fornecedor?.nome_empresa || item.nome_fornecedor || '-';
   const filial = item.filial?.codigo || item.filial?.nome_fantasia || '-';
   const contrato = item.contrato_usado || item.nome_contrato || '-';
   const descricao = item.descricao_servico || item.subcontrato_nome || item.nome_contrato || '-';
 
   return (
-    <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 1 }}>
+    <Box sx={{ py: 1.1, borderTop: '1px solid', borderColor: 'divider' }}>
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', md: 'center' }}>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
@@ -97,15 +95,8 @@ function NotaRow({ item, onEditar }) {
             Venc. {dateBr(item.data_vencimento)}
           </Typography>
         </Box>
-        {item.id && (
-          <Tooltip title="Editar nota">
-            <IconButton color="primary" onClick={() => onEditar?.(item)} aria-label="Editar nota">
-              <EditOutlinedIcon />
-            </IconButton>
-          </Tooltip>
-        )}
       </Stack>
-    </Paper>
+    </Box>
   );
 }
 
@@ -117,7 +108,6 @@ export default function PendenciasView({
   filiais,
   filialFiltro,
   setFilialFiltro,
-  onEditar,
   onRefresh,
 }) {
   const totalizadores = relatorio?.totalizadores || {};
@@ -180,17 +170,17 @@ export default function PendenciasView({
         </Box>
       ) : (
         <>
-          <Grid container spacing={1.5}>
-            <Grid item xs={12} sm={6} md={3}>
+          <Grid container spacing={1.25}>
+            <Grid item xs={12} sm={6} lg={3}>
               <SummaryCard label="Notas no mes" value={totalizadores.notas || 0} helper={`${totalizadores.abertas || 0} abertas`} />
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={6} lg={3}>
               <SummaryCard label="Pendencias" value={totalPendencias} color={totalPendencias ? 'warning' : 'success'} helper="Itens que pedem acao" />
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={6} lg={3}>
               <SummaryCard label="Valor lancado" value={currency(totalizadores.valor_total)} helper={`Previsto ${currency(totalizadores.valor_previsto)}`} />
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={6} lg={3}>
               <SummaryCard label="Fechamento" value={`${progresso}%`} color={progresso === 100 ? 'success' : 'primary'} helper={`${checksOk}/${fechamento.length} checks OK`} />
             </Grid>
           </Grid>
@@ -236,13 +226,49 @@ export default function PendenciasView({
             </Alert>
           )}
 
+          <Paper variant="outlined" sx={{ p: 2, borderRadius: 1 }}>
+            <Typography variant="h6" fontWeight={900} sx={{ mb: 1.5 }}>
+              Resumo das pendencias
+            </Typography>
+            <Grid container spacing={1}>
+              {PENDENCIA_SECTIONS.map((section) => {
+                const count = (pendencias[section.id] || []).length;
+                return (
+                  <Grid item xs={12} sm={6} md={4} lg={3} key={section.id}>
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={1}
+                      sx={{
+                        px: 1.25,
+                        py: 1,
+                        minHeight: 46,
+                        border: '1px solid',
+                        borderColor: count ? `${section.color}.main` : 'divider',
+                        bgcolor: count ? 'action.hover' : 'background.default',
+                        borderRadius: 1,
+                      }}
+                    >
+                      <Box sx={{ color: count ? `${section.color}.main` : 'text.disabled', display: 'flex' }}>{section.icon}</Box>
+                      <Typography variant="body2" fontWeight={800} sx={{ flex: 1, minWidth: 0 }} noWrap title={section.title}>
+                        {section.title}
+                      </Typography>
+                      <Chip size="small" color={count ? section.color : 'default'} variant={count ? 'filled' : 'outlined'} label={count} />
+                    </Stack>
+                  </Grid>
+                );
+              })}
+            </Grid>
+          </Paper>
+
           <Grid container spacing={1.5}>
             {PENDENCIA_SECTIONS.map((section) => {
               const items = pendencias[section.id] || [];
               if (items.length === 0) return null;
+              const visibleItems = items.slice(0, 5);
 
               return (
-                <Grid item xs={12} lg={6} key={section.id}>
+                <Grid item xs={12} xl={6} key={section.id}>
                   <Paper variant="outlined" sx={{ p: 2, borderRadius: 1, height: '100%' }}>
                     <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
                       <Box sx={{ color: `${section.color}.main`, display: 'flex' }}>{section.icon}</Box>
@@ -251,11 +277,16 @@ export default function PendenciasView({
                       </Typography>
                       <Chip size="small" color={section.color} label={items.length} />
                     </Stack>
-                    <Stack spacing={1} sx={{ maxHeight: 440, overflowY: 'auto', pr: 0.5 }}>
-                      {items.map((item) => (
-                        <NotaRow key={`${section.id}-${item.id || item.contrato_usado}-${item.filial_id}`} item={item} onEditar={onEditar} />
+                    <Box>
+                      {visibleItems.map((item) => (
+                        <NotaRow key={`${section.id}-${item.id || item.contrato_usado}-${item.filial_id}`} item={item} />
                       ))}
-                    </Stack>
+                    </Box>
+                    {items.length > visibleItems.length && (
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', pt: 1 }}>
+                        +{items.length - visibleItems.length} item(ns) oculto(s) neste painel.
+                      </Typography>
+                    )}
                   </Paper>
                 </Grid>
               );

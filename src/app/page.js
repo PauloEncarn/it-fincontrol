@@ -796,7 +796,6 @@ function DashboardContent() {
                                 filiais={filiais}
                                 filialFiltro={filialFiltro}
                                 setFilialFiltro={setFilialFiltro}
-                                onEditar={abrirEdicaoLancamento}
                                 onRefresh={handleManualRefresh}
                             />
                         )}
