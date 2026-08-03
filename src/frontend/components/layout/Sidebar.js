@@ -15,6 +15,7 @@ import ApartmentOutlinedIcon from '@mui/icons-material/ApartmentOutlined';
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import FactCheckOutlinedIcon from '@mui/icons-material/FactCheckOutlined';
 import GroupOutlinedIcon from '@mui/icons-material/GroupOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
@@ -24,6 +25,7 @@ const drawerWidth = 248;
 const menuItems = [
   { id: 'dashboard', label: 'Página inicial', icon: <DashboardOutlinedIcon /> },
   { id: 'notas', label: 'Notas fiscais', icon: <DescriptionOutlinedIcon /> },
+  { id: 'pendencias', label: 'Pendencias', icon: <FactCheckOutlinedIcon /> },
   { id: 'contratos', label: 'Contratos', icon: <CalendarMonthOutlinedIcon /> },
   { id: 'solicitacoes', label: 'Solicitações', icon: <ShoppingCartOutlinedIcon /> },
   { id: 'fornecedores', label: 'Fornecedores', icon: <GroupOutlinedIcon /> },

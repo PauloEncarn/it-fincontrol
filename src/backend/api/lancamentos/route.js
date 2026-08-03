@@ -8,11 +8,16 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+const sanitizeSearch = (value) => String(value || '')
+  .trim()
+  .replace(/[%,()*]/g, ' ')
+  .replace(/\s+/g, ' ');
+
 // --- GET: LISTAR NOTAS (BUSCA INTELIGENTE) ---
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
-    const busca = searchParams.get('busca');
+    const busca = sanitizeSearch(searchParams.get('busca'));
 
     // 1. Inicia a query básica
     let query = supabase
@@ -26,19 +31,46 @@ export async function GET(request) {
 
     // 2. Lógica de Busca Avançada
     if (busca) {
+      const [{ data: fornecedoresBusca, error: fornecedoresBuscaError }, { data: filiaisBusca, error: filiaisBuscaError }] = await Promise.all([
+        supabase.from('fornecedores').select('id').ilike('nome_empresa', `%${busca}%`).limit(50),
+        supabase.from('filiais').select('id').or(`nome_fantasia.ilike.%${busca}%,codigo.ilike.%${busca}%`).limit(50),
+      ]);
+
+      if (fornecedoresBuscaError) throw fornecedoresBuscaError;
+      if (filiaisBuscaError) throw filiaisBuscaError;
+
+      const fornecedorIds = (fornecedoresBusca || []).map((item) => item.id).filter(Boolean);
+      const filialIds = (filiaisBusca || []).map((item) => item.id).filter(Boolean);
+
       // Lista de campos de TEXTO para pesquisar
       // (Adicionei contrato_usado, cnpj_usado, numero_nota, pedido, descrição e observação)
-      let filtros = `numero_nota.ilike.%${busca}%,contrato_usado.ilike.%${busca}%,cnpj_usado.ilike.%${busca}%,descricao_servico.ilike.%${busca}%,numero_pedido.ilike.%${busca}%,boleto_grupo.ilike.%${busca}%,observacao.ilike.%${busca}%`;
+      let filtros = [
+        `numero_nota.ilike.%${busca}%`,
+        `contrato_usado.ilike.%${busca}%`,
+        `cnpj_usado.ilike.%${busca}%`,
+        `descricao_servico.ilike.%${busca}%`,
+        `servico_protheus.ilike.%${busca}%`,
+        `centro_custo_usado.ilike.%${busca}%`,
+        `numero_pedido.ilike.%${busca}%`,
+        `numero_medicao.ilike.%${busca}%`,
+        `solicitacao_fluig.ilike.%${busca}%`,
+        `boleto_grupo.ilike.%${busca}%`,
+        `observacao_boleto.ilike.%${busca}%`,
+        `observacao.ilike.%${busca}%`,
+      ];
+
+      if (fornecedorIds.length > 0) filtros.push(`fornecedor_id.in.(${fornecedorIds.join(',')})`);
+      if (filialIds.length > 0) filtros.push(`filial_id.in.(${filialIds.join(',')})`);
 
       // Verificação especial para VALOR (Numérico)
       // Se o usuário digitou um número válido (ex: 150.50), adicionamos a busca na coluna 'valor'
       const valorNumerico = limparNumero(busca);
       if (valorNumerico !== null) {
         // Adiciona condição OR valor = X
-        filtros += `,valor.eq.${valorNumerico}`;
+        filtros.push(`valor.eq.${valorNumerico}`);
       }
 
-      query = query.or(filtros);
+      query = query.or(filtros.join(',')).limit(100);
     }
 
     const { data, error } = await query;

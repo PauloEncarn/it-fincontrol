@@ -85,6 +85,37 @@ const STATUS_BY_GROUP = {
   concluida: ['Concluída', 'Cancelada'],
 };
 
+const AUDIT_FIELD_LABELS = {
+  numero_nota: 'Nota fiscal',
+  serie: 'Serie',
+  valor: 'Valor',
+  valor_previsto: 'Valor previsto',
+  valor_boleto: 'Valor do boleto',
+  data_vencimento: 'Vencimento',
+  data_envio: 'Data envio TI',
+  competencia: 'Competencia',
+  fornecedor_id: 'Fornecedor',
+  filial_id: 'Filial',
+  contrato_id: 'Contrato cadastrado',
+  contrato_usado: 'Numero do contrato',
+  cnpj_usado: 'CNPJ',
+  centro_custo_usado: 'Centro de custo',
+  descricao_servico: 'Descricao',
+  servico_protheus: 'Produto Protheus',
+  numero_medicao: 'Medicao',
+  numero_pedido: 'Pedido',
+  solicitacao_fluig: 'Fluig',
+  observacao: 'Observacao',
+  arquivo_nota: 'Arquivo da nota',
+  arquivo_boleto: 'Arquivo do boleto',
+  boleto_grupo: 'Nota compartilhada',
+  observacao_boleto: 'Observacao do boleto',
+  etapa: 'Etapa',
+  status_pagamento: 'Status',
+};
+
+const auditFieldLabel = (field) => AUDIT_FIELD_LABELS[field] || String(field || '').replaceAll('_', ' ');
+
 const GROUP_BY_OPTIONS = [
   { value: 'fornecedor', label: 'Fornecedor' },
   { value: 'filial', label: 'Filial' },
@@ -677,7 +708,7 @@ export default function NotasView({
         <Stack spacing={0.5} sx={{ mt: 1 }}>
           {alterados.slice(0, 6).map((item) => (
             <Typography key={`${evento.id}-${item.campo}`} variant="caption" color="text.secondary">
-              <Box component="strong" sx={{ color: 'text.primary' }}>{item.campo}</Box>: {String(item.antes ?? '-')} {'->'} {String(item.depois ?? '-')}
+              <Box component="strong" sx={{ color: 'text.primary' }}>{auditFieldLabel(item.campo)}</Box>: {String(item.antes ?? '-')} {'->'} {String(item.depois ?? '-')}
             </Typography>
           ))}
           {alterados.length > 6 && (

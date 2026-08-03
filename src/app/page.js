@@ -17,6 +17,7 @@ import Sidebar from '@/frontend/components/layout/Sidebar';
 
 import DashboardView from '@/frontend/components/views/DashboardView';
 import NotasView from '@/frontend/components/views/NotasView'; 
+import PendenciasView from '@/frontend/components/views/PendenciasView';
 import ContratosView from '@/frontend/components/views/ContratosView';
 import SearchResultsView from '@/frontend/components/views/SearchResultsView';
 import SolicitacoesView from '@/frontend/components/views/SolicitacoesView';
@@ -101,6 +102,7 @@ function DashboardContent() {
       staleTime: 1000 * 60 * 5, // 5 minutos
       enabled: !!token && (
         currentView === 'notas' ||
+        currentView === 'pendencias' ||
         currentView === 'dashboard' ||
         currentView === 'solicitacoes' ||
         currentView === 'fornecedores' ||
@@ -122,6 +124,18 @@ function DashboardContent() {
           return lista; 
       }, 
       enabled: !!token && currentView === 'notas',
+      staleTime: 1000 * 60,
+      refetchOnWindowFocus: false
+  });
+
+  const { data: relatorioMensal = null, isLoading: loadingRelatorioMensal } = useQuery({
+      queryKey: ['relatorio_mensal', filialFiltro, competenciaNotas.getMonth(), competenciaNotas.getFullYear()],
+      queryFn: async () => {
+          const params = { filial_id: filialFiltro || undefined, mes: competenciaNotas.getMonth() + 1, ano: competenciaNotas.getFullYear() };
+          const res = await axios.get(`${API_URL}/relatorios/mensal/`, { ...authConfig, params });
+          return res.data;
+      },
+      enabled: !!token && currentView === 'pendencias',
       staleTime: 1000 * 60,
       refetchOnWindowFocus: false
   });
@@ -171,6 +185,7 @@ function DashboardContent() {
   const atualizarListas = async () => {
       // exact: false força atualização de chaves parciais (ex: notas_operacional independente do mes)
       await queryClient.invalidateQueries({ queryKey: ['notas_operacional'], exact: false });
+      await queryClient.invalidateQueries({ queryKey: ['relatorio_mensal'], exact: false });
       await queryClient.invalidateQueries({ queryKey: ['dashboard_full'], exact: false });
       await queryClient.invalidateQueries({ queryKey: ['solicitacoes'], exact: false });
       await queryClient.invalidateQueries({ queryKey: ['busca'], exact: false });
@@ -213,6 +228,7 @@ function DashboardContent() {
   }, [queryClient]);
 
   const invalidateNotaDependenciasLeves = useCallback(() => {
+      queryClient.invalidateQueries({ queryKey: ['relatorio_mensal'], exact: false });
       queryClient.invalidateQueries({ queryKey: ['notificacoes'], exact: false });
   }, [queryClient]);
 
@@ -233,6 +249,7 @@ function DashboardContent() {
           }
           queryClient.invalidateQueries({ queryKey: ['notas_operacional'], exact: false });
           queryClient.invalidateQueries({ queryKey: ['dashboard_full'], exact: false });
+          queryClient.invalidateQueries({ queryKey: ['relatorio_mensal'], exact: false });
           queryClient.invalidateQueries({ queryKey: ['notificacoes'], exact: false });
       },
       onError: () => {
@@ -695,6 +712,7 @@ function DashboardContent() {
   const titulosRodape = {
       'dashboard': 'Página Inicial',
       'notas': 'Lançamentos',
+      'pendencias': 'Pendencias e Fechamento',
       'contratos': 'Contratos',
       'solicitacoes': 'Solicitações de Compra',
       'filiais': 'Gerenciar Filiais',
@@ -730,7 +748,7 @@ function DashboardContent() {
 
             <Box sx={{ width: '100%', maxWidth: 1680, mx: 'auto', px: { xs: 2, md: 3 }, py: 3, pb: 8 }}>
                 {/* Busca Global só aparece se não estiver nas Views com Filtro Local */}
-                {termoBusca.length > 2 && currentView !== 'dashboard' && currentView !== 'notas' && currentView !== 'solicitacoes' ? (
+                {termoBusca.length > 2 && currentView !== 'dashboard' && currentView !== 'notas' && currentView !== 'pendencias' && currentView !== 'solicitacoes' ? (
                     <SearchResultsView termoBusca={termoBusca} carregando={carregandoBusca} resultados={dadosBusca} onEditar={abrirEdicaoLancamento} />
                 ) : (
                     <>
@@ -766,6 +784,20 @@ function DashboardContent() {
                                 busca={termoBusca}
                                 onRefresh={handleManualRefresh}
                                 addToast={addToast}
+                            />
+                        )}
+
+                        {currentView === 'pendencias' && (
+                            <PendenciasView
+                                relatorio={relatorioMensal}
+                                loading={loadingRelatorioMensal}
+                                competencia={competenciaNotas}
+                                setCompetencia={setCompetenciaNotas}
+                                filiais={filiais}
+                                filialFiltro={filialFiltro}
+                                setFilialFiltro={setFilialFiltro}
+                                onEditar={abrirEdicaoLancamento}
+                                onRefresh={handleManualRefresh}
                             />
                         )}
 
